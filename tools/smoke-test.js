@@ -243,6 +243,35 @@ function check(cond, msg) {
     await page.screenshot({ path: process.env.SHOTS + '/5-preview-covered.png' });
   }
 
+  // 14. rotonde: terreno artificiale con un gradino (quota 3 dietro, quota 2 davanti)
+  const rb = await page.evaluate(() => {
+    newGame(1);
+    const N = game.size, c = N / 2;
+    for (const row of game.map) for (const t of row) { t.type = T.GRASS; t.road = false; t.building = null; }
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) game.map[y][x].elev = y < c ? 3 : 2;
+    game.maxElev = 3;
+    const r = {};
+    // in piano, con una strada che entra da ovest
+    const fx = c - 8, fy = c + 4;
+    for (const [x, y] of [[fx, fy], [fx + 1, fy], [fx, fy + 1], [fx + 1, fy + 1], [fx - 1, fy]]) buildRoad(x, y);
+    r.flat = !!game.map[fy][fx].rb && game.map[fy][fx].rb.slope === -1 && roadLinked(fx - 1, fy, 1);
+    // sul gradino: 2 sopra (y = c-1) e 2 sotto (y = c), strade che entrano da sopra e da sotto
+    const sx = c + 2, sy = c - 1;
+    for (const [x, y] of [[sx, sy], [sx + 1, sy], [sx, sy + 1], [sx + 1, sy + 1], [sx, sy - 1], [sx + 1, sy + 2]]) buildRoad(x, y);
+    r.slope = game.map[sy + 1][sx].rb && game.map[sy + 1][sx].rb.low && rampDir(sx, sy + 1) === 0 && rampDir(sx, sy) === -1;
+    r.slopeLinks = roadLinked(sx, sy - 1, 2) && roadLinked(sx + 1, sy + 2, 0) && roadLinked(sx, sy + 1, 0);
+    r.count = game.roundabouts;
+    // demolendo un pezzo la rotonda sparisce
+    demolish(fx, fy);
+    r.removed = !game.map[fy + 1][fx + 1].rb && game.roundabouts === 1;
+    return r;
+  });
+  check(rb.flat, 'rotonda in piano creata e collegata alla strada che entra');
+  check(rb.slope, 'rotonda sul gradino: i 2 tile bassi diventano rampe');
+  check(rb.slopeLinks, 'rotonda sul gradino collegata sopra, sotto e al suo interno');
+  check(rb.count === 2, `rotonde contate: ${rb.count}`);
+  check(rb.removed, 'demolendo un pezzo, la rotonda torna strada normale');
+
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();
 })();

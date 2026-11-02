@@ -65,6 +65,70 @@ function drawRoad(c, x, y, P) {
   }
 }
 
+// Pezzo di rotonda: ogni tile disegna la sua parte (un quarto) dell'isola e della corsia
+// circolare, ritagliata dentro il proprio rombo. Così funziona anche sul gradino.
+const ISLAND_COLOR = '#5aa845';
+const ISLAND_INNER = '#4a9a3c';
+function drawRoundabout(c, x, y, P) {
+  const rb = game.map[y][x].rb;
+  const qx = x - rb.ax, qy = y - rb.ay;            // quale quarto del quadrato 2x2
+  const B = (U, V) => P(U - qx, V - qy);            // (U, V) da 0 a 2 nel quadrato -> schermo
+  const circle = r => {
+    const pts = [];
+    for (let i = 0; i < 48; i++) {
+      const a = i / 48 * Math.PI * 2;
+      pts.push(B(1 + r * Math.cos(a), 1 + r * Math.sin(a)));
+    }
+    return pts;
+  };
+  const path = pts => {
+    c.beginPath(); c.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) c.lineTo(pts[i][0], pts[i][1]);
+    c.closePath();
+  };
+
+  const edges = [[[0, 0], [1, 0]], [[1, 0], [1, 1]], [[1, 1], [0, 1]], [[0, 1], [0, 0]]];
+  const mids = [[0.5, 0], [1, 0.5], [0.5, 1], [0, 0.5]];
+  const RING = 0.72; // raggio della corsia (in tile)
+
+  // area di ritaglio = rombo del tile allargato di ~1 pixel: copre il bordo che il tile
+  // appena disegnato lascia sui vicini, così nell'isola non restano righe tra i 4 quarti
+  const ex = 0.06;
+  c.save();
+  path([P(-ex, -ex), P(1 + ex, -ex), P(1 + ex, 1 + ex), P(-ex, 1 + ex)]);
+  c.clip();
+
+  // ingressi: linea gialla dal bordo collegato fino alla corsia circolare
+  for (let d = 0; d < 4; d++) {
+    const nx = x + DIRS[d].dx, ny = y + DIRS[d].dy;
+    if (sameRoundabout(x, y, nx, ny) || !roadLinked(x, y, d)) continue;
+    const mU = qx + mids[d][0], mV = qy + mids[d][1];
+    const len = Math.hypot(mU - 1, mV - 1);
+    line(c, B(mU, mV), B(1 + (mU - 1) / len * RING, 1 + (mV - 1) / len * RING), LANE_COLOR);
+  }
+
+  // corsia circolare tratteggiata
+  c.setLineDash([3, 3]);
+  path(circle(RING));
+  c.strokeStyle = LANE_COLOR; c.lineWidth = 1; c.stroke();
+  c.setLineDash([]);
+
+  // isola centrale con cordolo
+  path(circle(0.42));
+  c.fillStyle = ISLAND_COLOR; c.fill();
+  c.strokeStyle = CURB_COLOR; c.lineWidth = 1; c.stroke();
+  path(circle(0.22));
+  c.fillStyle = ISLAND_INNER; c.fill();
+  c.restore();
+
+  // cordoli sui lati esterni senza strada collegata
+  for (let d = 0; d < 4; d++) {
+    const nx = x + DIRS[d].dx, ny = y + DIRS[d].dy;
+    if (sameRoundabout(x, y, nx, ny) || roadLinked(x, y, d)) continue;
+    line(c, P(...edges[d][0]), P(...edges[d][1]), CURB_COLOR);
+  }
+}
+
 function drawHouse(c, sx, sy, variant) {
   const s = HOUSE_STYLES[variant % HOUSE_STYLES.length];
   const hw = 12, hh = 6, h = 14;
@@ -116,7 +180,10 @@ function drawTile(c, x, y, detail, onlyTop) {
   }
   poly(c, [P(0, 0), P(1, 0), P(1, 1), P(0, 1)], top);
 
-  if (t.road) { drawRoad(c, x, y, P); return; }
+  if (t.road) {
+    if (t.rb) drawRoundabout(c, x, y, P); else drawRoad(c, x, y, P);
+    return;
+  }
 
   const sx = (x - y) * TW / 2;
   const sy = (x + y) * TH / 2 - t.elev * STEP;
@@ -144,8 +211,10 @@ function previewTile() {
 // (possono cambiare forma, ad esempio diventare una rampa, o collegarsi alla nuova strada)
 function previewTiles(p) {
   const list = [p];
+  // anche le diagonali: la nuova strada può completare una rotonda 2x2
   if (game.tool === 'road')
-    for (const D of DIRS) if (roadAt(p.x + D.dx, p.y + D.dy)) list.push({ x: p.x + D.dx, y: p.y + D.dy });
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++)
+      if ((dx || dy) && roadAt(p.x + dx, p.y + dy)) list.push({ x: p.x + dx, y: p.y + dy });
   return list;
 }
 
@@ -153,9 +222,12 @@ function previewTiles(p) {
 function withPreview(p, draw) {
   const t = game.map[p.y][p.x];
   const saved = { road: t.road, building: t.building };
-  if (game.tool === 'road') t.road = true;
+  if (game.tool === 'road') { t.road = true; updateRoundabouts(); }
   else t.building = { kind: 'house', variant: houseVariant(p.x, p.y) };
-  try { draw(); } finally { t.road = saved.road; t.building = saved.building; }
+  try { draw(); } finally {
+    t.road = saved.road; t.building = saved.building;
+    if (game.tool === 'road') updateRoundabouts();
+  }
 }
 
 function drawHover(c) {

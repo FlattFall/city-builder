@@ -11,10 +11,14 @@ function createWindow() {
   });
   win.loadFile('index.html');
 
-  // F11 = schermo intero
+  // F11 = schermo intero, F5 = ricarica il gioco (utile dopo aver aggiornato i file)
   win.webContents.on('before-input-event', (event, input) => {
-    if (input.type === 'keyDown' && input.key === 'F11') {
+    if (input.type !== 'keyDown') return;
+    if (input.key === 'F11') {
       win.setFullScreen(!win.isFullScreen());
+      event.preventDefault();
+    } else if (input.key === 'F5') {
+      win.webContents.reloadIgnoringCache();
       event.preventDefault();
     }
   });

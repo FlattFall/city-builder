@@ -1,32 +1,31 @@
 # City Builder
 
-City builder isometrico in stile retro. Per ora: terreno 128x128, strade, case e demolizione.
+City builder isometrico in stile retro. Per ora: terreno 128x128, strade con rampe e rotonde, case e demolizione.
 
-## Provarlo sul tuo PC
+## Provare l'ultima versione (il modo più veloce)
 
-1. Installa Node.js (versione LTS) da https://nodejs.org
-2. Apri un terminale nella cartella del progetto ed esegui:
+Ad ogni modifica, GitHub pubblica da solo la versione web del gioco in un paio di minuti:
 
-```
-npm install
-npm start
-```
+**https://flattfall.github.io/city-builder/**
 
-Si apre la finestra del gioco.
+Basta aprire il link (o premere F5 se è già aperto). Lo stato della pubblicazione si vede in **Actions** > **Versione web**.
+
+## Avviarlo come programma, sempre aggiornato
+
+Una volta sola:
+1. Installa **Node.js** (versione LTS) da https://nodejs.org e **Git** da https://git-scm.com
+2. Apri un terminale nella cartella dove vuoi il gioco ed esegui:
+   ```
+   git clone https://github.com/FlattFall/city-builder.git
+   ```
+
+Da quel momento fai doppio clic su **`avvia.bat`** nella cartella `city-builder`: scarica le novità da GitHub e apre il gioco. Se il gioco è già aperto e hai aggiornato i file, premi **F5** per ricaricarlo.
 
 ## Creare l'eseguibile (.exe)
 
-```
-npm run dist
-```
+Con GitHub: **Actions** > **Build Windows** > **Run workflow**, poi scarica l'.exe dalla sezione **Artifacts**.
 
-Il file `.exe` compare nella cartella `dist/`. E' portatile: basta un doppio clic.
-
-## Creare l'.exe con GitHub (senza installare nulla)
-
-1. Crea un repository su GitHub e carica tutti i file di questa cartella (compresa `.github`).
-2. Vai su **Actions** > **Build Windows** > **Run workflow**.
-3. Al termine, scarica l'.exe dalla sezione **Artifacts**.
+Sul tuo PC: `npm install` e poi `npm run dist`; l'.exe compare nella cartella `dist/`.
 
 ## Comandi nel gioco
 
@@ -35,6 +34,11 @@ Il file `.exe` compare nella cartella `dist/`. E' portatile: basta un doppio cli
 - Tasto destro o centrale + trascina, oppure WASD/frecce: muovi la mappa
 - Rotella: zoom
 - R: nuovo terreno (chiede conferma se hai costruito qualcosa)
-- F11: schermo intero
+- F11: schermo intero, F5: ricarica (nella versione programma)
+
+## Strade
+
+- Una strada che sale dritta di un livello crea una **rampa**.
+- Un quadrato **2x2** di strade diventa una **rotonda**, sia in piano sia su un gradino (2 tile sopra e 2 sotto). Sul gradino si entra da sopra, da sotto e dai lati della parte alta.
 
 Il codice è diviso in file dentro `js/`: vedi `CLAUDE.md` per la struttura.

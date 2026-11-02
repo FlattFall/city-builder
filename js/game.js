@@ -7,6 +7,7 @@ const game = {
   money: START_MONEY,
   tool: 'hand',
   roads: 0,
+  roundabouts: 0,
   houses: 0,
   hover: null,   // tile sotto il mouse { x, y }
 };
@@ -28,6 +29,8 @@ function cornerIndex(u, v) { return u === 0 ? (v === 0 ? 0 : 3) : (v === 0 ? 1 :
 // Restituisce la direzione (0-3) oppure -1 se il tile è piatto.
 function rampDir(x, y) {
   if (!roadAt(x, y)) return -1;
+  const rb = game.map[y][x].rb;
+  if (rb) return rb.low ? rb.slope : -1;   // nelle rotonde decide la rotonda
   const e = game.map[y][x].elev;
   let dir = -1;
   for (let i = 0; i < 4; i++) {
@@ -85,6 +88,48 @@ function topHeightPx(x, y) {
   return Math.max(...cornerHeights(x, y)) * STEP + (t.building ? 16 : 0);
 }
 
+// ---------- Rotonde ----------
+// Un quadrato 2x2 di strade diventa una rotonda. Può essere in piano oppure su un gradino
+// (2 tile sopra e 2 sotto, dislivello di 1): in quel caso i 2 tile bassi diventano rampe.
+// Restituisce -1 se in piano, la direzione della salita (0-3) se sul gradino, null se non va bene.
+function roundaboutSlope(x, y) {
+  const a = game.map[y][x].elev, b = game.map[y][x + 1].elev;       // fila dietro (y)
+  const c = game.map[y + 1][x].elev, d = game.map[y + 1][x + 1].elev; // fila davanti (y+1)
+  if (a === b && b === c && c === d) return -1;
+  if (a === c && b === d && b === a + 1) return 1; // sale verso +x (SE)
+  if (a === c && b === d && a === b + 1) return 3; // sale verso -x (NW)
+  if (a === b && c === d && c === a + 1) return 2; // sale verso +y (SW)
+  if (a === b && c === d && a === c + 1) return 0; // sale verso -y (NE)
+  return null;
+}
+
+// Ricalcola tutte le rotonde (da chiamare quando cambia una strada).
+// Ogni tile di una rotonda riceve t.rb = { ax, ay, slope, low }: angolo del quadrato,
+// direzione della salita (-1 se in piano) e se è uno dei tile bassi.
+function updateRoundabouts() {
+  const N = game.size;
+  for (const row of game.map) for (const t of row) t.rb = null;
+  let count = 0;
+  for (let y = 0; y < N - 1; y++)
+    for (let x = 0; x < N - 1; x++) {
+      if (!game.map[y][x].road) continue; // controllo veloce: quasi tutti i tile non sono strade
+      const tiles = [game.map[y][x], game.map[y][x + 1], game.map[y + 1][x], game.map[y + 1][x + 1]];
+      if (tiles.some(t => !t.road || t.rb)) continue;
+      const slope = roundaboutSlope(x, y);
+      if (slope === null) continue;
+      const low = Math.min(...tiles.map(t => t.elev));
+      for (const t of tiles) t.rb = { ax: x, ay: y, slope, low: slope >= 0 && t.elev === low };
+      count++;
+    }
+  game.roundabouts = count;
+}
+
+function sameRoundabout(x, y, nx, ny) {
+  if (!inMap(x, y) || !inMap(nx, ny)) return false;
+  const a = game.map[y][x].rb, b = game.map[ny][nx].rb;
+  return !!a && !!b && a.ax === b.ax && a.ay === b.ay;
+}
+
 function houseVariant(x, y) { return Math.floor(hash(x, y, 3) * 3); }
 
 // Dove si può costruire (niente acqua, roccia o neve)
@@ -101,6 +146,7 @@ function newGame(seed) {
   game.map = generateTerrain(seed, game.size);
   game.money = START_MONEY;
   game.roads = 0;
+  game.roundabouts = 0;
   game.houses = 0;
   game.hover = null;
   game.maxElev = 0;
@@ -130,6 +176,7 @@ function buildRoad(x, y) {
   t.road = true;
   if (t.type === T.FOREST) t.type = T.GRASS; // gli alberi vengono rimossi
   game.roads++;
+  updateRoundabouts();
   return { ok: true };
 }
 
@@ -158,6 +205,7 @@ function demolish(x, y) {
   if (t.road) {
     if (!spend(COSTS.demolishRoad)) return { ok: false, msg: 'Fondi insufficienti' };
     t.road = false; game.roads--;
+    updateRoundabouts();
     return { ok: true };
   }
   if (t.type === T.FOREST) {

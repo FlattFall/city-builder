@@ -19,6 +19,14 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - Anteprima: `withPreview` costruisce per finta, disegna e annulla. Anteprima e contorno della selezione si disegnano in ordine, subito dopo il loro tile, così i blocchi davanti li coprono (scelta dell'utente). Il contorno è rientrato di 0.1 per non essere coperto dai vicini allo stesso livello.
 - `pickTile` tratta ogni tile come una colonna dal suolo al punto più alto (edifici compresi) e prende quella disegnata per ultima: funziona su pareti e case.
 
+## Rotonde
+- `updateRoundabouts()` (va chiamata dopo ogni modifica alle strade) assegna `t.rb = { ax, ay, slope, low }` ai blocchi 2x2 di strade, in modo greedy. In piano `slope = -1`; su un gradino di 1 livello `slope` è la direzione di salita e i tile `low` diventano rampe (`rampDir` dà la precedenza a `rb`).
+- `drawRoundabout` disegna isola e corsia per quarti, ritagliati sul rombo del tile (allargato di poco per non lasciare righe).
+
+## Pubblicazione e prove
+- `.github/workflows/pages.yml` pubblica index.html, style.css e js/ su GitHub Pages ad ogni push su main (https://flattfall.github.io/city-builder/). Pages va attivato a mano: Settings > Pages > Source: GitHub Actions.
+- `avvia.bat` (CRLF): git pull + npm start. In Electron F5 ricarica.
+
 ## Aggiungere uno strumento
 1. Voce in `TOOLS` (`js/ui.js`), con tasto e etichetta.
 2. Regola in `canUseTool` e azione in `useTool` (`js/game.js`); ogni azione restituisce `{ ok, msg?, silent? }`.
