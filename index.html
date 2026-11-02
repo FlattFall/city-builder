@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>City Builder</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #1a1c2c; overflow: hidden; font-family: monospace; }
+  canvas { display: block; cursor: grab; }
+  canvas.drag { cursor: grabbing; }
+  #hud { position: fixed; top: 8px; left: 8px; color: #f4f4f4; background: rgba(0,0,0,.55); padding: 8px 10px; font-size: 13px; line-height: 1.5; }
+  #hud button { font: inherit; margin-top: 4px; padding: 4px 8px; cursor: pointer; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div>Seed: <span id="seed"></span> | Mappa: <span id="size"></span></div>
+  <div>Tile: <span id="info">-</span></div>
+  <div>Trascina o WASD/frecce = muovi | Rotella = zoom</div>
+  <div>R = nuovo terreno | F11 = schermo intero</div>
+  <button id="regen">Nuovo terreno</button>
+</div>
+
+<script>
+// ---------- Impostazioni ----------
+const N = 128;           // dimensione mappa (N x N tile). Prova 96, 128, 192, 256
+const TW = 32, TH = 16;  // dimensioni del rombo di un tile
+const STEP = 8;          // altezza in pixel di un livello di quota
+const OY = 120;          // margine sopra la mappa per montagne e alberi
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H;
+function resize() { W = canvas.width = innerWidth; H = canvas.height = innerHeight; draw(); }
+addEventListener('resize', resize);
+
+// ---------- Rumore ----------
+function hash(ix, iy, s) {
+  let h = Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(s, 982451653);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967295;
+}
+function noise(x, y, s) {
+  const ix = Math.floor(x), iy = Math.floor(y);
+  let fx = x - ix, fy = y - iy;
+  fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+  const a = hash(ix, iy, s), b = hash(ix + 1, iy, s);
+  const c = hash(ix, iy + 1, s), d = hash(ix + 1, iy + 1, s);
+  return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
+}
+function fbm(x, y, s) {
+  let v = 0, amp = 0.5, f = 1, tot = 0;
+  for (let i = 0; i < 5; i++) { v += noise(x * f, y * f, s + i * 101) * amp; tot += amp; amp /= 2; f *= 2; }
+  return v / tot;
+}
+
+// ---------- Tipi di terreno ----------
+const T = { WATER: 0, SAND: 1, GRASS: 2, FOREST: 3, ROCK: 4, SNOW: 5 };
+const NAMES = ['Acqua', 'Sabbia', 'Erba', 'Foresta', 'Roccia', 'Neve'];
+const COLORS = {
+  [T.WATER]:  ['#2f6fb3', '#265b96', '#1f4a7c'],
+  [T.SAND]:   ['#e8d28a', '#c9b06b', '#a8904f'],
+  [T.GRASS]:  ['#5aa845', '#478a38', '#386f2d'],
+  [T.FOREST]: ['#3f8f3a', '#327530', '#265c26'],
+  [T.ROCK]:   ['#8a8478', '#6f695f', '#58534b'],
+  [T.SNOW]:   ['#f2f5f8', '#c9d2dc', '#a5b0bd'],
+};
+// [superficie, parete sinistra, parete destra]
+
+let seed, map, off;
+
+function generate(s) {
+  seed = s;
+  document.getElementById('seed').textContent = seed;
+  document.getElementById('size').textContent = N + 'x' + N;
+  const scale = 0.045 * (64 / N) + 0.02; // le caratteristiche restano grandi anche con mappe grandi
+  map = [];
+  for (let y = 0; y < N; y++) {
+    const row = [];
+    for (let x = 0; x < N; x++) {
+      const dx = (x - N / 2) / (N / 2), dy = (y - N / 2) / (N / 2);
+      const d = Math.sqrt(dx * dx + dy * dy);
+      const v = fbm(x * scale * 1.6, y * scale * 1.6, seed) * 1.15 - d * d * 0.5;
+      let type, elev;
+      if (v < 0.32) { type = T.WATER; elev = 0; }
+      else {
+        elev = 1 + Math.floor((v - 0.32) / 0.09);
+        if (v < 0.37) type = T.SAND;
+        else if (v < 0.62) type = fbm(x * 0.12, y * 0.12, seed + 777) > 0.55 ? T.FOREST : T.GRASS;
+        else if (v < 0.75) type = T.ROCK;
+        else type = T.SNOW;
+      }
+      row.push({ type, elev });
+    }
+    map.push(row);
+  }
+  renderMap();
+}
+
+// ---------- Disegno della mappa (una volta sola, su un canvas nascosto) ----------
+let g; // contesto su cui si sta disegnando
+
+function elevAt(x, y) { return (x < 0 || y < 0 || x >= N || y >= N) ? 0 : map[y][x].elev; }
+
+function poly(pts, color) {
+  g.fillStyle = color; g.strokeStyle = color; g.lineWidth = 1;
+  g.beginPath();
+  g.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]);
+  g.closePath(); g.fill(); g.stroke();
+}
+
+function drawTree(sx, sy, x, y) {
+  const ox = Math.round((hash(x, y, 5) - 0.5) * 10);
+  const oy = Math.round((hash(x, y, 9) - 0.5) * 4);
+  const bx = Math.round(sx) + ox, by = Math.round(sy) + 8 + oy;
+  g.fillStyle = '#5b3a1e'; g.fillRect(bx - 1, by - 3, 2, 4);
+  g.fillStyle = '#1f5a24'; g.fillRect(bx - 4, by - 9, 8, 6);
+  g.fillStyle = '#2f7a30'; g.fillRect(bx - 3, by - 12, 6, 4);
+  g.fillStyle = '#4a9a3c'; g.fillRect(bx - 1, by - 14, 3, 3);
+}
+
+function renderMap() {
+  off = document.createElement('canvas');
+  off.width = N * TW;
+  off.height = N * TH + OY + 100;
+  g = off.getContext('2d');
+  g.translate(N * TW / 2, OY);
+
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const t = map[y][x];
+      const sx = (x - y) * TW / 2;
+      const sy = (x + y) * TH / 2 - t.elev * STEP;
+      const c = COLORS[t.type];
+
+      const wl = (t.elev - elevAt(x, y + 1)) * STEP;
+      const wr = (t.elev - elevAt(x + 1, y)) * STEP;
+      if (wl > 0) poly([[sx - TW / 2, sy + TH / 2], [sx, sy + TH], [sx, sy + TH + wl], [sx - TW / 2, sy + TH / 2 + wl]], c[1]);
+      if (wr > 0) poly([[sx, sy + TH], [sx + TW / 2, sy + TH / 2], [sx + TW / 2, sy + TH / 2 + wr], [sx, sy + TH + wr]], c[2]);
+
+      poly([[sx, sy], [sx + TW / 2, sy + TH / 2], [sx, sy + TH], [sx - TW / 2, sy + TH / 2]], c[0]);
+
+      for (let i = 0; i < 3; i++) {
+        const px = Math.round(sx + (hash(x, y, 20 + i) - 0.5) * 16);
+        const py = Math.round(sy + 5 + (hash(x, y, 40 + i) - 0.5) * 6);
+        g.fillStyle = c[1];
+        g.fillRect(px, py, 1, 1);
+      }
+      if (t.type === T.FOREST) drawTree(sx, sy, x, y);
+    }
+  }
+}
+
+// ---------- Camera e schermo ----------
+const ZOOMS = [0.5, 1, 2, 3, 4];
+let zi = 2, zoom = ZOOMS[zi];
+let camX = 0, camY = 0;
+let hover = null;
+
+function draw() {
+  if (!off) return;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#1a1c2c'; ctx.fillRect(0, 0, W, H);
+  ctx.imageSmoothingEnabled = false;
+  ctx.setTransform(zoom, 0, 0, zoom, Math.round(camX), Math.round(camY));
+  ctx.drawImage(off, -N * TW / 2, -OY);
+
+  if (hover) {
+    const t = map[hover.y][hover.x];
+    const sx = (hover.x - hover.y) * TW / 2;
+    const sy = (hover.x + hover.y) * TH / 2 - t.elev * STEP;
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy); ctx.lineTo(sx + TW / 2, sy + TH / 2);
+    ctx.lineTo(sx, sy + TH); ctx.lineTo(sx - TW / 2, sy + TH / 2); ctx.closePath();
+    ctx.stroke();
+  }
+}
+
+function centerCamera() {
+  camX = W / 2;
+  camY = H / 2 - zoom * (N * TH / 2);
+}
+
+function screenToTile(mx, my) {
+  const wx = (mx - camX) / zoom, wy = (my - camY) / zoom;
+  const a = wx / (TW / 2), b = (wy - TH / 2) / (TH / 2);
+  const x = Math.floor((a + b) / 2 + 0.5), y = Math.floor((b - a) / 2 + 0.5);
+  return (x >= 0 && y >= 0 && x < N && y < N) ? { x, y } : null;
+}
+
+// ---------- Input ----------
+let dragging = false, lastX = 0, lastY = 0;
+
+canvas.addEventListener('mousedown', e => { dragging = true; lastX = e.clientX; lastY = e.clientY; canvas.classList.add('drag'); });
+addEventListener('mouseup', () => { dragging = false; canvas.classList.remove('drag'); });
+addEventListener('mousemove', e => {
+  if (dragging) { camX += e.clientX - lastX; camY += e.clientY - lastY; lastX = e.clientX; lastY = e.clientY; }
+  hover = screenToTile(e.clientX, e.clientY);
+  const info = document.getElementById('info');
+  if (hover) { const t = map[hover.y][hover.x]; info.textContent = `${hover.x},${hover.y} - ${NAMES[t.type]} (quota ${t.elev})`; }
+  else info.textContent = '-';
+  draw();
+});
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const old = zoom;
+  zi = Math.min(ZOOMS.length - 1, Math.max(0, zi + (e.deltaY < 0 ? 1 : -1)));
+  zoom = ZOOMS[zi];
+  camX = e.clientX - (e.clientX - camX) * zoom / old;
+  camY = e.clientY - (e.clientY - camY) * zoom / old;
+  draw();
+}, { passive: false });
+
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  const s = 48;
+  if (k === 'r') newTerrain();
+  else if (k === 'w' || k === 'arrowup') camY += s;
+  else if (k === 's' || k === 'arrowdown') camY -= s;
+  else if (k === 'a' || k === 'arrowleft') camX += s;
+  else if (k === 'd' || k === 'arrowright') camX -= s;
+  else return;
+  draw();
+});
+
+function newTerrain() { generate(Math.floor(Math.random() * 100000)); centerCamera(); draw(); }
+document.getElementById('regen').addEventListener('click', e => { newTerrain(); e.target.blur(); });
+
+resize();
+generate(Math.floor(Math.random() * 100000));
+centerCamera();
+draw();
+</script>
+</body>
+</html>
