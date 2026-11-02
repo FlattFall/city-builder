@@ -22,7 +22,7 @@ function paintTo(tile) {
   for (const p of path) {
     if (lastTile && p.x === lastTile.x && p.y === lastTile.y) continue;
     const r = useTool(game.tool, p.x, p.y);
-    if (r.ok) changed = true;
+    if (r.ok) { changed = true; game.dirty = true; }
     else if (r.msg) toast(r.msg);
   }
   lastTile = tile;
@@ -49,6 +49,7 @@ addEventListener('mouseup', () => {
 });
 
 addEventListener('mousemove', e => {
+  if (menuIsOpen()) return;
   if (panning) {
     cam.x += e.clientX - lastX; cam.y += e.clientY - lastY;
     lastX = e.clientX; lastY = e.clientY;
@@ -66,21 +67,13 @@ canvas.addEventListener('wheel', e => {
   requestDraw();
 }, { passive: false });
 
-function newTerrain() {
-  if ((game.roads > 0 || game.houses > 0) && !confirm('Generare un nuovo terreno? La città attuale andrà persa.')) return;
-  newGame(Math.floor(Math.random() * 100000));
-  centerCamera();
-  updateHud(); updateInfo();
-  requestDraw();
-}
-
+// (Esc apre il menu: vedi menu.js. Nuova mappa e caricamento sono nel menu.)
 addEventListener('keydown', e => {
+  if (menuIsOpen()) return; // con il menu aperto la tastiera non comanda il gioco
   const k = e.key.toLowerCase();
   const s = 48;
   const tool = TOOLS.find(t => t.key === e.key);
   if (tool) setTool(tool.id);
-  else if (k === 'escape') setTool('hand');
-  else if (k === 'r') newTerrain();
   else if (k === 'w' || k === 'arrowup') cam.y += s;
   else if (k === 's' || k === 'arrowdown') cam.y -= s;
   else if (k === 'a' || k === 'arrowleft') cam.x += s;

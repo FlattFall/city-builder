@@ -12,11 +12,12 @@ function loop() {
 }
 
 resize();
+// All'avvio una mappa casuale fa da sfondo al menu principale (non è ancora una partita)
 newGame(Math.floor(Math.random() * 100000));
 centerCamera();
 buildToolbar();
-document.getElementById('regen').addEventListener('click', e => { newTerrain(); e.target.blur(); });
+initMenu();
 updateHud();
 updateInfo();
-requestDraw();
+openMenu('main');
 loop();

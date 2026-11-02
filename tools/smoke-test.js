@@ -21,6 +21,18 @@ function check(cond, msg) {
   await page.waitForTimeout(300);
   await page.screenshot({ path: process.env.SHOTS + '/1-start.png' });
 
+  // 0. all'avvio c'è il menu principale, senza "Riprendi"; Esc non lo chiude
+  const m0 = await page.evaluate(() => ({ open: !document.getElementById('menu').hidden, resume: !document.getElementById('m-resume').hidden, started: game.started }));
+  check(m0.open && !m0.resume && !m0.started, 'avvio: menu aperto, senza Riprendi');
+  await page.keyboard.press('Escape');
+  check(await page.evaluate(() => !document.getElementById('menu').hidden), 'avvio: Esc non chiude il menu senza una mappa');
+  await page.click('#m-options');
+  check(await page.isVisible('text=Ci stiamo lavorando'), 'Opzioni: messaggio "ci stiamo lavorando"');
+  await page.keyboard.press('Escape');
+  await page.click('#m-new');
+  const m1 = await page.evaluate(() => ({ open: !document.getElementById('menu').hidden, started: game.started }));
+  check(!m1.open && m1.started, 'Nuova mappa: menu chiuso e partita iniziata');
+
   // 1. il picking deve restituire il tile giusto (per i tile non coperti da altri)
   const pick = await page.evaluate(() => {
     let ok = 0, tot = 0, hidden = 0;
@@ -142,10 +154,27 @@ function check(cond, msg) {
   const cam1 = await page.evaluate(() => ({ x: cam.x, y: cam.y }));
   check(cam1.x !== cam0.x, 'strumento Mano: la mappa si sposta');
 
-  // 10. nuovo terreno azzera la città
-  await page.keyboard.press('r');
+  // 10. salva, modifica, carica: torna com'era al salvataggio
+  await page.keyboard.press('Escape');
+  check(await page.isVisible('#m-resume') && await page.isVisible('#m-save'), 'in partita il menu mostra Riprendi e Salva');
+  await page.screenshot({ path: process.env.SHOTS + '/1b-pause-menu.png' });
+  const savedRoads = await page.evaluate(() => game.roads);
+  await page.click('#m-save');
+  check(await page.isVisible('text=Partita salvata'), 'Salva partita: messaggio di conferma');
+  await page.click('#m-resume');
+  await page.evaluate(([x, y]) => { buildRoad(x, y + 3); buildRoad(x + 1, y + 3); game.dirty = true; }, [run.x, run.y]);
+  await page.keyboard.press('Escape');
+  await page.click('#m-load');
+  await page.screenshot({ path: process.env.SHOTS + '/1c-load-menu.png' });
+  await page.click('.save-row button:text("Carica")');
+  const loaded = await page.evaluate(() => ({ roads: game.roads, open: !document.getElementById('menu').hidden }));
+  check(loaded.roads === savedRoads && !loaded.open, `Carica mappa: strade ${loaded.roads} (salvate ${savedRoads})`);
+
+  // 10b. nuova mappa dal menu azzera la città
+  await page.keyboard.press('Escape');
+  await page.click('#m-new');
   const reset = await page.evaluate(() => ({ r: game.roads, h: game.houses, m: game.money }));
-  check(reset.r === 0 && reset.h === 0, `nuovo terreno: strade ${reset.r}, case ${reset.h}, fondi ${reset.m}`);
+  check(reset.r === 0 && reset.h === 0, `nuova mappa: strade ${reset.r}, case ${reset.h}, fondi ${reset.m}`);
 
   // 11. rampe: cerca A (livello e), B davanti ad A in una direzione (livello e+1), C dietro ad A (livello e)
   const ramp = await page.evaluate(() => {
@@ -254,12 +283,17 @@ function check(cond, msg) {
     // in piano, con una strada che entra da ovest
     const fx = c - 8, fy = c + 4;
     for (const [x, y] of [[fx, fy], [fx + 1, fy], [fx, fy + 1], [fx + 1, fy + 1], [fx - 1, fy]]) buildRoad(x, y);
-    r.flat = !!game.map[fy][fx].rb && game.map[fy][fx].rb.slope === -1 && roadLinked(fx - 1, fy, 1);
-    // sul gradino: 2 sopra (y = c-1) e 2 sotto (y = c), strade che entrano da sopra e da sotto
+    r.flat = !!game.map[fy][fx].rb && game.map[fy][fx].rb.level === 2 && roadLinked(fx - 1, fy, 1);
+    // sul gradino: 2 sopra (y = c-1, quota 3) e 2 sotto (y = c, quota 2), strade che entrano
+    // da sopra, da sotto e dai due lati della parte bassa (con altri due tile dopo le rampe laterali)
     const sx = c + 2, sy = c - 1;
-    for (const [x, y] of [[sx, sy], [sx + 1, sy], [sx, sy + 1], [sx + 1, sy + 1], [sx, sy - 1], [sx + 1, sy + 2]]) buildRoad(x, y);
-    r.slope = game.map[sy + 1][sx].rb && game.map[sy + 1][sx].rb.low && rampDir(sx, sy + 1) === 0 && rampDir(sx, sy) === -1;
+    for (const [x, y] of [[sx, sy], [sx + 1, sy], [sx, sy + 1], [sx + 1, sy + 1], [sx, sy - 1], [sx + 1, sy + 2],
+                          [sx + 2, sy + 1], [sx + 3, sy + 1], [sx - 1, sy + 1], [sx - 2, sy + 1]]) buildRoad(x, y);
+    const flatTop = [[sx, sy], [sx + 1, sy], [sx, sy + 1], [sx + 1, sy + 1]].every(([x, y]) => cornerHeights(x, y).every(h => h === 3));
+    r.slope = flatTop && game.map[sy + 1][sx].rb.level === 3;
     r.slopeLinks = roadLinked(sx, sy - 1, 2) && roadLinked(sx + 1, sy + 2, 0) && roadLinked(sx, sy + 1, 0);
+    r.sideLinks = roadLinked(sx + 2, sy + 1, 3) && rampDir(sx + 2, sy + 1) === 3 && roadLinked(sx + 3, sy + 1, 3) &&
+                  roadLinked(sx - 1, sy + 1, 1) && rampDir(sx - 1, sy + 1) === 1 && roadLinked(sx - 2, sy + 1, 1);
     r.count = game.roundabouts;
     // demolendo un pezzo la rotonda sparisce
     demolish(fx, fy);
@@ -267,8 +301,9 @@ function check(cond, msg) {
     return r;
   });
   check(rb.flat, 'rotonda in piano creata e collegata alla strada che entra');
-  check(rb.slope, 'rotonda sul gradino: i 2 tile bassi diventano rampe');
-  check(rb.slopeLinks, 'rotonda sul gradino collegata sopra, sotto e al suo interno');
+  check(rb.slope, 'rotonda sul gradino: piazzola piana al livello alto');
+  check(rb.slopeLinks, 'rotonda sul gradino collegata sopra, sotto (con rampa) e al suo interno');
+  check(rb.sideLinks, 'rotonda sul gradino collegata anche dai lati della parte bassa (con rampe)');
   check(rb.count === 2, `rotonde contate: ${rb.count}`);
   check(rb.removed, 'demolendo un pezzo, la rotonda torna strada normale');
 

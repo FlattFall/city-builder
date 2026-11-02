@@ -20,8 +20,12 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - `pickTile` tratta ogni tile come una colonna dal suolo al punto più alto (edifici compresi) e prende quella disegnata per ultima: funziona su pareti e case.
 
 ## Rotonde
-- `updateRoundabouts()` (va chiamata dopo ogni modifica alle strade) assegna `t.rb = { ax, ay, slope, low }` ai blocchi 2x2 di strade, in modo greedy. In piano `slope = -1`; su un gradino di 1 livello `slope` è la direzione di salita e i tile `low` diventano rampe (`rampDir` dà la precedenza a `rb`).
-- `drawRoundabout` disegna isola e corsia per quarti, ritagliati sul rombo del tile (allargato di poco per non lasciare righe).
+- Rotonde quadrate (scelta dell'utente: non circolari). `updateRoundabouts()` (va chiamata dopo ogni modifica alle strade) assegna `t.rb = { ax, ay, level }` ai blocchi 2x2 di strade con dislivello <= 1, in modo greedy. La rotonda è sempre piatta a `level` (= quota più alta): `cornerHeights` e `roadLevel` lo usano, così le strade più basse attorno diventano rampe normali da qualsiasi lato.
+- `drawRoundabout` disegna isola e corsia quadrate per quarti, ritagliati sul rombo del tile (allargato di poco per non lasciare righe).
+
+## Menu e salvataggi
+- `menu.js`: menu principale/pausa (Riprendi e Salva solo se `game.started`), Carica, Opzioni ("ci stiamo lavorando"), Esci (`window.close()` in Electron). All'avvio una mappa casuale fa da sfondo e `game.started` è false. Esc apre/chiude il menu; con il menu aperto `input.js` ignora tastiera e mouse.
+- `save.js`: salvataggi in localStorage (`citybuilder.saves.v1`), mappa serializzata come stringhe (tipo, quota in base 36, strade) + lista edifici. `game.dirty` = modifiche non salvate (chiede conferma prima di perderle).
 
 ## Pubblicazione e prove
 - `.github/workflows/pages.yml` pubblica index.html, style.css e js/ su GitHub Pages ad ogni push su main (https://flattfall.github.io/city-builder/). Pages va attivato a mano: Settings > Pages > Source: GitHub Actions.

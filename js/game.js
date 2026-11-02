@@ -10,6 +10,9 @@ const game = {
   roundabouts: 0,
   houses: 0,
   hover: null,   // tile sotto il mouse { x, y }
+  started: false, // false finché non si crea o carica una mappa (all'avvio c'è solo il menu)
+  dirty: false,   // ci sono modifiche non salvate
+  saveId: null,   // salvataggio da cui viene la partita (per sovrascriverlo)
 };
 
 function inMap(x, y) { return x >= 0 && y >= 0 && x < game.size && y < game.size; }
@@ -23,19 +26,24 @@ const DIRS = [{ dx: 0, dy: -1 }, { dx: 1, dy: 0 }, { dx: 0, dy: 1 }, { dx: -1, d
 const CORNERS = [[0, 0], [1, 0], [1, 1], [0, 1]];
 function cornerIndex(u, v) { return u === 0 ? (v === 0 ? 0 : 3) : (v === 0 ? 1 : 2); }
 
+// Livello della superficie di una strada: di solito la quota del terreno,
+// ma una rotonda su un dislivello è una piazzola piana al livello più alto
+function roadLevel(x, y) {
+  const t = game.map[y][x];
+  return t.rb ? t.rb.level : t.elev;
+}
+
 // Una strada diventa rampa verso la direzione d se:
 //  - il vicino in direzione d è una strada più alta di 1 livello (e c'è solo un vicino così)
 //  - ai lati non ci sono strade allo stesso livello (la rampa deve salire dritta)
-// Restituisce la direzione (0-3) oppure -1 se il tile è piatto.
+// Restituisce la direzione (0-3) oppure -1 se il tile è piatto. Le rotonde sono sempre piatte.
 function rampDir(x, y) {
-  if (!roadAt(x, y)) return -1;
-  const rb = game.map[y][x].rb;
-  if (rb) return rb.low ? rb.slope : -1;   // nelle rotonde decide la rotonda
-  const e = game.map[y][x].elev;
+  if (!roadAt(x, y) || game.map[y][x].rb) return -1;
+  const e = roadLevel(x, y);
   let dir = -1;
   for (let i = 0; i < 4; i++) {
     const nx = x + DIRS[i].dx, ny = y + DIRS[i].dy;
-    if (roadAt(nx, ny) && game.map[ny][nx].elev === e + 1) {
+    if (roadAt(nx, ny) && roadLevel(nx, ny) === e + 1) {
       if (dir !== -1) return -1;
       dir = i;
     }
@@ -43,7 +51,7 @@ function rampDir(x, y) {
   if (dir === -1) return -1;
   for (const side of [(dir + 1) % 4, (dir + 3) % 4]) {
     const nx = x + DIRS[side].dx, ny = y + DIRS[side].dy;
-    if (roadAt(nx, ny) && game.map[ny][nx].elev === e) return -1;
+    if (roadAt(nx, ny) && roadLevel(nx, ny) === e) return -1;
   }
   return dir;
 }
@@ -51,6 +59,8 @@ function rampDir(x, y) {
 // Altezza (in livelli) dei 4 angoli del tile: uguali se piatto, due alzati di 1 se è una rampa
 function cornerHeights(x, y) {
   if (!inMap(x, y)) return [0, 0, 0, 0];
+  const rb = game.map[y][x].rb;
+  if (rb) return [rb.level, rb.level, rb.level, rb.level];
   const e = game.map[y][x].elev;
   const h = [e, e, e, e];
   const d = rampDir(x, y);
@@ -88,24 +98,12 @@ function topHeightPx(x, y) {
   return Math.max(...cornerHeights(x, y)) * STEP + (t.building ? 16 : 0);
 }
 
-// ---------- Rotonde ----------
-// Un quadrato 2x2 di strade diventa una rotonda. Può essere in piano oppure su un gradino
-// (2 tile sopra e 2 sotto, dislivello di 1): in quel caso i 2 tile bassi diventano rampe.
-// Restituisce -1 se in piano, la direzione della salita (0-3) se sul gradino, null se non va bene.
-function roundaboutSlope(x, y) {
-  const a = game.map[y][x].elev, b = game.map[y][x + 1].elev;       // fila dietro (y)
-  const c = game.map[y + 1][x].elev, d = game.map[y + 1][x + 1].elev; // fila davanti (y+1)
-  if (a === b && b === c && c === d) return -1;
-  if (a === c && b === d && b === a + 1) return 1; // sale verso +x (SE)
-  if (a === c && b === d && a === b + 1) return 3; // sale verso -x (NW)
-  if (a === b && c === d && c === a + 1) return 2; // sale verso +y (SW)
-  if (a === b && c === d && a === c + 1) return 0; // sale verso -y (NE)
-  return null;
-}
-
-// Ricalcola tutte le rotonde (da chiamare quando cambia una strada).
-// Ogni tile di una rotonda riceve t.rb = { ax, ay, slope, low }: angolo del quadrato,
-// direzione della salita (-1 se in piano) e se è uno dei tile bassi.
+// ---------- Rotonde (quadrate) ----------
+// Un quadrato 2x2 di strade diventa una rotonda quadrata. Se i 4 tile non sono alla stessa
+// quota (dislivello massimo 1) la rotonda diventa una piazzola piana al livello più alto:
+// le strade che arrivano dal basso, da qualsiasi lato, salgono con una rampa normale.
+// Ogni tile di una rotonda riceve t.rb = { ax, ay, level }: angolo del quadrato e livello.
+// Da chiamare ogni volta che cambia una strada.
 function updateRoundabouts() {
   const N = game.size;
   for (const row of game.map) for (const t of row) t.rb = null;
@@ -115,10 +113,9 @@ function updateRoundabouts() {
       if (!game.map[y][x].road) continue; // controllo veloce: quasi tutti i tile non sono strade
       const tiles = [game.map[y][x], game.map[y][x + 1], game.map[y + 1][x], game.map[y + 1][x + 1]];
       if (tiles.some(t => !t.road || t.rb)) continue;
-      const slope = roundaboutSlope(x, y);
-      if (slope === null) continue;
-      const low = Math.min(...tiles.map(t => t.elev));
-      for (const t of tiles) t.rb = { ax: x, ay: y, slope, low: slope >= 0 && t.elev === low };
+      const lo = Math.min(...tiles.map(t => t.elev)), hi = Math.max(...tiles.map(t => t.elev));
+      if (hi - lo > 1) continue;
+      for (const t of tiles) t.rb = { ax: x, ay: y, level: hi };
       count++;
     }
   game.roundabouts = count;
@@ -143,7 +140,10 @@ function spend(cost) {
 
 function newGame(seed) {
   game.seed = seed;
+  game.size = MAP_SIZE;
   game.map = generateTerrain(seed, game.size);
+  game.dirty = false;
+  game.saveId = null;
   game.money = START_MONEY;
   game.roads = 0;
   game.roundabouts = 0;

@@ -29,16 +29,18 @@ Sul tuo PC: `npm install` e poi `npm run dist`; l'.exe compare nella cartella `d
 
 ## Comandi nel gioco
 
-- 1 Mano (trascina la mappa), 2 Strada, 3 Casa, 4 Demolisci; Esc torna alla Mano
+- Esc o il pulsante **Menu**: Riprendi, Salva partita, Nuova mappa, Carica mappa, Opzioni, Esci
+- 1 Mano (trascina la mappa), 2 Strada, 3 Casa, 4 Demolisci
 - Con Strada e Demolisci tieni premuto il tasto sinistro e trascina per fare più tile
 - Tasto destro o centrale + trascina, oppure WASD/frecce: muovi la mappa
 - Rotella: zoom
-- R: nuovo terreno (chiede conferma se hai costruito qualcosa)
 - F11: schermo intero, F5: ricarica (nella versione programma)
+
+Le partite salvate restano sul PC (versione programma) o nel browser usato (versione web).
 
 ## Strade
 
 - Una strada che sale dritta di un livello crea una **rampa**.
-- Un quadrato **2x2** di strade diventa una **rotonda**, sia in piano sia su un gradino (2 tile sopra e 2 sotto). Sul gradino si entra da sopra, da sotto e dai lati della parte alta.
+- Un quadrato **2x2** di strade diventa una **rotonda quadrata**. Se è su un dislivello di 1, diventa una piazzola piana al livello più alto e le strade che arrivano dal basso salgono con una rampa, da qualsiasi lato.
 
 Il codice è diviso in file dentro `js/`: vedi `CLAUDE.md` per la struttura.

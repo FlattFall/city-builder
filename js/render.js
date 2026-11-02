@@ -65,22 +65,16 @@ function drawRoad(c, x, y, P) {
   }
 }
 
-// Pezzo di rotonda: ogni tile disegna la sua parte (un quarto) dell'isola e della corsia
-// circolare, ritagliata dentro il proprio rombo. Così funziona anche sul gradino.
+// Pezzo di rotonda quadrata: ogni tile disegna la sua parte (un quarto) dell'isola e della
+// corsia, ritagliata dentro il proprio rombo.
 const ISLAND_COLOR = '#5aa845';
 const ISLAND_INNER = '#4a9a3c';
 function drawRoundabout(c, x, y, P) {
   const rb = game.map[y][x].rb;
   const qx = x - rb.ax, qy = y - rb.ay;            // quale quarto del quadrato 2x2
   const B = (U, V) => P(U - qx, V - qy);            // (U, V) da 0 a 2 nel quadrato -> schermo
-  const circle = r => {
-    const pts = [];
-    for (let i = 0; i < 48; i++) {
-      const a = i / 48 * Math.PI * 2;
-      pts.push(B(1 + r * Math.cos(a), 1 + r * Math.sin(a)));
-    }
-    return pts;
-  };
+  // quadrato centrato nel mezzo della rotonda, con "raggio" r (in tile)
+  const square = r => [B(1 - r, 1 - r), B(1 + r, 1 - r), B(1 + r, 1 + r), B(1 - r, 1 + r)];
   const path = pts => {
     c.beginPath(); c.moveTo(pts[0][0], pts[0][1]);
     for (let i = 1; i < pts.length; i++) c.lineTo(pts[i][0], pts[i][1]);
@@ -98,26 +92,26 @@ function drawRoundabout(c, x, y, P) {
   path([P(-ex, -ex), P(1 + ex, -ex), P(1 + ex, 1 + ex), P(-ex, 1 + ex)]);
   c.clip();
 
-  // ingressi: linea gialla dal bordo collegato fino alla corsia circolare
+  // ingressi: linea gialla dritta dal bordo collegato fino alla corsia
   for (let d = 0; d < 4; d++) {
     const nx = x + DIRS[d].dx, ny = y + DIRS[d].dy;
     if (sameRoundabout(x, y, nx, ny) || !roadLinked(x, y, d)) continue;
+    const { dx, dy } = DIRS[d];
     const mU = qx + mids[d][0], mV = qy + mids[d][1];
-    const len = Math.hypot(mU - 1, mV - 1);
-    line(c, B(mU, mV), B(1 + (mU - 1) / len * RING, 1 + (mV - 1) / len * RING), LANE_COLOR);
+    line(c, B(mU, mV), B(dx ? 1 + dx * RING : mU, dy ? 1 + dy * RING : mV), LANE_COLOR);
   }
 
-  // corsia circolare tratteggiata
+  // corsia quadrata tratteggiata
   c.setLineDash([3, 3]);
-  path(circle(RING));
+  path(square(RING));
   c.strokeStyle = LANE_COLOR; c.lineWidth = 1; c.stroke();
   c.setLineDash([]);
 
-  // isola centrale con cordolo
-  path(circle(0.42));
+  // isola centrale quadrata con cordolo
+  path(square(0.42));
   c.fillStyle = ISLAND_COLOR; c.fill();
   c.strokeStyle = CURB_COLOR; c.lineWidth = 1; c.stroke();
-  path(circle(0.22));
+  path(square(0.24));
   c.fillStyle = ISLAND_INNER; c.fill();
   c.restore();
 

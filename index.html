@@ -15,7 +15,7 @@
   <span>Case: <b id="houses">0</b></span>
   <span>Seed: <span id="seed">-</span></span>
   <span>Tile: <span id="info">-</span></span>
-  <button id="regen">Nuovo terreno</button>
+  <button id="menu-btn">Menu (Esc)</button>
 </div>
 
 <div id="toolbar"></div>
@@ -25,7 +25,38 @@
   Sinistro: usa lo strumento (Mano: trascina la mappa)<br>
   Destro o centrale + trascina: muovi la mappa<br>
   Rotella: zoom | WASD o frecce: muovi<br>
-  1-4: strumenti | Esc: Mano | R: nuovo terreno
+  1-4: strumenti | Esc: menu
+</div>
+
+<!-- Menu principale / pausa -->
+<div id="menu" hidden>
+  <div class="menu-box">
+    <h1>CITY BUILDER</h1>
+    <div id="menu-sub" class="menu-sub">Menu principale</div>
+
+    <div class="menu-page" data-page="main">
+      <button id="m-resume">Riprendi</button>
+      <button id="m-save">Salva partita</button>
+      <button id="m-new">Nuova mappa</button>
+      <button id="m-load">Carica mappa</button>
+      <button id="m-options">Opzioni</button>
+      <button id="m-exit">Esci</button>
+    </div>
+
+    <div class="menu-page" data-page="load" hidden>
+      <h2>Carica mappa</h2>
+      <div id="save-list"></div>
+      <button class="m-back">Indietro</button>
+    </div>
+
+    <div class="menu-page" data-page="options" hidden>
+      <h2>Opzioni</h2>
+      <p class="menu-note">Ci stiamo lavorando! Presto qui potrai cambiare audio, grafica e controlli.</p>
+      <button class="m-back">Indietro</button>
+    </div>
+
+    <div id="menu-msg" class="menu-msg"></div>
+  </div>
 </div>
 
 <!-- L'ordine conta: ogni file usa quelli caricati prima -->
@@ -37,6 +68,8 @@
 <script src="js/render.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/input.js"></script>
+<script src="js/save.js"></script>
+<script src="js/menu.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

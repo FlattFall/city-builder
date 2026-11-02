@@ -32,3 +32,37 @@ canvas { display: block; }
   position: fixed; bottom: 12px; left: 12px; font-size: 11px; line-height: 1.5;
   background: rgba(0, 0, 0, .5); padding: 6px 8px; border-radius: 4px;
 }
+
+/* ---------- Menu ---------- */
+#menu {
+  position: fixed; inset: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: rgba(10, 12, 24, .62);
+}
+#menu[hidden] { display: none; }
+.menu-box {
+  width: 100%; max-width: 380px; text-align: center;
+  background: #262b44; border: 3px solid #5d6aa8; border-radius: 6px;
+  box-shadow: 0 0 0 3px #0e0f1a, 8px 8px 0 rgba(0, 0, 0, .45);
+  padding: 22px 22px 18px;
+}
+.menu-box h1 { margin: 0; font-size: 28px; letter-spacing: 3px; color: #ffd966; text-shadow: 3px 3px 0 #0e0f1a; }
+.menu-box h2 { margin: 4px 0 12px; font-size: 16px; color: #ffd966; }
+.menu-sub { margin: 4px 0 18px; font-size: 12px; color: #94b0c2; text-transform: uppercase; letter-spacing: 2px; }
+.menu-page[hidden] { display: none; }
+.menu-page > button, .save-row button {
+  font: inherit; cursor: pointer; color: #f4f4f4;
+  background: #2c2f48; border: 2px solid #44486b; border-radius: 4px;
+}
+.menu-page > button { display: block; width: 100%; margin: 8px 0; padding: 10px; font-size: 16px; }
+.menu-page > button:hover, .save-row button:hover { background: #3a3e5e; border-color: #ffd966; }
+.menu-page > button[hidden] { display: none; }
+.menu-note { font-size: 13px; line-height: 1.5; color: #c9d2dc; margin: 8px 0 14px; }
+.menu-msg { min-height: 18px; margin-top: 8px; font-size: 13px; color: #a7f070; }
+#save-list { max-height: 300px; overflow-y: auto; text-align: left; }
+.save-row { display: flex; gap: 6px; align-items: center; padding: 8px 0; border-bottom: 1px solid #3a3e5e; }
+.save-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.save-info b { color: #ffd966; }
+.save-info span { font-size: 11px; color: #94b0c2; }
+.save-row button { padding: 6px 8px; font-size: 13px; }
+.save-row button.danger:hover { border-color: #ff5d5d; }
