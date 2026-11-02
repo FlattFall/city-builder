@@ -4,17 +4,20 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 
 ## Struttura
 - `index.html` + `style.css`: pagina e interfaccia (barra in alto, barra strumenti con sottomenu, info tile, toast, menu).
-- `js/`: script classici (niente moduli ES, così funziona anche aprendo il file con doppio clic). L'ordine in `index.html` conta: config, noise, terrain, game, camera, render, ui, input, save, menu, app.
-  - `config.js` costanti: grandezze mappa (`MAP_SIZES`, la più piccola 128), terreno, `PATHS` (strada, terra, binari), `BUILDINGS` (casa 1x1, fattoria e magazzino 2x2), costi
+- `js/`: script classici (niente moduli ES, così funziona anche aprendo il file con doppio clic). L'ordine in `index.html` conta: config, noise, terrain, game, roadgen, camera, render, vehicles, ui, panel, input, save, menu, app.
+  - `config.js` costanti: grandezze mappa (`MAP_SIZES`: 128, 256, 512, 1024), terreno, `PATHS` (strada, terra, binari), `BUILDINGS` (casa 1x1, fattoria e magazzino 2x2), abitanti, `CROPS`, `FARM`, costi
   - `game.js` stato (`game`) e regole: percorsi, rampe, rotonde, edifici, `checkTool` / `useTool` / `canUseTool`, `recount()`
   - `render.js` disegno (ordine del pittore, solo tile visibili sullo schermo); `requestDraw()` per ridisegnare
   - `camera.js` camera, zoom, `pickTile` (tiene conto delle quote)
   - `input.js` mouse e tastiera; `ui.js` barra strumenti (gruppi, icone, sottomenu) e HUD
+  - `roadgen.js` strada principale generata con la mappa (A* da bordo a bordo)
+  - `vehicles.js` auto e furgoni, percorsi su strada, arrivo abitanti, produzione delle fattorie (`simUpdate`)
+  - `panel.js` pannello degli edifici (clic con la Mano) e modalità campi
   - `save.js` salvataggi; `menu.js` menu principale/pausa
 - `main.js` finestra Electron; `.github/workflows/build.yml` crea l'.exe su GitHub Actions.
 
 ## Tile
-`{ type, elev, path (null/'road'/'dirt'/'rail'), field, building, rb }`. Usare `setPath()` per cambiare il percorso (aggiorna `game.pathKeys`, usato per calcolare in fretta le rotonde) e poi `updateRoundabouts()`.
+`{ type, elev, path (null/'road'/'dirt'/'rail'), main (strada principale, non demolibile), field, farm (id fattoria del campo), building, rb }`. Usare `setPath()` per cambiare il percorso (aggiorna `game.pathKeys`, usato per calcolare in fretta le rotonde) e poi `updateRoundabouts()`.
 
 ## Rampe, collegamenti, anteprima e picking
 - Ogni tile ha 4 angoli (N, E, S, W) con un'altezza: `cornerHeights(x, y)`. Piatto = tutti uguali.
@@ -23,6 +26,15 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - Due percorsi sono collegati (`roadLinked`) se sono della stessa rete e il bordo in comune ha la stessa altezza.
 - Anteprima: `withPreview` costruisce per finta, disegna e annulla. Anteprima e contorno si disegnano in ordine, subito dopo il loro tile, così i blocchi davanti li coprono (scelta dell'utente). Contorno rientrato di 0.1; per gli edifici 2x2 è disegnato sul tile più avanti dell'impronta.
 - `pickTile` tratta ogni tile come una colonna dal suolo al punto più alto (edifici compresi) e prende quella disegnata per ultima.
+
+## Livellamento e strada principale
+- `fillDips`: lungo una strada dritta, 1 o 2 tile più bassi tra due tile alla stessa quota vengono alzati (scelta dell'utente); con 3 o più bassi restano le rampe (discesa, tratto piano, salita).
+- `generateMainRoad` (in `newGame`): A* con stato (tile, direzione) e le stesse regole delle rampe (si sale solo dritti, dopo una discesa si va dritti); l'acqua diventa terrapieno di sabbia a quota 1; le curve costano di più per avere rettilinei. `game.entries` = le due estremità sul bordo.
+
+## Abitanti, veicoli, fattorie
+- Le case (capienza `HOUSE_CAPACITY`) vengono riempite da auto che partono dalle entrate e arrivano su una strada accanto alla casa (`findRoute`: BFS sulle strade collegate; nelle rotonde si gira solo in senso antiorario, `RB_NEXT`). Corsia di destra, distanza di sicurezza (`blockedAhead`). `game.population` = abitanti arrivati.
+- Fattoria: dopo averla piazzata si entra in modalità campi (`game.fieldMode`), i campi entro `FARM.fieldRadius` vengono assegnati (`t.farm`). Coltura, crescita (`growth` 0..1, raccolto a 1), inventario limitato (`FARM.inventoryCap`), magazzino di destinazione (`storage`); il furgone parte con almeno `vanMinLoad` e torna indietro.
+- Pannello: costruito una volta; numeri e barre si aggiornano sul posto (`panelLive`), si ricostruisce solo se cambia la forma (`panelShapeOf`), altrimenti i clic si perderebbero.
 
 ## Rotonde
 - Rotonde circolari (l'utente ha provato quelle quadrate e la piazzola rialzata: non gli piacevano). Un 2x2 di strade asfaltate diventa rotonda (`t.rb = { ax, ay, slope, low }`), in piano o su un gradino di 1 (2 tile sopra, 2 sotto): i tile bassi sono rampe, senza aggiungere terreno.
@@ -37,7 +49,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 
 ## Menu e salvataggi
 - `menu.js`: menu principale/pausa (Riprendi e Salva solo se `game.started`), Nuova mappa (scelta grandezza), Carica, Opzioni ("ci stiamo lavorando"), Esci (`window.close()` in Electron). Esc apre/chiude il menu (prima chiude il sottomenu).
-- `save.js`: localStorage (`citybuilder.saves.v1`), formato v2 con stringhe compresse (RLE) per tipo, quota, percorso, campo + lista edifici; legge anche il formato v1.
+- `save.js`: localStorage (`citybuilder.saves.v1`), formato v3: si ricrea il terreno dal seed e si salvano solo differenze (`game.base`), percorsi, campi, edifici con i loro dati, entrate. Legge anche v1/v2. I veicoli non si salvano.
 
 ## Pubblicazione e prove
 - `.github/workflows/pages.yml` pubblica su GitHub Pages ad ogni push su main (https://flattfall.github.io/city-builder/).
@@ -53,4 +65,4 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 
 ## Da fare / idee
 - Prestazioni: con zoom molto lontano si disegnano tanti tile ad ogni movimento del mouse; si può mettere in memoria la mappa a blocchi (chunk) e ridisegnare solo l'anteprima.
-- Treni sui binari, economia (fattoria -> magazzino), crescita della città, sprite PNG.
+- Treni sui binari, uso del cibo nei magazzini (negozi, abitanti che mangiano), lavoro per gli abitanti, sprite PNG.

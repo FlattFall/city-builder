@@ -34,10 +34,13 @@ function paintTo(tile) {
 
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
+let downX = 0, downY = 0, handDown = false;
+
 canvas.addEventListener('mousedown', e => {
   closeSubmenu();
   if (e.button === 1 || e.button === 2 || (e.button === 0 && game.tool === 'hand')) {
     panning = true; lastX = e.clientX; lastY = e.clientY;
+    downX = e.clientX; downY = e.clientY; handDown = e.button === 0;
     canvas.style.cursor = 'grabbing';
   } else if (e.button === 0) {
     painting = true;
@@ -47,7 +50,14 @@ canvas.addEventListener('mousedown', e => {
   }
 });
 
-addEventListener('mouseup', () => {
+addEventListener('mouseup', e => {
+  // con la Mano, un clic (senza trascinare) su un edificio apre il suo pannello
+  if (handDown && Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY) < 5 && !menuIsOpen()) {
+    const t = pickTile(e.clientX, e.clientY);
+    const b = t && game.map[t.y][t.x].building;
+    if (b) openBuildingPanel(b); else if (panelIsOpen()) closePanel();
+  }
+  handDown = false;
   panning = false; painting = false; lastTile = null;
   canvas.style.cursor = game.tool === 'hand' ? 'grab' : 'crosshair';
 });

@@ -6,7 +6,12 @@ function resize() {
 }
 addEventListener('resize', resize);
 
-function loop() {
+let lastTime = performance.now();
+function loop(now) {
+  const dt = Math.max(0, ((now || performance.now()) - lastTime) / 1000);
+  lastTime = now || performance.now();
+  simUpdate(dt);
+  panelUpdate(dt);
   if (needsDraw) { needsDraw = false; drawFrame(); }
   requestAnimationFrame(loop);
 }
@@ -17,6 +22,7 @@ newGame(Math.floor(Math.random() * 100000));
 centerCamera();
 buildToolbar();
 initMenu();
+initPanel();
 updateHud();
 updateInfo();
 openMenu('main');

@@ -1,6 +1,6 @@
 # City Builder
 
-City builder isometrico in stile retro. Per ora: terreno 128x128, strade con rampe e rotonde, case e demolizione.
+City builder isometrico in stile retro: terreno generato, strada principale, strade con rampe e rotonde, binari, case con abitanti che arrivano in auto, fattorie con campi e furgoni che portano il cibo ai magazzini.
 
 ## Provare l'ultima versione (il modo più veloce)
 
@@ -29,7 +29,7 @@ Sul tuo PC: `npm install` e poi `npm run dist`; l'.exe compare nella cartella `d
 
 ## Comandi nel gioco
 
-- Esc o il pulsante **Menu**: Riprendi, Salva partita, Nuova mappa (4 grandezze: 128, 192, 256, 384), Carica mappa, Opzioni, Esci
+- Esc o il pulsante **Menu**: Riprendi, Salva partita, Nuova mappa (4 grandezze: 128, 256, 512, 1024), Carica mappa, Opzioni, Esci
 - Barra in basso (tasti 1-5; premendo di nuovo lo stesso numero passi alla scelta successiva del gruppo):
   1. **Mano**: trascina la mappa
   2. **Strade**: strada, strada di terra, binari, campo coltivabile
@@ -43,9 +43,18 @@ Sul tuo PC: `npm install` e poi `npm run dist`; l'.exe compare nella cartella `d
 
 Le partite salvate restano sul PC (versione programma) o nel browser usato (versione web).
 
+## Città e fattorie
+
+- Ogni mappa nuova ha una **strada principale** da un bordo all'altro: da lì arrivano i nuovi abitanti.
+- Costruisci **case** vicino a una strada collegata: arrivano le auto e il contatore **Abitanti** sale (4 per casa).
+- Piazza una **fattoria** e disegna i suoi **campi** (entro il riquadro tratteggiato), poi premi Fatto.
+- Con la **Mano**, clic sulla fattoria: scegli **grano, carote o patate** e il **magazzino** dove portare il cibo. Il furgone ci va se c'è una strada. L'inventario della fattoria ha un limite (100).
+- Clic su magazzino o casa per vederne scorte e abitanti.
+
 ## Strade e binari
 
 - Una strada (o un binario) che sale dritta di un livello crea una **rampa**.
+- Se la strada passa sopra un buco di 1 o 2 tile, il terreno sotto si alza e la strada resta dritta; con 3 tile bassi scende, fa un tratto piano e risale.
 - Strade asfaltate e di terra si collegano tra loro; i binari solo con i binari.
 - Un quadrato **2x2** di strade asfaltate diventa una **rotonda**, anche su un gradino (2 tile sopra e 2 sotto): le strade si collegano da tutti i lati.
 

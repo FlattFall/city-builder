@@ -47,9 +47,14 @@ function enterGame() {
 // "Nuova mappa" apre la scelta della grandezza; la mappa si crea quando se ne sceglie una
 function startNewMap(size) {
   if (!confirmLoseChanges()) return;
-  newGame(Math.floor(Math.random() * 100000), size);
-  game.started = true;
-  enterGame();
+  menuMessage('Creazione della mappa ' + size + ' x ' + size + '...');
+  // lascia al browser il tempo di mostrare il messaggio prima del calcolo
+  setTimeout(() => {
+    newGame(Math.floor(Math.random() * 100000), size);
+    game.started = true;
+    if (panelIsOpen()) closePanel();
+    enterGame();
+  }, 30);
 }
 
 function buildSizeChoices() {
@@ -132,7 +137,11 @@ function initMenu() {
   // Esc: apre il menu durante la partita; nel menu torna indietro o riprende
   addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    if (!document.getElementById('submenu').hidden) { closeSubmenu(); return; }
+    if (!menuOpen) {
+      if (!document.getElementById('submenu').hidden) { closeSubmenu(); return; }
+      if (game.fieldMode) { exitFieldMode(); return; }
+      if (panelIsOpen()) { closePanel(); return; }
+    }
     if (!menuOpen) { if (game.started) openMenu(); return; }
     const page = document.querySelector('.menu-page:not([hidden])').dataset.page;
     if (page !== 'main') showMenuPage('main'); else closeMenu();

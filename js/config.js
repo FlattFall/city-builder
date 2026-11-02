@@ -3,9 +3,9 @@ const TW = 32, TH = 16;   // dimensioni del rombo di un tile
 const STEP = 8;           // altezza in pixel di un livello di quota
 const MAP_SIZES = [       // grandezze tra cui scegliere quando si crea una mappa
   { size: 128, name: 'Piccola' },
-  { size: 192, name: 'Media' },
-  { size: 256, name: 'Grande' },
-  { size: 384, name: 'Enorme' },
+  { size: 256, name: 'Media' },
+  { size: 512, name: 'Grande' },
+  { size: 1024, name: 'Enorme' },
 ];
 const ZOOMS = [0.5, 1, 2, 3, 4];
 
@@ -36,6 +36,29 @@ const BUILDINGS = {
   farm:      { name: 'Fattoria', w: 2, h: 2, cost: 500, height: 34, group: 'industry' },
   warehouse: { name: 'Magazzino alimenti', w: 2, h: 2, cost: 400, height: 20, group: 'industry' },
 };
+
+// ---------- Abitanti ----------
+const HOUSE_CAPACITY = 4;      // abitanti per casa
+const MOVE_IN_EVERY = 1.2;     // secondi tra l'arrivo di un'auto e la successiva
+const MAX_CARS = 40;           // auto in giro al massimo (per le prestazioni)
+const CAR_SPEED = 1.8;         // tile al secondo
+const VAN_SPEED = 1.4;
+
+// ---------- Agricoltura ----------
+const CROPS = {
+  wheat:  { name: 'Grano',   ripe: '#d9b44a', young: '#9cc94a' },
+  carrot: { name: 'Carote',  ripe: '#f08a24', young: '#5dae3a' },
+  potato: { name: 'Patate',  ripe: '#7a9a3a', young: '#5dae3a' },
+};
+const FARM = {
+  fieldRadius: 6,     // i campi devono stare entro questa distanza (in tile) dalla fattoria
+  inventoryCap: 100,  // inventario massimo della fattoria
+  cycleSec: 30,       // secondi dalla semina al raccolto
+  yieldPerField: 4,   // unità raccolte per ogni campo
+  vanCapacity: 25,    // quanto porta il furgone in un viaggio
+  vanMinLoad: 10,     // il furgone parte quando c'è almeno questo
+};
+const WAREHOUSE_CAPACITY = 1000;
 
 // ---------- Economia (valori provvisori) ----------
 const START_MONEY = 50000;

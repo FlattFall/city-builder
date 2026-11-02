@@ -11,6 +11,7 @@
 
 <div id="topbar">
   <span>Fondi: <b id="money">-</b></span>
+  <span>Abitanti: <b id="population">0</b></span>
   <span>Strade: <b id="roads">0</b></span>
   <span>Binari: <b id="rails">0</b></span>
   <span>Case: <b id="houses">0</b></span>
@@ -21,15 +22,17 @@
 </div>
 
 <div id="submenu" hidden></div>
+<div id="panel" hidden></div>
+<div id="fieldbar" hidden><span id="fieldbar-text"></span> <button id="fieldbar-done">Fatto</button></div>
 <div id="toolname"></div>
 <div id="toolbar"></div>
 <div id="toast"></div>
 
 <div id="help">
-  Sinistro: usa lo strumento (Mano: trascina la mappa)<br>
-  Destro o centrale + trascina: muovi la mappa<br>
-  Rotella: zoom | WASD o frecce: muovi<br>
-  1-5: strumenti (di nuovo: il prossimo) | Esc: menu
+  Sinistro: usa lo strumento<br>
+  Mano: trascina la mappa, clic su edificio = info<br>
+  Destro/centrale + trascina: muovi | Rotella: zoom<br>
+  WASD/frecce: muovi | 1-5: strumenti | Esc: menu
 </div>
 
 <!-- Menu principale / pausa -->
@@ -74,9 +77,12 @@
 <script src="js/noise.js"></script>
 <script src="js/terrain.js"></script>
 <script src="js/game.js"></script>
+<script src="js/roadgen.js"></script>
 <script src="js/camera.js"></script>
 <script src="js/render.js"></script>
+<script src="js/vehicles.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/panel.js"></script>
 <script src="js/input.js"></script>
 <script src="js/save.js"></script>
 <script src="js/menu.js"></script>

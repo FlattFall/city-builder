@@ -17,6 +17,12 @@ const game = {
   dirty: false,    // ci sono modifiche non salvate
   saveId: null,    // salvataggio da cui viene la partita (per sovrascriverlo)
   pathKeys: new Set(), // tile con un percorso (y * size + x): così le rotonde si calcolano in fretta
+  population: 0,   // abitanti in città
+  entries: [],     // estremità della strada principale sul bordo: da qui arrivano le auto
+  buildings: new Map(), // id -> edificio
+  nextId: 1,
+  fieldMode: null, // id della fattoria a cui si stanno assegnando i campi
+  base: null,      // terreno appena generato { type, elev } per salvare solo le differenze
 };
 
 function inMap(x, y) { return x >= 0 && y >= 0 && x < game.size && y < game.size; }
@@ -35,8 +41,35 @@ function sameNet(x, y, nx, ny) {
 function setPath(x, y, p) {
   const t = game.map[y][x];
   t.path = p;
-  if (p) game.pathKeys.add(y * game.size + x);
-  else { game.pathKeys.delete(y * game.size + x); t.rb = null; }
+  if (p) { t.main = false; game.pathKeys.add(y * game.size + x); } // "principale" lo segna solo il generatore
+  else {
+    game.pathKeys.delete(y * game.size + x); t.rb = null; t.main = false;
+    if (typeof onRoadRemoved === 'function') onRoadRemoved(x, y);
+  }
+}
+
+// ---------- Livellamento sotto le strade ----------
+// Lungo una strada dritta, un "buco" di 1 o 2 tile tra due tile alla stessa quota viene
+// riempito: il terreno sotto si alza e la strada resta in piano. Con 3 o più tile bassi
+// non si riempie: la strada scende con una rampa, fa il tratto basso e risale.
+function fillDips(x, y) {
+  const filled = [];
+  const same = (ax, ay) => inMap(ax, ay) && sameNet(x, y, ax, ay);
+  for (const [dx, dy] of [[1, 0], [0, 1]]) {
+    for (const len of [3, 4]) {               // finestre di 3 (1 basso) e 4 tile (2 bassi)
+      for (let k = -(len - 1); k <= 0; k++) {  // tutte le finestre che contengono (x, y)
+        const tiles = [];
+        for (let i = 0; i < len; i++) tiles.push([x + (k + i) * dx, y + (k + i) * dy]);
+        if (!tiles.every(([tx, ty]) => same(tx, ty))) continue;
+        const ends = [tiles[0], tiles[len - 1]].map(([tx, ty]) => game.map[ty][tx].elev);
+        if (ends[0] !== ends[1]) continue;
+        const mids = tiles.slice(1, -1);
+        if (!mids.every(([tx, ty]) => game.map[ty][tx].elev < ends[0])) continue;
+        for (const [tx, ty] of mids) { game.map[ty][tx].elev = ends[0]; filled.push([tx, ty]); }
+      }
+    }
+  }
+  return filled;
 }
 
 // ---------- Direzioni, angoli e rampe ----------
@@ -176,6 +209,47 @@ function sameRoundabout(x, y, nx, ny) {
 // Tutti i tile occupati puntano allo stesso oggetto { kind, variant, ax, ay }.
 function houseVariant(x, y) { return Math.floor(hash(x, y, 3) * 3); }
 
+function buildingAt(x, y) { return inMap(x, y) ? game.map[y][x].building : null; }
+
+// distanza (in tile) di un punto dall'impronta di un edificio
+function distToBuilding(b, x, y) {
+  const d = BUILDINGS[b.kind];
+  const dx = Math.max(b.ax - x, 0, x - (b.ax + d.w - 1));
+  const dy = Math.max(b.ay - y, 0, y - (b.ay + d.h - 1));
+  return Math.max(dx, dy);
+}
+
+// Fattoria a cui assegnare un campo in (x, y): quella in modalità campi, altrimenti la più vicina
+function farmForField(x, y) {
+  const fm = game.fieldMode && game.buildings.get(game.fieldMode);
+  if (fm) return distToBuilding(fm, x, y) <= FARM.fieldRadius ? fm : null;
+  let best = null, bd = Infinity;
+  for (const b of game.buildings.values()) {
+    if (b.kind !== 'farm') continue;
+    const d = distToBuilding(b, x, y);
+    if (d <= FARM.fieldRadius && d < bd) { best = b; bd = d; }
+  }
+  return best;
+}
+
+function farmFieldCount(farm) {
+  let n = 0;
+  const R = FARM.fieldRadius, d = BUILDINGS.farm;
+  for (let y = farm.ay - R; y < farm.ay + d.h + R; y++)
+    for (let x = farm.ax - R; x < farm.ax + d.w + R; x++)
+      if (inMap(x, y) && game.map[y][x].field && game.map[y][x].farm === farm.id) n++;
+  return n;
+}
+
+// Dati iniziali di un edificio appena costruito
+function newBuilding(kind, x, y) {
+  const b = { id: game.nextId++, kind, variant: houseVariant(x, y), ax: x, ay: y };
+  if (kind === 'house') { b.residents = 0; b.incoming = 0; }
+  if (kind === 'farm') { b.crop = 'wheat'; b.storage = null; b.inventory = 0; b.growth = 0; b.fields = 0; }
+  if (kind === 'warehouse') b.stock = { wheat: 0, carrot: 0, potato: 0 };
+  return b;
+}
+
 function footprint(kind, ax, ay) {
   const b = BUILDINGS[kind], out = [];
   for (let y = ay; y < ay + b.h; y++) for (let x = ax; x < ax + b.w; x++) out.push({ x, y });
@@ -197,17 +271,36 @@ function newGame(seed, size) {
   game.map = generateTerrain(seed, game.size);
   game.money = START_MONEY;
   game.pathKeys = new Set();
+  game.buildings = new Map();
+  game.nextId = 1;
+  game.fieldMode = null;
   game.dirty = false;
   game.saveId = null;
   game.hover = null;
+  if (typeof clearVehicles === 'function') clearVehicles();
+  rememberBaseTerrain();
+  game.entries = generateMainRoad(); // la strada principale fa parte della mappa nuova
   recount();
+}
+
+// Copia del terreno com'era appena generato: nei salvataggi si scrivono solo le differenze
+function rememberBaseTerrain() {
+  const N = game.size;
+  const type = new Uint8Array(N * N), elev = new Uint8Array(N * N);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    type[y * N + x] = game.map[y][x].type;
+    elev[y * N + x] = game.map[y][x].elev;
+  }
+  game.base = { type, elev };
 }
 
 // Ricalcola contatori, quota massima e rotonde guardando tutta la mappa
 function recount() {
   game.roads = game.rails = game.fields = game.houses = game.industries = 0;
+  game.population = 0;
   game.maxElev = 0;
   game.pathKeys = new Set();
+  game.buildings = new Map();
   for (let y = 0; y < game.size; y++)
     for (let x = 0; x < game.size; x++) {
       const t = game.map[y][x];
@@ -215,10 +308,14 @@ function recount() {
       if (t.path) { game.pathKeys.add(y * game.size + x); if (t.path === 'rail') game.rails++; else game.roads++; }
       if (t.field) game.fields++;
       if (t.building && t.building.ax === x && t.building.ay === y) {
-        if (t.building.kind === 'house') game.houses++; else game.industries++;
+        const b = t.building;
+        game.buildings.set(b.id, b);
+        if (b.id >= game.nextId) game.nextId = b.id + 1;
+        if (b.kind === 'house') { game.houses++; game.population += b.residents || 0; } else game.industries++;
       }
     }
   updateRoundabouts();
+  for (const b of game.buildings.values()) if (b.kind === 'farm') b.fields = farmFieldCount(b);
 }
 
 // ---------- Strumenti ----------
@@ -235,7 +332,9 @@ function checkTool(tool, x, y) {
     return null;
   }
   if (tool === 'field') {
-    if (t.field) return { silent: true };
+    // un campo già fatto ma senza fattoria si può assegnare a una fattoria vicina
+    if (t.field) return (!t.farm && farmForField(x, y)) ? null : { silent: true };
+    if (game.fieldMode && !farmForField(x, y)) return { msg: 'Troppo lontano dalla fattoria (max ' + FARM.fieldRadius + ' tile)' };
     if (t.path || t.building) return { msg: 'Tile occupato' };
     if (t.type !== T.GRASS && t.type !== T.FOREST) return { msg: 'I campi vanno su erba o foresta' };
     return null;
@@ -253,6 +352,7 @@ function checkTool(tool, x, y) {
     return null;
   }
   if (tool === 'demolish') {
+    if (!t.building && t.path && t.main) return { msg: 'La strada principale non si può demolire' };
     if (t.building || t.path || t.field || t.type === T.FOREST) return null;
     return { silent: true };
   }
@@ -266,7 +366,7 @@ function toolCost(tool, x, y) {
   const t = game.map[y][x];
   const forest = t.type === T.FOREST ? COSTS.clearForest : 0;
   if (PATHS[tool]) return PATHS[tool].cost + forest;
-  if (tool === 'field') return COSTS.field;
+  if (tool === 'field') return t.field ? 0 : COSTS.field;
   if (BUILDINGS[tool]) return BUILDINGS[tool].cost;
   if (tool === 'demolish') {
     if (t.building) return COSTS.demolishBuilding;
@@ -288,37 +388,60 @@ function useTool(tool, x, y) {
     if (t.type === T.FOREST) t.type = T.GRASS; // gli alberi vengono rimossi
     setPath(x, y, tool);
     if (tool === 'rail') game.rails++; else game.roads++;
+    fillDips(x, y);
     updateRoundabouts();
   } else if (tool === 'field') {
     if (t.type === T.FOREST) t.type = T.GRASS;
+    if (!t.field) game.fields++;
     t.field = true;
-    game.fields++;
+    const farm = farmForField(x, y);
+    t.farm = farm ? farm.id : null;
+    if (farm) farm.fields = farmFieldCount(farm);
   } else if (BUILDINGS[tool]) {
-    const b = { kind: tool, variant: houseVariant(x, y), ax: x, ay: y };
+    const b = newBuilding(tool, x, y);
     for (const p of footprint(tool, x, y)) {
       const q = game.map[p.y][p.x];
       if (q.type === T.FOREST) q.type = T.GRASS;
       q.building = b;
     }
+    game.buildings.set(b.id, b);
     if (tool === 'house') game.houses++; else game.industries++;
+    if (tool === 'farm' && typeof onFarmPlaced === 'function') onFarmPlaced(b);
   } else if (tool === 'demolish') {
     // priorità: edificio > percorso > campo > alberi
-    if (t.building) {
-      const b = t.building;
-      for (const p of footprint(b.kind, b.ax, b.ay)) game.map[p.y][p.x].building = null;
-      if (b.kind === 'house') game.houses--; else game.industries--;
-    } else if (t.path) {
+    if (t.building) removeBuilding(t.building);
+    else if (t.path) {
       if (t.path === 'rail') game.rails--; else game.roads--;
       setPath(x, y, null);
       updateRoundabouts();
     } else if (t.field) {
-      t.field = false;
+      const farm = t.farm && game.buildings.get(t.farm);
+      t.field = false; t.farm = null;
       game.fields--;
+      if (farm) farm.fields = farmFieldCount(farm);
     } else {
       t.type = T.GRASS;
     }
   }
   return { ok: true };
+}
+
+// Toglie un edificio: chi ci abitava se ne va, i campi della fattoria restano senza padrone,
+// le fattorie che portavano il cibo a un magazzino demolito non hanno più destinazione
+function removeBuilding(b) {
+  for (const p of footprint(b.kind, b.ax, b.ay)) game.map[p.y][p.x].building = null;
+  game.buildings.delete(b.id);
+  if (b.kind === 'house') { game.houses--; game.population -= b.residents || 0; } else game.industries--;
+  if (b.kind === 'farm') {
+    const R = FARM.fieldRadius;
+    for (let y = b.ay - R; y < b.ay + 2 + R; y++) for (let x = b.ax - R; x < b.ax + 2 + R; x++)
+      if (inMap(x, y) && game.map[y][x].farm === b.id) game.map[y][x].farm = null;
+    if (game.fieldMode === b.id) game.fieldMode = null;
+  }
+  if (b.kind === 'warehouse')
+    for (const f of game.buildings.values()) if (f.storage === b.id) f.storage = null;
+  if (typeof removeVehiclesFor === 'function') removeVehiclesFor(b.id);
+  if (typeof onBuildingRemoved === 'function') onBuildingRemoved(b);
 }
 
 // Scorciatoie (usate anche dai test)

@@ -19,7 +19,7 @@ function generateTerrain(seed, N) {
         else if (v < 0.75) type = T.ROCK;
         else type = T.SNOW;
       }
-      row.push({ type, elev, path: null, field: false, building: null, rb: null });
+      row.push({ type, elev, path: null, main: false, field: false, farm: null, building: null, rb: null });
     }
     map.push(row);
   }

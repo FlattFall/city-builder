@@ -62,7 +62,7 @@ function buildIcons() {
   ICONS.road = tileIcon((c, P) => { diamond(c, P, ROAD_COLOR); drawRoad(c, P, straight); });
   ICONS.dirt = tileIcon((c, P) => { diamond(c, P, DIRT_COLORS[0]); drawDirt(c, P, straight); });
   ICONS.rail = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawRail(c, P, straight); });
-  ICONS.field = tileIcon((c, P) => { diamond(c, P, SOIL); drawField(c, P, 1); });
+  ICONS.field = tileIcon((c, P) => { diamond(c, P, SOIL); drawField(c, P, 'wheat', 3); });
   ICONS.house = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawHouse(c, 0, 0, 0); });
   ICONS.farm = bigIcon(c => drawFarm(c, 0, 0, 0), GROUND.farm);
   ICONS.warehouse = bigIcon(c => drawWarehouse(c, 0, 0, 0), GROUND.warehouse);
@@ -166,6 +166,7 @@ function selectGroupByKey(key) {
 }
 
 function setTool(id) {
+  if (id !== 'field' && game.fieldMode && typeof exitFieldMode === 'function') exitFieldMode(true);
   game.tool = id;
   const g = groupOf(id);
   groupChoice[g.id] = id;
@@ -188,6 +189,7 @@ function updateHud() {
   document.getElementById('rails').textContent = game.rails;
   document.getElementById('houses').textContent = game.houses;
   document.getElementById('industries').textContent = game.industries;
+  document.getElementById('population').textContent = game.population;
   document.getElementById('seed').textContent = game.seed + ' (' + game.size + 'x' + game.size + ')';
 }
 
@@ -197,9 +199,13 @@ function updateInfo() {
   if (!h) { el.textContent = '-'; return; }
   const t = game.map[h.y][h.x];
   let s = h.x + ',' + h.y + ' - ' + TERRAIN_NAMES[t.type] + ' (quota ' + t.elev + ')';
-  if (t.path) s += ' - ' + (t.rb ? 'Rotonda' : PATHS[t.path].name);
-  if (t.field) s += ' - Campo';
-  if (t.building) s += ' - ' + BUILDINGS[t.building.kind].name;
+  if (t.path) s += ' - ' + (t.main ? 'Strada principale' : t.rb ? 'Rotonda' : PATHS[t.path].name);
+  if (t.field) s += ' - Campo' + (t.farm ? ' della fattoria' : ' (senza fattoria)');
+  if (t.building) {
+    const b = t.building;
+    s += ' - ' + BUILDINGS[b.kind].name;
+    if (b.kind === 'house') s += ' (' + b.residents + '/' + HOUSE_CAPACITY + ' abitanti)';
+  }
   el.textContent = s;
 }
 
