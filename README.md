@@ -29,18 +29,24 @@ Sul tuo PC: `npm install` e poi `npm run dist`; l'.exe compare nella cartella `d
 
 ## Comandi nel gioco
 
-- Esc o il pulsante **Menu**: Riprendi, Salva partita, Nuova mappa, Carica mappa, Opzioni, Esci
-- 1 Mano (trascina la mappa), 2 Strada, 3 Casa, 4 Demolisci
-- Con Strada e Demolisci tieni premuto il tasto sinistro e trascina per fare più tile
+- Esc o il pulsante **Menu**: Riprendi, Salva partita, Nuova mappa (4 grandezze: 128, 192, 256, 384), Carica mappa, Opzioni, Esci
+- Barra in basso (tasti 1-5; premendo di nuovo lo stesso numero passi alla scelta successiva del gruppo):
+  1. **Mano**: trascina la mappa
+  2. **Strade**: strada, strada di terra, binari, campo coltivabile
+  3. **Case**
+  4. **Industrie**: fattoria (2x2), magazzino alimenti (2x2)
+  5. **Demolisci**
+- Strade, binari, campi, case e demolizione si trascinano per fare più tile
 - Tasto destro o centrale + trascina, oppure WASD/frecce: muovi la mappa
 - Rotella: zoom
 - F11: schermo intero, F5: ricarica (nella versione programma)
 
 Le partite salvate restano sul PC (versione programma) o nel browser usato (versione web).
 
-## Strade
+## Strade e binari
 
-- Una strada che sale dritta di un livello crea una **rampa**.
-- Un quadrato **2x2** di strade diventa una **rotonda quadrata**. Se è su un dislivello di 1, diventa una piazzola piana al livello più alto e le strade che arrivano dal basso salgono con una rampa, da qualsiasi lato.
+- Una strada (o un binario) che sale dritta di un livello crea una **rampa**.
+- Strade asfaltate e di terra si collegano tra loro; i binari solo con i binari.
+- Un quadrato **2x2** di strade asfaltate diventa una **rotonda**, anche su un gradino (2 tile sopra e 2 sotto): le strade si collegano da tutti i lati.
 
 Il codice è diviso in file dentro `js/`: vedi `CLAUDE.md` per la struttura.

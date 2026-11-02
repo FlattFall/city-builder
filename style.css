@@ -9,20 +9,43 @@ canvas { display: block; }
 #topbar b { color: #ffd966; }
 #topbar button { font: inherit; padding: 2px 8px; cursor: pointer; margin-left: auto; }
 
+/* ---------- Barra strumenti: icone, numero in alto a sinistra, nome sotto ---------- */
 #toolbar {
-  position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+  position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
   display: flex; gap: 6px; padding: 6px; background: rgba(0, 0, 0, .65); border-radius: 6px;
 }
-#toolbar button {
-  font: inherit; font-size: 14px; padding: 8px 14px; cursor: pointer;
-  background: #2c2f48; color: #f4f4f4; border: 2px solid #44486b; border-radius: 4px;
+#toolbar .tool, #submenu .sub {
+  position: relative; font: inherit; cursor: pointer; color: #f4f4f4;
+  background: #2c2f48; border: 2px solid #44486b; border-radius: 4px;
+  display: flex; flex-direction: column; align-items: center; padding: 4px 6px 5px;
 }
-#toolbar button:hover { background: #3a3e5e; }
-#toolbar button.active { border-color: #ffd966; background: #4a4f78; }
-#toolbar .k { color: #ffd966; margin-right: 4px; }
+#toolbar .tool { width: 82px; }
+#toolbar .tool:hover, #submenu .sub:hover { background: #3a3e5e; }
+#toolbar .tool.active, #submenu .sub.active { border-color: #ffd966; background: #4a4f78; }
+#toolbar img, #submenu img { width: 64px; height: 48px; image-rendering: pixelated; display: block; }
+#toolbar .lbl { font-size: 12px; margin-top: 2px; }
+#toolbar .num {
+  position: absolute; top: 2px; left: 4px; font-size: 13px; font-weight: bold;
+  color: #ffd966; text-shadow: 1px 1px 0 #0e0f1a;
+}
+#toolbar .more { position: absolute; top: 3px; right: 5px; font-size: 9px; color: #94b0c2; }
+
+#submenu {
+  position: fixed; bottom: 112px; display: flex; gap: 6px; padding: 6px; z-index: 5;
+  background: rgba(0, 0, 0, .78); border: 2px solid #5d6aa8; border-radius: 6px;
+}
+#submenu[hidden] { display: none; }
+#submenu .sub { width: 100px; }
+#submenu .sub span { font-size: 11px; text-align: center; margin-top: 2px; line-height: 1.2; }
+#submenu .sub small { font-size: 10px; color: #ffd966; }
+
+#toolname {
+  position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%);
+  font-size: 12px; color: #ffd966; text-shadow: 1px 1px 0 #0e0f1a; pointer-events: none;
+}
 
 #toast {
-  position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%);
+  position: fixed; bottom: 190px; left: 50%; transform: translateX(-50%);
   background: rgba(160, 40, 40, .9); padding: 6px 14px; border-radius: 4px; font-size: 13px;
   opacity: 0; transition: opacity .2s; pointer-events: none;
 }

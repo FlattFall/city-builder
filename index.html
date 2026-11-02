@@ -12,12 +12,16 @@
 <div id="topbar">
   <span>Fondi: <b id="money">-</b></span>
   <span>Strade: <b id="roads">0</b></span>
+  <span>Binari: <b id="rails">0</b></span>
   <span>Case: <b id="houses">0</b></span>
+  <span>Industrie: <b id="industries">0</b></span>
   <span>Seed: <span id="seed">-</span></span>
   <span>Tile: <span id="info">-</span></span>
   <button id="menu-btn">Menu (Esc)</button>
 </div>
 
+<div id="submenu" hidden></div>
+<div id="toolname"></div>
 <div id="toolbar"></div>
 <div id="toast"></div>
 
@@ -25,7 +29,7 @@
   Sinistro: usa lo strumento (Mano: trascina la mappa)<br>
   Destro o centrale + trascina: muovi la mappa<br>
   Rotella: zoom | WASD o frecce: muovi<br>
-  1-4: strumenti | Esc: menu
+  1-5: strumenti (di nuovo: il prossimo) | Esc: menu
 </div>
 
 <!-- Menu principale / pausa -->
@@ -41,6 +45,12 @@
       <button id="m-load">Carica mappa</button>
       <button id="m-options">Opzioni</button>
       <button id="m-exit">Esci</button>
+    </div>
+
+    <div class="menu-page" data-page="new" hidden>
+      <h2>Nuova mappa: grandezza</h2>
+      <div id="size-list"></div>
+      <button class="m-back">Indietro</button>
     </div>
 
     <div class="menu-page" data-page="load" hidden>

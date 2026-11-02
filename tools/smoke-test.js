@@ -30,6 +30,8 @@ function check(cond, msg) {
   check(await page.isVisible('text=Ci stiamo lavorando'), 'Opzioni: messaggio "ci stiamo lavorando"');
   await page.keyboard.press('Escape');
   await page.click('#m-new');
+  check(await page.isVisible('#m-size-128') && await page.isVisible('#m-size-384'), 'Nuova mappa: 4 grandezze (da 128 a 384)');
+  await page.click('#m-size-128');
   const m1 = await page.evaluate(() => ({ open: !document.getElementById('menu').hidden, started: game.started }));
   check(!m1.open && m1.started, 'Nuova mappa: menu chiuso e partita iniziata');
 
@@ -130,8 +132,8 @@ function check(cond, msg) {
   await page.waitForTimeout(150);
   await page.screenshot({ path: process.env.SHOTS + '/3-zoom.png' });
 
-  // 8. demolizione (tasto 4): casa e strade
-  await page.keyboard.press('4');
+  // 8. demolizione (tasto 5): casa e strade
+  await page.keyboard.press('5');
   const roadsBefore = await page.evaluate(() => game.roads);
   const a2 = await screenOf(run.x, run.y), b2 = await screenOf(run.x + 5, run.y);
   await page.mouse.move(a2.x, a2.y);
@@ -173,8 +175,10 @@ function check(cond, msg) {
   // 10b. nuova mappa dal menu azzera la città
   await page.keyboard.press('Escape');
   await page.click('#m-new');
+  await page.click('#m-size-256');
   const reset = await page.evaluate(() => ({ r: game.roads, h: game.houses, m: game.money }));
   check(reset.r === 0 && reset.h === 0, `nuova mappa: strade ${reset.r}, case ${reset.h}, fondi ${reset.m}`);
+  check(await page.evaluate(() => game.size === 256 && game.map.length === 256), 'nuova mappa 256x256');
 
   // 11. rampe: cerca A (livello e), B davanti ad A in una direzione (livello e+1), C dietro ad A (livello e)
   const ramp = await page.evaluate(() => {
@@ -276,24 +280,25 @@ function check(cond, msg) {
   const rb = await page.evaluate(() => {
     newGame(1);
     const N = game.size, c = N / 2;
-    for (const row of game.map) for (const t of row) { t.type = T.GRASS; t.road = false; t.building = null; }
+    for (const row of game.map) for (const t of row) { t.type = T.GRASS; t.path = null; t.field = false; t.building = null; } game.pathKeys = new Set();
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) game.map[y][x].elev = y < c ? 3 : 2;
     game.maxElev = 3;
     const r = {};
     // in piano, con una strada che entra da ovest
     const fx = c - 8, fy = c + 4;
     for (const [x, y] of [[fx, fy], [fx + 1, fy], [fx, fy + 1], [fx + 1, fy + 1], [fx - 1, fy]]) buildRoad(x, y);
-    r.flat = !!game.map[fy][fx].rb && game.map[fy][fx].rb.level === 2 && roadLinked(fx - 1, fy, 1);
+    r.flat = !!game.map[fy][fx].rb && game.map[fy][fx].rb.slope === -1 && roadLinked(fx - 1, fy, 1);
     // sul gradino: 2 sopra (y = c-1, quota 3) e 2 sotto (y = c, quota 2), strade che entrano
     // da sopra, da sotto e dai due lati della parte bassa (con altri due tile dopo le rampe laterali)
     const sx = c + 2, sy = c - 1;
     for (const [x, y] of [[sx, sy], [sx + 1, sy], [sx, sy + 1], [sx + 1, sy + 1], [sx, sy - 1], [sx + 1, sy + 2],
                           [sx + 2, sy + 1], [sx + 3, sy + 1], [sx - 1, sy + 1], [sx - 2, sy + 1]]) buildRoad(x, y);
-    const flatTop = [[sx, sy], [sx + 1, sy], [sx, sy + 1], [sx + 1, sy + 1]].every(([x, y]) => cornerHeights(x, y).every(h => h === 3));
-    r.slope = flatTop && game.map[sy + 1][sx].rb.level === 3;
+    // i 2 tile bassi sono inclinati (nessun terreno aggiunto), quelli alti piani
+    r.slope = rampDir(sx, sy + 1) === 0 && rampDir(sx + 1, sy + 1) === 0 && rampDir(sx, sy) === -1 &&
+              cornerHeights(sx, sy + 1).join() === '3,3,2,2';
     r.slopeLinks = roadLinked(sx, sy - 1, 2) && roadLinked(sx + 1, sy + 2, 0) && roadLinked(sx, sy + 1, 0);
-    r.sideLinks = roadLinked(sx + 2, sy + 1, 3) && rampDir(sx + 2, sy + 1) === 3 && roadLinked(sx + 3, sy + 1, 3) &&
-                  roadLinked(sx - 1, sy + 1, 1) && rampDir(sx - 1, sy + 1) === 1 && roadLinked(sx - 2, sy + 1, 1);
+    r.sideLinks = roadLinked(sx + 2, sy + 1, 3) && roadLinked(sx + 3, sy + 1, 3) &&
+                  roadLinked(sx - 1, sy + 1, 1) && roadLinked(sx - 2, sy + 1, 1);
     r.count = game.roundabouts;
     // demolendo un pezzo la rotonda sparisce
     demolish(fx, fy);
@@ -301,11 +306,62 @@ function check(cond, msg) {
     return r;
   });
   check(rb.flat, 'rotonda in piano creata e collegata alla strada che entra');
-  check(rb.slope, 'rotonda sul gradino: piazzola piana al livello alto');
-  check(rb.slopeLinks, 'rotonda sul gradino collegata sopra, sotto (con rampa) e al suo interno');
-  check(rb.sideLinks, 'rotonda sul gradino collegata anche dai lati della parte bassa (con rampe)');
+  check(rb.slope, 'rotonda sul gradino: i 2 tile bassi inclinati, senza terreno aggiunto');
+  check(rb.slopeLinks, 'rotonda sul gradino collegata sopra, sotto e al suo interno');
+  check(rb.sideLinks, 'rotonda sul gradino collegata anche dai lati della parte inclinata');
   check(rb.count === 2, `rotonde contate: ${rb.count}`);
   check(rb.removed, 'demolendo un pezzo, la rotonda torna strada normale');
+
+  // 15. binari, strade di terra, campi, fattoria e magazzino
+  const more = await page.evaluate(() => {
+    const N = game.size, c = N / 2, r = {};
+    // binari che salgono il gradino (quota 3 dietro, 2 davanti) e incrociano una strada vicina
+    for (let y = c - 3; y <= c + 2; y++) useTool('rail', c - 20, y);
+    r.railRamp = rampDir(c - 20, c) === 0 && roadLinked(c - 20, c, 0) && roadLinked(c - 20, c + 1, 0);
+    buildRoad(c - 19, c + 2);
+    r.railNotRoad = !roadLinked(c - 20, c + 2, 1);
+    useTool('dirt', c - 18, c + 2);
+    r.dirtToRoad = roadLinked(c - 19, c + 2, 1);
+    r.rails = game.rails;
+    // campi
+    useTool('field', c - 10, c + 10); useTool('field', c - 9, c + 10);
+    r.fields = game.fields === 2 && !useTool('road', c - 10, c + 10).ok;
+    // fattoria 2x2: occupa 4 tile, non si sovrappone, la ruspa la toglie tutta
+    r.farm = useTool('farm', c - 6, c + 10).ok && game.map[c + 11][c - 5].building === game.map[c + 10][c - 6].building;
+    r.overlap = !useTool('warehouse', c - 5, c + 11).ok;
+    r.wh = useTool('warehouse', c - 2, c + 10).ok && game.industries === 2;
+    demolish(c - 5, c + 11);
+    r.farmGone = !game.map[c + 10][c - 6].building && game.industries === 1;
+    return r;
+  });
+  check(more.railRamp, 'binari: rampa sul gradino, collegati sopra e sotto');
+  check(more.railNotRoad, 'binari e strade sono reti separate');
+  check(more.dirtToRoad, 'strada di terra collegata alla strada asfaltata');
+  check(more.fields, 'campi coltivabili (e niente strada sopra un campo)');
+  check(more.farm && more.overlap, 'fattoria 2x2 su 4 tile, senza sovrapposizioni');
+  check(more.wh, 'magazzino alimenti costruito');
+  check(more.farmGone, 'la ruspa demolisce tutta la fattoria');
+
+  // 16. salva e ricarica con tutti i tipi (binari, terra, campi, edifici grandi)
+  const rt = await page.evaluate(() => {
+    const before = JSON.stringify([game.roads, game.rails, game.fields, game.houses, game.industries, game.roundabouts]);
+    game.saveId = null; saveGame();
+    const id = game.saveId;
+    newGame(5);
+    loadGame(id);
+    const after = JSON.stringify([game.roads, game.rails, game.fields, game.houses, game.industries, game.roundabouts]);
+    return { before, after };
+  });
+  check(rt.before === rt.after, 'salva/carica conserva tutto: ' + rt.after);
+
+  // 17. barra: tasto 2 di nuovo passa alla strada di terra, il sottomenu si apre
+  await page.keyboard.press('2');
+  const t1 = await page.evaluate(() => game.tool);
+  await page.keyboard.press('2');
+  const t2 = await page.evaluate(() => game.tool);
+  check(t2 !== t1 && await page.isVisible('#submenu'), `tasto 2 ripetuto: ${t1} -> ${t2}, sottomenu aperto`);
+  await page.click('#submenu .sub[data-tool="rail"]');
+  check(await page.evaluate(() => game.tool) === 'rail' && !(await page.isVisible('#submenu')), 'clic nel sottomenu sceglie i binari');
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();

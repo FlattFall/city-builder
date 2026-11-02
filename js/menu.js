@@ -44,12 +44,23 @@ function enterGame() {
   closeMenu();
 }
 
-function startNewMap() {
+// "Nuova mappa" apre la scelta della grandezza; la mappa si crea quando se ne sceglie una
+function startNewMap(size) {
   if (!confirmLoseChanges()) return;
-  newGame(Math.floor(Math.random() * 100000));
-  updateRoundabouts();
+  newGame(Math.floor(Math.random() * 100000), size);
   game.started = true;
   enterGame();
+}
+
+function buildSizeChoices() {
+  const box = $('size-list');
+  for (const s of MAP_SIZES) {
+    const b = document.createElement('button');
+    b.id = 'm-size-' + s.size;
+    b.textContent = s.name + ' - ' + s.size + ' x ' + s.size;
+    b.addEventListener('click', () => startNewMap(s.size));
+    box.appendChild(b);
+  }
 }
 
 function saveFromMenu() {
@@ -81,7 +92,8 @@ function renderSaveList() {
     const name = document.createElement('b');
     name.textContent = s.name;
     const meta = document.createElement('span');
-    meta.textContent = formatDate(s.date) + ' - ' + s.roads + ' strade, ' + s.houses + ' case';
+    meta.textContent = formatDate(s.date) + ' - ' + (s.size || 128) + 'x' + (s.size || 128) + ', ' +
+      s.roads + ' strade, ' + s.houses + ' case';
     info.append(name, meta);
     const load = document.createElement('button');
     load.textContent = 'Carica';
@@ -109,7 +121,8 @@ function exitGame() {
 function initMenu() {
   $('m-resume').addEventListener('click', closeMenu);
   $('m-save').addEventListener('click', saveFromMenu);
-  $('m-new').addEventListener('click', startNewMap);
+  $('m-new').addEventListener('click', () => showMenuPage('new'));
+  buildSizeChoices();
   $('m-load').addEventListener('click', () => showMenuPage('load'));
   $('m-options').addEventListener('click', () => showMenuPage('options'));
   $('m-exit').addEventListener('click', exitGame);
@@ -119,6 +132,7 @@ function initMenu() {
   // Esc: apre il menu durante la partita; nel menu torna indietro o riprende
   addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
+    if (!document.getElementById('submenu').hidden) { closeSubmenu(); return; }
     if (!menuOpen) { if (game.started) openMenu(); return; }
     const page = document.querySelector('.menu-page:not([hidden])').dataset.page;
     if (page !== 'main') showMenuPage('main'); else closeMenu();

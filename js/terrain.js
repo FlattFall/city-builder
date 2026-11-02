@@ -1,5 +1,6 @@
 // ---------- Generazione del terreno ----------
-// Restituisce una matrice N x N di tile: { type, elev, road, building }
+// Restituisce una matrice N x N di tile:
+// { type, elev, path (null/'road'/'dirt'/'rail'), field, building, rb (rotonda) }
 function generateTerrain(seed, N) {
   const scale = 0.045 * (64 / N) + 0.02; // le caratteristiche restano grandi anche con mappe grandi
   const map = [];
@@ -18,7 +19,7 @@ function generateTerrain(seed, N) {
         else if (v < 0.75) type = T.ROCK;
         else type = T.SNOW;
       }
-      row.push({ type, elev, road: false, building: null });
+      row.push({ type, elev, path: null, field: false, building: null, rb: null });
     }
     map.push(row);
   }

@@ -7,6 +7,11 @@ const RAMP_LIGHT = '#6b6b76';   // rampa che sale verso il fondo (guarda verso d
 const RAMP_DARK = '#4d4d57';    // rampa che sale verso il davanti
 const CURB_COLOR = '#a0a0a8';
 const LANE_COLOR = '#e8d24a';
+const DIRT_COLORS = ['#a07c4c', '#ad8a59', '#8c6a3d'];  // piano, rampa chiara, rampa scura
+const DIRT_EDGE = '#7d5f38';
+const BALLAST = '#8d8273', SLEEPER = '#5e4128', STEEL = '#d5dade';
+const SOIL = '#8b5e34';
+const GROUND = { farm: '#b89a5e', warehouse: '#9a9a92' };   // terreno sotto gli edifici grandi
 
 const HOUSE_STYLES = [
   { l: '#d9c3a0', r: '#b39d7c', roof: '#b5473a', lip: '#8f372d' },
@@ -27,7 +32,8 @@ function line(c, a, b, color) {
   c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke();
 }
 
-// Punto (u, v) del tile (x, y) all'altezza h (in livelli) -> coordinate mondo
+// Punto (u, v) del tile (x, y) all'altezza h (in livelli) -> coordinate mondo.
+// u e v possono andare oltre 1: serve per gli edifici grandi.
 function iso(x, y, u, v, h) {
   return [(x + u - y - v) * TW / 2, (x + u + y + v) * TH / 2 - h * STEP];
 }
@@ -53,65 +59,112 @@ function drawTree(c, sx, sy, x, y) {
   c.fillStyle = '#4a9a3c'; c.fillRect(bx - 1, by - 14, 3, 3);
 }
 
-// Strada: cordoli sui lati non collegati, linea gialla verso i vicini collegati.
-// P(u, v) segue la superficie del tile, quindi funziona anche sulle rampe.
-function drawRoad(c, x, y, P) {
-  const edges = [[[0, 0], [1, 0]], [[1, 0], [1, 1]], [[1, 1], [0, 1]], [[0, 1], [0, 0]]];
-  const mids = [[0.5, 0], [1, 0.5], [0.5, 1], [0, 0.5]];
+// ---------- Percorsi ----------
+// P(u, v) segue la superficie del tile (funziona anche sulle rampe);
+// links[d] = true se il percorso è collegato al vicino in direzione d.
+const EDGE_UV = [[[0, 0], [1, 0]], [[1, 0], [1, 1]], [[1, 1], [0, 1]], [[0, 1], [0, 0]]];
+const MID_UV = [[0.5, 0], [1, 0.5], [0.5, 1], [0, 0.5]];
+
+// Strada asfaltata: cordoli sui lati non collegati, linea gialla verso i vicini collegati
+function drawRoad(c, P, links) {
   const center = P(0.5, 0.5);
   for (let d = 0; d < 4; d++) {
-    if (roadLinked(x, y, d)) line(c, center, P(...mids[d]), LANE_COLOR);
-    else line(c, P(...edges[d][0]), P(...edges[d][1]), CURB_COLOR);
+    if (links[d]) line(c, center, P(...MID_UV[d]), LANE_COLOR);
+    else line(c, P(...EDGE_UV[d][0]), P(...EDGE_UV[d][1]), CURB_COLOR);
   }
 }
 
-// Pezzo di rotonda quadrata: ogni tile disegna la sua parte (un quarto) dell'isola e della
-// corsia, ritagliata dentro il proprio rombo.
+// Strada di terra: bordi scuri e due solchi delle ruote verso i vicini collegati
+function drawDirt(c, P, links) {
+  for (let d = 0; d < 4; d++) {
+    if (!links[d]) { line(c, P(...EDGE_UV[d][0]), P(...EDGE_UV[d][1]), DIRT_EDGE); continue; }
+    const [mu, mv] = MID_UV[d];
+    for (const o of [-0.17, 0.17]) {
+      const a = d % 2 === 0 ? [0.5 + o, 0.5] : [0.5, 0.5 + o];
+      const b = d % 2 === 0 ? [mu + o, mv] : [mu, mv + o];
+      line(c, P(...a), P(...b), DIRT_COLORS[2]);
+    }
+  }
+}
+
+// Binari: massicciata, traversine e due rotaie per ogni braccio collegato.
+// Un binario isolato o alla fine della linea viene disegnato dritto.
+function drawRail(c, P, links) {
+  let arms = [0, 1, 2, 3].filter(d => links[d]);
+  if (arms.length === 0) arms = [1, 3];
+  else if (arms.length === 1) arms.push((arms[0] + 2) % 4);
+  const w = 0.3;
+  const rect = (u0, v0, u1, v1, col) => poly(c, [P(u0, v0), P(u1, v0), P(u1, v1), P(u0, v1)], col);
+  // punto a distanza s dal centro lungo il braccio d, spostato di o di lato
+  const at = (d, s, o) => {
+    const { dx, dy } = DIRS[d];
+    return dx ? P(0.5 + dx * s, 0.5 + o) : P(0.5 + o, 0.5 + dy * s);
+  };
+  rect(0.5 - w, 0.5 - w, 0.5 + w, 0.5 + w, BALLAST);
+  for (const d of arms) {
+    const { dx, dy } = DIRS[d];
+    if (dx) rect(Math.min(0.5, 0.5 + dx * 0.5), 0.5 - w, Math.max(0.5, 0.5 + dx * 0.5), 0.5 + w, BALLAST);
+    else rect(0.5 - w, Math.min(0.5, 0.5 + dy * 0.5), 0.5 + w, Math.max(0.5, 0.5 + dy * 0.5), BALLAST);
+  }
+  for (const d of arms) for (const s of [0.08, 0.25, 0.42]) line(c, at(d, s, -0.24), at(d, s, 0.24), SLEEPER);
+  for (const d of arms) for (const o of [-0.12, 0.12]) line(c, at(d, 0, o), at(d, 0.5, o), STEEL);
+}
+
+// Campo coltivabile: terra arata con file di piante (verdi o di grano)
+function drawField(c, P, variant) {
+  const crop = variant % 2 ? '#d9b44a' : '#6fae3e';
+  for (const v of [0.15, 0.32, 0.5, 0.68, 0.85]) line(c, P(0.08, v), P(0.92, v), crop);
+}
+
+// ---------- Rotonda ----------
+// Ogni tile disegna la sua parte (un quarto) dell'isola e della corsia circolare,
+// ritagliata dentro il proprio rombo. Sul gradino i tile bassi sono inclinati.
 const ISLAND_COLOR = '#5aa845';
 const ISLAND_INNER = '#4a9a3c';
 function drawRoundabout(c, x, y, P) {
   const rb = game.map[y][x].rb;
   const qx = x - rb.ax, qy = y - rb.ay;            // quale quarto del quadrato 2x2
   const B = (U, V) => P(U - qx, V - qy);            // (U, V) da 0 a 2 nel quadrato -> schermo
-  // quadrato centrato nel mezzo della rotonda, con "raggio" r (in tile)
-  const square = r => [B(1 - r, 1 - r), B(1 + r, 1 - r), B(1 + r, 1 + r), B(1 - r, 1 + r)];
+  const circle = r => {
+    const pts = [];
+    for (let i = 0; i < 48; i++) {
+      const a = i / 48 * Math.PI * 2;
+      pts.push(B(1 + r * Math.cos(a), 1 + r * Math.sin(a)));
+    }
+    return pts;
+  };
   const path = pts => {
     c.beginPath(); c.moveTo(pts[0][0], pts[0][1]);
     for (let i = 1; i < pts.length; i++) c.lineTo(pts[i][0], pts[i][1]);
     c.closePath();
   };
-
-  const edges = [[[0, 0], [1, 0]], [[1, 0], [1, 1]], [[1, 1], [0, 1]], [[0, 1], [0, 0]]];
-  const mids = [[0.5, 0], [1, 0.5], [0.5, 1], [0, 0.5]];
   const RING = 0.72; // raggio della corsia (in tile)
 
-  // area di ritaglio = rombo del tile allargato di ~1 pixel: copre il bordo che il tile
-  // appena disegnato lascia sui vicini, così nell'isola non restano righe tra i 4 quarti
+  // ritaglio = rombo del tile allargato di ~1 pixel: copre il bordo che il tile appena
+  // disegnato lascia sui vicini, così nell'isola non restano righe tra i 4 quarti
   const ex = 0.06;
   c.save();
   path([P(-ex, -ex), P(1 + ex, -ex), P(1 + ex, 1 + ex), P(-ex, 1 + ex)]);
   c.clip();
 
-  // ingressi: linea gialla dritta dal bordo collegato fino alla corsia
+  // ingressi: linea gialla dal bordo collegato fino alla corsia circolare
   for (let d = 0; d < 4; d++) {
     const nx = x + DIRS[d].dx, ny = y + DIRS[d].dy;
     if (sameRoundabout(x, y, nx, ny) || !roadLinked(x, y, d)) continue;
-    const { dx, dy } = DIRS[d];
-    const mU = qx + mids[d][0], mV = qy + mids[d][1];
-    line(c, B(mU, mV), B(dx ? 1 + dx * RING : mU, dy ? 1 + dy * RING : mV), LANE_COLOR);
+    const mU = qx + MID_UV[d][0], mV = qy + MID_UV[d][1];
+    const len = Math.hypot(mU - 1, mV - 1);
+    line(c, B(mU, mV), B(1 + (mU - 1) / len * RING, 1 + (mV - 1) / len * RING), LANE_COLOR);
   }
 
-  // corsia quadrata tratteggiata
   c.setLineDash([3, 3]);
-  path(square(RING));
+  path(circle(RING));
   c.strokeStyle = LANE_COLOR; c.lineWidth = 1; c.stroke();
   c.setLineDash([]);
 
-  // isola centrale quadrata con cordolo
-  path(square(0.42));
+  path(circle(0.42));
   c.fillStyle = ISLAND_COLOR; c.fill();
   c.strokeStyle = CURB_COLOR; c.lineWidth = 1; c.stroke();
-  path(square(0.24));
+  path(circle(0.22));
   c.fillStyle = ISLAND_INNER; c.fill();
   c.restore();
 
@@ -119,10 +172,11 @@ function drawRoundabout(c, x, y, P) {
   for (let d = 0; d < 4; d++) {
     const nx = x + DIRS[d].dx, ny = y + DIRS[d].dy;
     if (sameRoundabout(x, y, nx, ny) || roadLinked(x, y, d)) continue;
-    line(c, P(...edges[d][0]), P(...edges[d][1]), CURB_COLOR);
+    line(c, P(...EDGE_UV[d][0]), P(...EDGE_UV[d][1]), CURB_COLOR);
   }
 }
 
+// ---------- Edifici ----------
 function drawHouse(c, sx, sy, variant) {
   const s = HOUSE_STYLES[variant % HOUSE_STYLES.length];
   const hw = 12, hh = 6, h = 14;
@@ -143,6 +197,75 @@ function drawHouse(c, sx, sy, variant) {
   }
 }
 
+// Parallelepipedo da (u0, v0) a (u1, v1) rispetto all'angolo (ax, ay), alla quota base, alto hp pixel
+function box(c, ax, ay, base, u0, v0, u1, v1, hp, col) {
+  const top = base + hp / STEP;
+  const P = (u, v, h) => iso(ax, ay, u, v, h);
+  poly(c, [P(u0, v1, base), P(u1, v1, base), P(u1, v1, top), P(u0, v1, top)], col.l); // lato sinistro
+  poly(c, [P(u1, v1, base), P(u1, v0, base), P(u1, v0, top), P(u1, v1, top)], col.r); // lato destro
+  poly(c, [P(u0, v0, top), P(u1, v0, top), P(u1, v1, top), P(u0, v1, top)], col.t);   // sopra
+  return top;
+}
+
+// Tetto a due falde con il colmo lungo u, appoggiato alla quota top, alto rh pixel
+function gableRoof(c, ax, ay, top, u0, v0, u1, v1, rh, col) {
+  const P = (u, v, h) => iso(ax, ay, u, v, h);
+  const vm = (v0 + v1) / 2, ridge = top + rh / STEP;
+  poly(c, [P(u0, v0, top), P(u1, v0, top), P(u1, vm, ridge), P(u0, vm, ridge)], col.back);
+  poly(c, [P(u1, v1, top), P(u1, v0, top), P(u1, vm, ridge)], col.gable);
+  poly(c, [P(u0, v1, top), P(u1, v1, top), P(u1, vm, ridge), P(u0, vm, ridge)], col.roof);
+}
+
+// Fattoria 2x2: fienile rosso, silo, casetta e balle di fieno
+function drawFarm(c, ax, ay, base) {
+  const P = (u, v, h) => iso(ax, ay, u, v, h);
+  // balle di fieno dietro
+  box(c, ax, ay, base, 1.45, 1.25, 1.65, 1.45, 4, { l: '#d9b44a', r: '#b8952f', t: '#ecd17a' });
+  // silo
+  const st = box(c, ax, ay, base, 1.4, 0.25, 1.78, 0.63, 30, { l: '#c9d2dc', r: '#a5b0bd', t: '#e8eef3' });
+  poly(c, [P(1.4, 0.25, st), P(1.78, 0.25, st), P(1.78, 0.63, st), P(1.4, 0.63, st)], '#8f9aa6');
+  // fienile
+  const bt = box(c, ax, ay, base, 0.15, 0.2, 1.25, 1.0, 14, { l: '#b5473a', r: '#8f372d', t: '#b5473a' });
+  gableRoof(c, ax, ay, bt, 0.1, 0.15, 1.3, 1.05, 8, { back: '#5a4036', roof: '#6b4a3a', gable: '#8f372d' });
+  // portone del fienile con la croce bianca
+  const dl = [P(0.5, 1.0, base), P(0.9, 1.0, base), P(0.9, 1.0, base + 9 / STEP), P(0.5, 1.0, base + 9 / STEP)];
+  poly(c, dl, '#5a2a22');
+  line(c, dl[0], dl[2], '#f2f5f8'); line(c, dl[1], dl[3], '#f2f5f8');
+  // casetta del contadino
+  const ht = box(c, ax, ay, base, 0.25, 1.3, 0.85, 1.8, 9, { l: '#e6d9c2', r: '#c0b399', t: '#e6d9c2' });
+  gableRoof(c, ax, ay, ht, 0.2, 1.25, 0.9, 1.85, 5, { back: '#7a2f27', roof: '#9a3a30', gable: '#c0b399' });
+}
+
+// Magazzino alimenti 2x2: capannone con tetto piatto, portoni di carico, insegna verde e casse
+function drawWarehouse(c, ax, ay, base) {
+  const P = (u, v, h) => iso(ax, ay, u, v, h);
+  const top = box(c, ax, ay, base, 0.15, 0.3, 1.85, 1.55, 18, { l: '#d2ccbe', r: '#aaa497', t: '#7d8a96' });
+  for (const u of [0.45, 0.8, 1.15, 1.5]) line(c, P(u, 0.3, top), P(u, 1.55, top), '#6b7682'); // lamiere
+  for (const u0 of [0.3, 0.8, 1.3]) // portoni di carico
+    poly(c, [P(u0, 1.55, base), P(u0 + 0.35, 1.55, base), P(u0 + 0.35, 1.55, base + 11 / STEP), P(u0, 1.55, base + 11 / STEP)], '#4a4f5a');
+  // insegna verde sul lato destro
+  poly(c, [P(1.85, 1.35, top - 2 / STEP), P(1.85, 0.5, top - 2 / STEP), P(1.85, 0.5, top - 6 / STEP), P(1.85, 1.35, top - 6 / STEP)], '#3fa34d');
+  // casse davanti
+  for (const u0 of [0.35, 1.45])
+    box(c, ax, ay, base, u0, 1.68, u0 + 0.22, 1.9, 5, { l: '#a0703f', r: '#7f5630', t: '#c08a52' });
+}
+
+// Disegna la parte di edificio di un tile: case subito, edifici grandi sul tile più avanti
+// dell'impronta (così sono già stati disegnati tutti i tile su cui poggiano)
+function drawBuildingOn(c, x, y, b) {
+  const def = BUILDINGS[b.kind];
+  if (b.kind === 'house') {
+    const t = game.map[y][x];
+    drawHouse(c, (x - y) * TW / 2, (x + y) * TH / 2 - t.elev * STEP, b.variant);
+    return;
+  }
+  if (x !== b.ax + def.w - 1 || y !== b.ay + def.h - 1) return;
+  const base = game.map[b.ay][b.ax].elev;
+  if (b.kind === 'farm') drawFarm(c, b.ax, b.ay, base);
+  else if (b.kind === 'warehouse') drawWarehouse(c, b.ax, b.ay, base);
+}
+
+// ---------- Tile ----------
 // Parete sul lato davanti verso la direzione d (1 = destra/SE, 2 = sinistra/SW):
 // va dal bordo del tile fino al bordo del vicino (o al suolo fuori mappa)
 function drawWall(c, x, y, h, d, color) {
@@ -152,6 +275,12 @@ function drawWall(c, x, y, h, d, color) {
   if (h[ka] <= ba && h[kb] <= bb) return;
   const [ua, va] = CORNERS[ka], [ub, vb] = CORNERS[kb];
   poly(c, [iso(x, y, ua, va, h[ka]), iso(x, y, ub, vb, h[kb]), iso(x, y, ub, vb, bb), iso(x, y, ua, va, ba)], color);
+}
+
+// Colore della superficie di un percorso: più chiaro/scuro se è una rampa
+function slopeShade(x, y, colors) {
+  const r = rampDir(x, y);
+  return r < 0 ? colors[0] : (r === 0 || r === 3 ? colors[1] : colors[2]);
 }
 
 // onlyTop = disegna solo la superficie e l'oggetto sopra (usato per l'anteprima)
@@ -166,22 +295,26 @@ function drawTile(c, x, y, detail, onlyTop) {
     drawWall(c, x, y, h, 1, col[2]); // destra, verso (x+1, y)
   }
 
-  // superficie
   let top = col[0];
-  if (t.road) {
-    const r = rampDir(x, y);
-    top = r < 0 ? ROAD_COLOR : (r === 0 || r === 3 ? RAMP_LIGHT : RAMP_DARK);
-  }
+  if (t.path === 'road') top = slopeShade(x, y, [ROAD_COLOR, RAMP_LIGHT, RAMP_DARK]);
+  else if (t.path === 'dirt') top = slopeShade(x, y, DIRT_COLORS);
+  else if (t.field) top = SOIL;
+  else if (t.building && GROUND[t.building.kind]) top = GROUND[t.building.kind];
   poly(c, [P(0, 0), P(1, 0), P(1, 1), P(0, 1)], top);
 
-  if (t.road) {
-    if (t.rb) drawRoundabout(c, x, y, P); else drawRoad(c, x, y, P);
+  if (t.path) {
+    const links = [0, 1, 2, 3].map(d => roadLinked(x, y, d));
+    if (t.rb) drawRoundabout(c, x, y, P);
+    else if (t.path === 'road') drawRoad(c, P, links);
+    else if (t.path === 'dirt') drawDirt(c, P, links);
+    else drawRail(c, P, links);
     return;
   }
+  if (t.field) { drawField(c, P, Math.floor(hash(x, y, 11) * 4)); return; }
 
   const sx = (x - y) * TW / 2;
   const sy = (x + y) * TH / 2 - t.elev * STEP;
-  if (detail && !onlyTop) {
+  if (detail && !onlyTop && !t.building) {
     c.fillStyle = col[1];
     for (let i = 0; i < 3; i++) {
       const px = Math.round(sx + (hash(x, y, 20 + i) - 0.5) * 16);
@@ -190,38 +323,56 @@ function drawTile(c, x, y, detail, onlyTop) {
     }
   }
 
-  if (t.building) { drawHouse(c, sx, sy, t.building.variant); return; }
+  if (t.building) { drawBuildingOn(c, x, y, t.building); return; }
   if (t.type === T.FOREST && !onlyTop) drawTree(c, sx, sy, x, y);
 }
 
-// ---------- Anteprima (fantasma) di strada/casa sotto il mouse ----------
+// ---------- Anteprima (fantasma) di quello che si sta per costruire ----------
+function isBuildTool(tool) { return !!(PATHS[tool] || BUILDINGS[tool] || tool === 'field'); }
+
 function previewTile() {
   const h = game.hover;
-  if (!h || (game.tool !== 'road' && game.tool !== 'house')) return null;
+  if (!h || !isBuildTool(game.tool)) return null;
   return canUseTool(game.tool, h.x, h.y) ? h : null;
 }
 
-// Tile da ridisegnare in anteprima: quello sotto il mouse e, per le strade, le strade vicine
-// (possono cambiare forma, ad esempio diventare una rampa, o collegarsi alla nuova strada)
+// Tile da ridisegnare in anteprima: per i percorsi anche quelli vicini (possono diventare
+// rampe, rotonde o collegarsi), per gli edifici tutta l'impronta
 function previewTiles(p) {
+  if (BUILDINGS[game.tool]) return footprint(game.tool, p.x, p.y);
   const list = [p];
-  // anche le diagonali: la nuova strada può completare una rotonda 2x2
-  if (game.tool === 'road')
+  if (PATHS[game.tool])
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++)
-      if ((dx || dy) && roadAt(p.x + dx, p.y + dy)) list.push({ x: p.x + dx, y: p.y + dy });
+      if ((dx || dy) && pathAt(p.x + dx, p.y + dy)) list.push({ x: p.x + dx, y: p.y + dy });
   return list;
 }
 
 // Esegue draw() come se l'oggetto fosse già costruito, poi rimette tutto com'era
 function withPreview(p, draw) {
+  const tool = game.tool;
   const t = game.map[p.y][p.x];
-  const saved = { road: t.road, building: t.building };
-  if (game.tool === 'road') { t.road = true; updateRoundabouts(); }
-  else t.building = { kind: 'house', variant: houseVariant(p.x, p.y) };
-  try { draw(); } finally {
-    t.road = saved.road; t.building = saved.building;
-    if (game.tool === 'road') updateRoundabouts();
+  const saved = footprint(BUILDINGS[tool] ? tool : 'house', p.x, p.y).map(q => [q, game.map[q.y][q.x].building]);
+  const savedField = t.field;
+  if (PATHS[tool]) { setPath(p.x, p.y, tool); updateRoundabouts(); }
+  else if (tool === 'field') t.field = true;
+  else if (BUILDINGS[tool]) {
+    const b = { kind: tool, variant: houseVariant(p.x, p.y), ax: p.x, ay: p.y };
+    for (const [q] of saved) game.map[q.y][q.x].building = b;
   }
+  try { draw(); } finally {
+    if (PATHS[tool]) { setPath(p.x, p.y, null); updateRoundabouts(); }
+    t.field = savedField;
+    for (const [q, b] of saved) game.map[q.y][q.x].building = b;
+  }
+}
+
+// Dimensioni dell'impronta dello strumento (1x1 per tutto tranne gli edifici grandi)
+function toolSize(tool) { return BUILDINGS[tool] ? BUILDINGS[tool] : { w: 1, h: 1 }; }
+
+// Tile su cui disegnare il contorno: il più avanti dell'impronta (dentro la mappa)
+function hoverAnchorTile() {
+  const h = game.hover, s = toolSize(game.tool);
+  return { x: Math.min(h.x + s.w - 1, game.size - 1), y: Math.min(h.y + s.h - 1, game.size - 1) };
 }
 
 function drawHover(c) {
@@ -230,15 +381,20 @@ function drawHover(c) {
   let color = '#ffffff';
   if (game.tool === 'demolish') color = canUseTool('demolish', h.x, h.y) ? '#ffb347' : '#888888';
   else if (game.tool !== 'hand') color = canUseTool(game.tool, h.x, h.y) ? '#5dff7a' : '#ff5d5d';
+  const s = toolSize(game.tool);
 
   const draw = () => {
-    const P = surface(h.x, h.y);
+    // 1x1: segue la superficie (rampe); edifici grandi: rettangolo piano alla quota del tile
+    let pts;
+    if (s.w === 1 && s.h === 1) {
+      const P = surface(h.x, h.y), a = 0.1, b = 0.9;
+      pts = [P(a, a), P(b, a), P(b, b), P(a, b)];
+    } else {
+      const e = game.map[h.y][h.x].elev, a = 0.1;
+      pts = [iso(h.x, h.y, a, a, e), iso(h.x, h.y, s.w - a, a, e), iso(h.x, h.y, s.w - a, s.h - a, e), iso(h.x, h.y, a, s.h - a, e)];
+    }
     c.strokeStyle = color; c.lineWidth = 1.5;
     c.beginPath();
-    // leggermente rientrato: così i tile vicini allo stesso livello non coprono il contorno,
-    // mentre quelli davanti più alti (o gli alberi) sì
-    const a = 0.1, b = 0.9;
-    const pts = [P(a, a), P(b, a), P(b, b), P(a, b)];
     c.moveTo(pts[0][0], pts[0][1]);
     for (const p of pts.slice(1)) c.lineTo(p[0], p[1]);
     c.closePath(); c.stroke();
@@ -262,22 +418,31 @@ function drawFrame() {
   const pv = previewTile();
   const pvList = pv ? previewTiles(pv) : [];
   const inPreview = (x, y) => pvList.some(p => p.x === x && p.y === y);
+  const ha = game.hover ? hoverAnchorTile() : null;
 
-  const hv = game.hover;
+  // zona visibile in coordinate mondo (con margine per pareti, alberi ed edifici alti)
+  const left = -cam.x / z - TW, right = (view.w - cam.x) / z + TW;
+  const topY = -cam.y / z - TH, bottomY = (view.h - cam.y) / z + 48;
 
   // dal fondo al fronte (ordine del pittore).
   // Anteprima e contorno della selezione si disegnano subito dopo il loro tile:
   // così i blocchi davanti li coprono, come farebbero con l'oggetto vero.
-  for (let y = r.y0; y <= r.y1; y++)
-    for (let x = r.x0; x <= r.x1; x++) {
+  for (let y = r.y0; y <= r.y1; y++) {
+    // in questa fila solo le x che cadono dentro lo schermo in orizzontale
+    const xa = Math.max(r.x0, Math.floor(y + left / (TW / 2)));
+    const xb = Math.min(r.x1, Math.ceil(y + right / (TW / 2)));
+    for (let x = xa; x <= xb; x++) {
+      const gy = (x + y) * TH / 2; // posizione a quota 0
+      if (gy - game.map[y][x].elev * STEP > bottomY || gy + TH < topY) continue;
       drawTile(ctx, x, y, detail);
       if (pv && inPreview(x, y)) {
         ctx.globalAlpha = 0.75;
         withPreview(pv, () => drawTile(ctx, x, y, detail, true));
         ctx.globalAlpha = 1;
       }
-      if (hv && x === hv.x && y === hv.y) drawHover(ctx);
+      if (ha && x === ha.x && y === ha.y) drawHover(ctx);
     }
+  }
 }
 
 // Ridisegna al prossimo frame (evita di disegnare più volte inutilmente)

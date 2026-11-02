@@ -17,7 +17,10 @@ function tilePath(a, b) {
 }
 
 function paintTo(tile) {
-  const path = (lastTile && game.tool !== 'house') ? tilePath(lastTile, tile) : [tile];
+  // gli edifici grandi si piazzano uno per clic; percorsi, campi, case e ruspa si trascinano
+  const big = BUILDINGS[game.tool] && BUILDINGS[game.tool].w > 1;
+  if (big && lastTile) return;
+  const path = (lastTile && !BUILDINGS[game.tool]) ? tilePath(lastTile, tile) : [tile];
   let changed = false;
   for (const p of path) {
     if (lastTile && p.x === lastTile.x && p.y === lastTile.y) continue;
@@ -32,6 +35,7 @@ function paintTo(tile) {
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 canvas.addEventListener('mousedown', e => {
+  closeSubmenu();
   if (e.button === 1 || e.button === 2 || (e.button === 0 && game.tool === 'hand')) {
     panning = true; lastX = e.clientX; lastY = e.clientY;
     canvas.style.cursor = 'grabbing';
@@ -72,8 +76,7 @@ addEventListener('keydown', e => {
   if (menuIsOpen()) return; // con il menu aperto la tastiera non comanda il gioco
   const k = e.key.toLowerCase();
   const s = 48;
-  const tool = TOOLS.find(t => t.key === e.key);
-  if (tool) setTool(tool.id);
+  if (selectGroupByKey(e.key)) { /* strumento scelto */ }
   else if (k === 'w' || k === 'arrowup') cam.y += s;
   else if (k === 's' || k === 'arrowdown') cam.y -= s;
   else if (k === 'a' || k === 'arrowleft') cam.x += s;
