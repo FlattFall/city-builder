@@ -169,7 +169,10 @@ function drawHover(c) {
     const P = surface(h.x, h.y);
     c.strokeStyle = color; c.lineWidth = 1.5;
     c.beginPath();
-    const pts = [P(0, 0), P(1, 0), P(1, 1), P(0, 1)];
+    // leggermente rientrato: così i tile vicini allo stesso livello non coprono il contorno,
+    // mentre quelli davanti più alti (o gli alberi) sì
+    const a = 0.1, b = 0.9;
+    const pts = [P(a, a), P(b, a), P(b, b), P(a, b)];
     c.moveTo(pts[0][0], pts[0][1]);
     for (const p of pts.slice(1)) c.lineTo(p[0], p[1]);
     c.closePath(); c.stroke();
@@ -194,26 +197,21 @@ function drawFrame() {
   const pvList = pv ? previewTiles(pv) : [];
   const inPreview = (x, y) => pvList.some(p => p.x === x && p.y === y);
 
-  // dal fondo al fronte (ordine del pittore)
+  const hv = game.hover;
+
+  // dal fondo al fronte (ordine del pittore).
+  // Anteprima e contorno della selezione si disegnano subito dopo il loro tile:
+  // così i blocchi davanti li coprono, come farebbero con l'oggetto vero.
   for (let y = r.y0; y <= r.y1; y++)
     for (let x = r.x0; x <= r.x1; x++) {
       drawTile(ctx, x, y, detail);
-      // anteprima al suo posto: i blocchi davanti la coprono come farebbero con l'oggetto vero
       if (pv && inPreview(x, y)) {
         ctx.globalAlpha = 0.75;
         withPreview(pv, () => drawTile(ctx, x, y, detail, true));
         ctx.globalAlpha = 1;
       }
+      if (hv && x === hv.x && y === hv.y) drawHover(ctx);
     }
-
-  // anteprima "a raggi X": la parte coperta da blocchi davanti si vede in trasparenza
-  if (pv) {
-    ctx.globalAlpha = 0.4;
-    withPreview(pv, () => { for (const p of pvList) drawTile(ctx, p.x, p.y, detail, true); });
-    ctx.globalAlpha = 1;
-  }
-
-  drawHover(ctx);
 }
 
 // Ridisegna al prossimo frame (evita di disegnare più volte inutilmente)

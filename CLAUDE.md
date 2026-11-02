@@ -16,7 +16,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - Ogni tile ha 4 angoli (N, E, S, W) con un'altezza: `cornerHeights(x, y)`. Piatto = tutti uguali.
 - Una strada diventa rampa (`rampDir`) se un solo vicino è strada a +1 livello e ai lati non ci sono strade allo stesso livello (la rampa sale dritta; strade parallele sotto un gradino restano piatte).
 - Due strade sono collegate (`roadLinked`) se il bordo in comune ha la stessa altezza. Pareti e strade si disegnano dagli angoli, quindi funzionano anche sulle rampe.
-- Anteprima: `withPreview` costruisce per finta, disegna e annulla. Viene disegnata in ordine (coperta dai blocchi davanti) e poi di nuovo trasparente sopra a tutto ("raggi X").
+- Anteprima: `withPreview` costruisce per finta, disegna e annulla. Anteprima e contorno della selezione si disegnano in ordine, subito dopo il loro tile, così i blocchi davanti li coprono (scelta dell'utente). Il contorno è rientrato di 0.1 per non essere coperto dai vicini allo stesso livello.
 - `pickTile` tratta ogni tile come una colonna dal suolo al punto più alto (edifici compresi) e prende quella disegnata per ultima: funziona su pareti e case.
 
 ## Aggiungere uno strumento
