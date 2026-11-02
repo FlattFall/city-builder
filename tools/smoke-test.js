@@ -35,8 +35,8 @@ function check(cond, msg) {
       const p = pickTile(sx, sy);
       tot++;
       if (p && p.x === x && p.y === y) ok++;
-      // un tile può essere nascosto da un tile più avanti (più alto): è normale
-      else if (p && p.x + p.y > x + y) hidden++;
+      // un tile può essere nascosto da un tile disegnato dopo (davanti e più alto): è normale
+      else if (p && (p.y > y || (p.y === y && p.x > x))) hidden++;
     }
     return { ok, hidden, tot };
   });
@@ -52,16 +52,20 @@ function check(cond, msg) {
       return sx > 80 && sx < view.w - 80 && sy > 120 && sy < view.h - 140;
     };
     let best = null, bestD = Infinity;
+    for (let seed = 1; seed <= 60 && !best; seed++) {
+    newGame(seed); centerCamera(); requestDraw();
     for (let y = 8; y < N - 14; y++)
       for (let x = 8; x < N - 14; x++) {
         let good = true;
         for (let j = 0; j < 6 && good; j++) for (let i = 0; i < 6 && good; i++) {
           if (!buildable(game.map[y + j][x + i]) || !onScreen(x + i, y + j)) good = false;
-          if (good && i > 0 && Math.abs(game.map[y + j][x + i].elev - game.map[y + j][x + i - 1].elev) > 1) good = false;
+          if (good && game.map[y + j][x + i].elev !== game.map[y][x].elev) good = false; // blocco piatto
         }
         const d = Math.abs(x + 2 - N / 2) + Math.abs(y + 2 - N / 2);
         if (good && d < bestD) { best = { x, y }; bestD = d; }
       }
+    }
+    updateHud();
     return best;
   });
   check(!!run, 'trovato un blocco 6x6 edificabile e visibile');
@@ -142,6 +146,102 @@ function check(cond, msg) {
   await page.keyboard.press('r');
   const reset = await page.evaluate(() => ({ r: game.roads, h: game.houses, m: game.money }));
   check(reset.r === 0 && reset.h === 0, `nuovo terreno: strade ${reset.r}, case ${reset.h}, fondi ${reset.m}`);
+
+  // 11. rampe: cerca A (livello e), B davanti ad A in una direzione (livello e+1), C dietro ad A (livello e)
+  const ramp = await page.evaluate(() => {
+    const ok = t => t.type === T.SAND || t.type === T.GRASS || t.type === T.FOREST;
+    const N = game.size;
+    for (let y = 3; y < N - 3; y++) for (let x = 3; x < N - 3; x++) for (let d = 0; d < 4; d++) {
+      const A = game.map[y][x], D = DIRS[d];
+      const B = game.map[y + D.dy][x + D.dx], C = game.map[y - D.dy][x - D.dx];
+      const s1 = DIRS[(d + 1) % 4], s2 = DIRS[(d + 3) % 4];
+      const S1 = game.map[y + s1.dy][x + s1.dx], S2 = game.map[y + s2.dy][x + s2.dx];
+      if (ok(A) && ok(B) && ok(C) && ok(S1) && ok(S2) && B.elev === A.elev + 1 && C.elev === A.elev && S1.elev === A.elev) {
+        // costruisce C, A, B (strada che sale dritta)
+        for (const [px, py] of [[x - D.dx, y - D.dy], [x, y], [x + D.dx, y + D.dy]]) buildRoad(px, py);
+        const res = {
+          x, y, d,
+          rampDir: rampDir(x, y),
+          upLinked: roadLinked(x, y, d) && roadLinked(x + D.dx, y + D.dy, (d + 2) % 4),
+          downLinked: roadLinked(x, y, (d + 2) % 4),
+          corners: cornerHeights(x, y), elev: A.elev,
+        };
+        // strada laterale allo stesso livello: la rampa deve sparire (strade parallele sotto un dislivello)
+        buildRoad(x + s1.dx, y + s1.dy);
+        res.flatWithSide = rampDir(x, y) === -1 && !roadLinked(x, y, d);
+        demolish(x + s1.dx, y + s1.dy);
+        res.rampBack = rampDir(x, y) === d;
+        return res;
+      }
+    }
+    return null;
+  });
+  check(!!ramp, 'trovato un punto con dislivello di 1 per provare la rampa');
+  if (ramp) {
+    check(ramp.rampDir === ramp.d, `la strada in basso diventa rampa (direzione ${ramp.rampDir}, attesa ${ramp.d})`);
+    check(ramp.upLinked && ramp.downLinked, 'la rampa è collegata sopra e sotto');
+    check(Math.max(...ramp.corners) === ramp.elev + 1 && Math.min(...ramp.corners) === ramp.elev, 'angoli della rampa: ' + ramp.corners.join(','));
+    check(ramp.flatWithSide, 'con una strada di lato allo stesso livello resta piatta e non si collega');
+    check(ramp.rampBack, 'demolita la strada di lato, torna rampa');
+
+    // screenshot ravvicinato della rampa (zoom 4)
+    await page.evaluate(([x, y]) => {
+      cam.zi = ZOOMS.length - 1;
+      const z = zoomLevel(), t = game.map[y][x];
+      cam.x = view.w / 2 - (x - y) * TW / 2 * z;
+      cam.y = view.h / 2 - ((x + y) * TH / 2 - t.elev * STEP) * z;
+      game.hover = null; requestDraw();
+    }, [ramp.x, ramp.y]);
+    await page.waitForTimeout(100);
+    await page.screenshot({ path: process.env.SHOTS + '/4-ramp.png' });
+  }
+
+  // 12. picking sulle pareti: un punto su una parete deve dare il tile a cui appartiene la parete
+  const wall = await page.evaluate(() => {
+    const z = zoomLevel();
+    let ok = 0, tot = 0;
+    for (let y = 1; y < game.size - 1 && tot < 300; y++) for (let x = 1; x < game.size - 1 && tot < 300; x++) {
+      const t = game.map[y][x];
+      const f = game.map[y + 1][x]; // vicino davanti a sinistra
+      // (se il tile davanti-davanti è alto quanto noi copre davvero la parete: lo saltiamo)
+      if (t.elev - f.elev < 2 || game.map[y + 1][x + 1].elev >= t.elev || t.building || f.building) continue;
+      // punto a metà della parete sinistra (sotto il bordo S-W)
+      const wxp = (x - y) * TW / 2 - TW / 4;
+      const wyp = (x + y) * TH / 2 + TH * 3 / 4 - t.elev * STEP + STEP * 0.75;
+      const p = pickTile(cam.x + wxp * z, cam.y + wyp * z);
+      tot++;
+      if (p && p.x === x && p.y === y) ok++;
+    }
+    return { ok, tot };
+  });
+  check(wall.tot > 0 && wall.ok === wall.tot, `picking sulle pareti: ${wall.ok}/${wall.tot}`);
+
+  // 13. anteprima casa su un tile parzialmente coperto da un blocco davanti (screenshot)
+  await page.keyboard.press('3');
+  const covered = await page.evaluate(() => {
+    const ok = t => t.type === T.SAND || t.type === T.GRASS || t.type === T.FOREST;
+    for (let y = 30; y < game.size - 30; y++) for (let x = 30; x < game.size - 30; x++) {
+      const t = game.map[y][x], front = game.map[y + 1][x + 1];
+      // blocco davanti più alto di 1: copre la metà bassa del tile, la metà alta resta visibile
+      if (ok(t) && !t.road && !t.building && front.elev === t.elev + 1 &&
+          game.map[y][x + 1].elev <= t.elev && game.map[y + 1][x].elev <= t.elev) return { x, y, elev: t.elev };
+    }
+    return null;
+  });
+  if (covered) {
+    const pos = await page.evaluate(([x, y]) => {
+      cam.zi = ZOOMS.length - 1;
+      const z = zoomLevel(), t = game.map[y][x];
+      cam.x = view.w / 2 - (x - y) * TW / 2 * z;
+      cam.y = view.h / 2 - ((x + y) * TH / 2 - t.elev * STEP) * z;
+      // punto vicino all'angolo in alto del tile (la parte visibile)
+      return { x: cam.x + (x - y) * TW / 2 * z, y: cam.y + ((x + y) * TH / 2 - t.elev * STEP + 3) * z };
+    }, [covered.x, covered.y]);
+    await page.mouse.move(pos.x, pos.y);
+    const hov = await page.evaluate(() => game.hover);
+    check(hov && hov.x === covered.x && hov.y === covered.y, 'il tile parzialmente coperto si seleziona dalla parte visibile');
+    await page.screenshot({ path: process.env.SHOTS + '/5-preview-covered.png' });
+  }
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();

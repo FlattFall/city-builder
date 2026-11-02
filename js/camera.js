@@ -23,15 +23,20 @@ function tileFromWorld(wx, wy) {
   return { x: Math.floor((a + b) / 2 + 0.5), y: Math.floor((b - a) / 2 + 0.5) };
 }
 
-// Tile sotto il mouse, tenendo conto delle quote
+// Tile sotto il mouse, tenendo conto di quote, pareti ed edifici.
+// Ogni tile è una "colonna" dal suolo fino al suo punto più alto: tra le colonne che
+// contengono il punto vince quella disegnata per ultima (cioè quella davanti).
 function pickTile(mx, my) {
   const z = zoomLevel();
   const wx = (mx - cam.x) / z, wy = (my - cam.y) / z;
-  for (let e = game.maxElev; e >= 0; e--) {
-    const p = tileFromWorld(wx, wy + e * STEP);
-    if (inMap(p.x, p.y) && game.map[p.y][p.x].elev === e) return p;
+  const maxDy = (game.maxElev + 1) * STEP + 16;
+  let best = null;
+  for (let dy = 0; dy <= maxDy; dy++) {
+    const p = tileFromWorld(wx, wy + dy);
+    if (!inMap(p.x, p.y) || topHeightPx(p.x, p.y) < dy) continue;
+    if (!best || p.y > best.y || (p.y === best.y && p.x > best.x)) best = p;
   }
-  return null;
+  return best;
 }
 
 // Intervallo di tile visibili (per disegnare solo quelli necessari)
