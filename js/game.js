@@ -251,9 +251,8 @@ function farmFieldCount(farm) {
 function newBuilding(kind, x, y) {
   const b = { id: game.nextId++, kind, variant: houseVariant(x, y), ax: x, ay: y, rot: game.rotation || 0 };
   if (kind === 'house') { b.residents = 0; b.incoming = 0; }
-  if (kind === 'farm') { b.crop = 'wheat'; b.storage = null; b.inventory = 0; b.growth = 0; b.fields = 0; }
-  if (kind === 'warehouse') b.stock = { wheat: 0, carrot: 0, potato: 0 };
-  return b;
+  if (kind === 'farm') { b.crop = 'wheat'; b.growth = 0; b.fields = 0; }
+  return initEconomy(b);
 }
 
 // ---------- Rotazione ed entrata ----------
@@ -506,8 +505,8 @@ function removeBuilding(b) {
       if (inMap(x, y) && game.map[y][x].farm === b.id) game.map[y][x].farm = null;
     if (game.fieldMode === b.id) game.fieldMode = null;
   }
-  if (b.kind === 'warehouse')
-    for (const f of game.buildings.values()) if (f.storage === b.id) f.storage = null;
+  // chi mandava merce qui non ha più destinazione
+  for (const f of game.buildings.values()) if (f.storage === b.id) f.storage = null;
   if (typeof removeVehiclesFor === 'function') removeVehiclesFor(b.id);
   if (typeof onBuildingRemoved === 'function') onBuildingRemoved(b);
 }

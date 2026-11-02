@@ -1,23 +1,25 @@
 // ---------- Pannello degli edifici e modalità campi ----------
 // Con la Mano, un clic su un edificio apre il suo pannello:
-//  - Fattoria: coltura (grano/carote/patate), campi, crescita, inventario, magazzino di destinazione
-//  - Magazzino: scorte
-//  - Casa: abitanti
+//  - Casa: abitanti e lavoro
+//  - Fattoria: coltura, campi, crescita, inventario, dove mandare il raccolto
+//  - Magazzino: scorte e cosa accetta (griglia di immagini)
+//  - Fabbrica / Panificio: ricette attivabili, materie prime, prodotti, dove mandarli
+//  - Supermercato: clienti, merce sugli scaffali, vendite e tasse
 let panelTimer = 0;
 let panelLive = [];      // funzioni che aggiornano numeri e barre senza ricostruire i pulsanti
-let panelShape = '';     // quando cambia (nuovo magazzino, coltura, ...) il pannello si ricostruisce
-
-// testo che si aggiorna da solo
-function liveText(tag, cls, fn) {
-  const e = el(tag, cls, fn());
-  panelLive.push(() => { const t = fn(); if (e.textContent !== t) e.textContent = t; });
-  return e;
-}
+let panelShape = '';     // quando cambia (nuovo edificio, coltura, ...) il pannello si ricostruisce
 
 function el(tag, cls, text) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
   if (text != null) e.textContent = text;
+  return e;
+}
+
+// testo che si aggiorna da solo
+function liveText(tag, cls, fn) {
+  const e = el(tag, cls, fn());
+  panelLive.push(() => { const t = fn(); if (e.textContent !== t) e.textContent = t; });
   return e;
 }
 
@@ -30,12 +32,32 @@ function bar(valueFn, max) {
   return b;
 }
 
+function goodImg(g, cls) {
+  const i = el('img', cls || 'gicon');
+  i.src = GOOD_ICONS[g]; i.alt = GOODS[g].name; i.title = GOODS[g].name;
+  return i;
+}
+
+// elenco di merci con icona e quantità (che si aggiorna)
+function goodsList(mapFn, emptyText) {
+  const box = el('div', 'pgoods');
+  const keys = Object.keys(mapFn());
+  if (!keys.length) box.appendChild(el('div', 'pnote', emptyText));
+  for (const g of keys) {
+    const row = el('div', 'pgood');
+    row.append(goodImg(g), el('span', null, GOODS[g].name), liveText('b', null, () => String(mapFn()[g] || 0)));
+    box.appendChild(row);
+  }
+  return box;
+}
+
 // cosa determina la forma del pannello (se cambia si ricostruisce)
 function panelShapeOf(b) {
   if (!b) return '';
-  const whs = [...game.buildings.values()].filter(w => w.kind === 'warehouse').map(w => w.id).join(',');
-  return [b.id, b.crop, b.storage, b.fields, whs, b.residents >= HOUSE_CAPACITY, !!b.unreachable, accessTiles(b).length,
-    b.inventory >= FARM.inventoryCap, !!b.incoming].join('|');
+  const others = [...game.buildings.values()].filter(w => w.kind !== 'house').map(w => w.id).join(',');
+  return [b.id, b.crop, b.storage, b.fields, others, b.residents >= HOUSE_CAPACITY, !!b.unreachable, accessTiles(b).length,
+    !!b.incoming, Object.keys(b.store || {}).join(), Object.keys(b.input || {}).join(),
+    JSON.stringify(b.accept || {}), JSON.stringify(b.recipes || {})].join('|');
 }
 
 function openBuildingPanel(b) {
@@ -55,11 +77,30 @@ function panelIsOpen() { return !document.getElementById('panel').hidden; }
 
 function onBuildingRemoved(b) { if (game.selected === b.id) closePanel(); }
 
-// Magazzini raggiungibili su strada dalla fattoria
-function warehouseChoices(farm) {
-  const from = accessTiles(farm);
-  return [...game.buildings.values()].filter(w => w.kind === 'warehouse')
+// Destinazioni possibili per la merce di un edificio, con raggiungibilità su strada
+function destChoices(b) {
+  const from = accessTiles(b);
+  return [...game.buildings.values()].filter(w => (DEST_KINDS[b.kind] || []).includes(w.kind))
     .map(w => ({ w, ok: !!findRoute(from, accessTiles(w)) }));
+}
+
+function destSection(box, b) {
+  box.appendChild(el('div', 'plabel', b.kind === 'farm' ? 'Dove portare il raccolto' : 'Dove mandare i prodotti'));
+  const list = el('div', 'plist');
+  const none = el('button', 'pchoice' + (!b.storage ? ' active' : ''), 'Nessuna destinazione');
+  none.addEventListener('click', () => { b.storage = null; renderPanel(); });
+  list.appendChild(none);
+  const choices = destChoices(b);
+  for (const { w, ok } of choices) {
+    const name = w.kind === 'warehouse' ? 'Magazzino' : BUILDINGS[w.kind].name;
+    const btn = el('button', 'pchoice' + (b.storage === w.id ? ' active' : ''), name + ' #' + w.id + (ok ? ' - raggiungibile' : ' - nessuna strada'));
+    if (!ok) btn.classList.add('bad');
+    btn.addEventListener('click', () => { b.storage = w.id; b.retry = 0; b.status = ''; game.dirty = true; renderPanel(); });
+    list.appendChild(btn);
+  }
+  box.appendChild(list);
+  if (!choices.length) box.appendChild(el('div', 'pnote', 'Costruisci ' + DEST_KINDS[b.kind].map(k => BUILDINGS[k].name.toLowerCase()).join(' o ') + ' (gruppo 4).'));
+  if (b.storage) box.appendChild(liveText('div', 'pnote', () => b.status || (b.van ? 'Furgone in viaggio' : 'Il furgone parte con almeno ' + VAN_MIN_LOAD + ' unità')));
 }
 
 function renderPanel() {
@@ -95,17 +136,29 @@ function renderPanel() {
   }
 
   if (b.kind === 'warehouse') {
-    const tot = () => Object.values(b.stock).reduce((a, c) => a + c, 0);
-    box.appendChild(liveText('div', 'prow', () => 'Scorte: ' + tot() + ' / ' + WAREHOUSE_CAPACITY));
-    box.appendChild(bar(tot, WAREHOUSE_CAPACITY));
-    for (const [id, c] of Object.entries(CROPS)) box.appendChild(liveText('div', 'prow', () => c.name + ': ' + b.stock[id]));
+    box.appendChild(liveText('div', 'prow', () => 'Scorte: ' + sumOf(b.store) + ' / ' + CAPS.warehouse.store));
+    box.appendChild(bar(() => sumOf(b.store), CAPS.warehouse.store));
+    box.appendChild(goodsList(() => b.store, 'Vuoto.'));
+    box.appendChild(el('div', 'plabel', 'Cosa accetta (clic per cambiare)'));
+    const grid = el('div', 'pgrid');
+    for (const g of Object.keys(GOODS)) {
+      const on = b.accept[g] !== false;
+      const btn = el('button', 'gtoggle' + (on ? ' on' : ''));
+      btn.title = GOODS[g].name + (on ? ': accettato' : ': rifiutato');
+      btn.appendChild(goodImg(g));
+      btn.addEventListener('click', () => { b.accept[g] = !on; game.dirty = true; renderPanel(); });
+      grid.appendChild(btn);
+    }
+    box.appendChild(grid);
+    box.appendChild(el('div', 'pnote', 'Fabbrica, panificio e supermercato prendono da qui quello che gli serve.'));
   }
 
   if (b.kind === 'farm') {
     box.appendChild(el('div', 'plabel', 'Cosa coltivare'));
-    const crops = el('div', 'pchoices');
+    const crops = el('div', 'pchoices pwrap');
     for (const [id, c] of Object.entries(CROPS)) {
-      const btn = el('button', 'pchoice' + (b.crop === id ? ' active' : ''), c.name);
+      const btn = el('button', 'pchoice' + (b.crop === id ? ' active' : ''));
+      btn.append(goodImg(id), el('span', null, c.name));
       btn.addEventListener('click', () => {
         if (b.crop !== id) { b.crop = id; b.growth = 0; game.dirty = true; } // si riparte dalla semina
         renderPanel(); requestDraw();
@@ -123,26 +176,42 @@ function renderPanel() {
 
     box.appendChild(liveText('div', 'prow', () => 'Crescita: ' + Math.floor(b.growth * 100) + '%'));
     box.appendChild(bar(() => b.growth, 1));
-    box.appendChild(liveText('div', 'prow', () => 'Inventario: ' + b.inventory + ' / ' + FARM.inventoryCap + ' (' + CROPS[b.crop].name.toLowerCase() + ')'));
-    box.appendChild(bar(() => b.inventory, FARM.inventoryCap));
-    if (b.inventory >= FARM.inventoryCap) box.appendChild(el('div', 'pwarn', 'Inventario pieno: la crescita è ferma.'));
+    box.appendChild(liveText('div', 'prow', () => 'Inventario: ' + sumOf(b.store) + ' / ' + CAPS.farm.store));
+    box.appendChild(bar(() => sumOf(b.store), CAPS.farm.store));
+    box.appendChild(goodsList(() => b.store, 'Ancora niente raccolto.'));
+    box.appendChild(liveText('div', 'pwarn', () => sumOf(b.store) >= CAPS.farm.store ? 'Inventario pieno: la crescita è ferma.' : ''));
+    destSection(box, b);
+  }
 
-    box.appendChild(el('div', 'plabel', 'Dove portare il cibo'));
-    const list = el('div', 'plist');
-    const none = el('button', 'pchoice' + (!b.storage ? ' active' : ''), 'Nessun magazzino');
-    none.addEventListener('click', () => { b.storage = null; renderPanel(); });
-    list.appendChild(none);
-    const choices = warehouseChoices(b);
-    for (const { w, ok } of choices) {
-      const btn = el('button', 'pchoice' + (b.storage === w.id ? ' active' : ''),
-        'Magazzino #' + w.id + (ok ? ' - raggiungibile' : ' - nessuna strada'));
-      if (!ok) btn.classList.add('bad');
-      btn.addEventListener('click', () => { b.storage = w.id; b.retry = 0; b.status = ''; game.dirty = true; renderPanel(); });
-      list.appendChild(btn);
+  if (b.kind === 'factory' || b.kind === 'bakery') {
+    box.appendChild(el('div', 'plabel', 'Ricette (clic per accendere/spegnere)'));
+    for (const r of RECIPES[b.kind]) {
+      const on = b.recipes[r.out] !== false;
+      const row = el('button', 'precipe' + (on ? ' on' : ''));
+      for (const [g, n] of Object.entries(r.in)) { if (n > 1) row.appendChild(el('span', 'pdim', n + 'x')); row.appendChild(goodImg(g)); }
+      row.appendChild(el('span', 'parrow', '→'));
+      row.append(goodImg(r.out), el('span', null, GOODS[r.out].name));
+      row.addEventListener('click', () => { b.recipes[r.out] = !on; game.dirty = true; renderPanel(); });
+      box.appendChild(row);
     }
-    box.appendChild(list);
-    if (!choices.length) box.appendChild(el('div', 'pnote', 'Costruisci un magazzino alimenti (gruppo 4).'));
-    if (b.storage) box.appendChild(liveText('div', 'pnote', () => b.status || (b.van ? 'Furgone in viaggio' : 'Il furgone parte con almeno ' + FARM.vanMinLoad + ' unità')));
+    box.appendChild(liveText('div', 'prow', () => 'Materie prime: ' + sumOf(b.input) + ' / ' + CAPS[b.kind].input));
+    box.appendChild(goodsList(() => b.input, 'Nessuna materia prima.'));
+    box.appendChild(liveText('div', 'prow', () => 'Prodotti pronti: ' + sumOf(b.store) + ' / ' + CAPS[b.kind].store));
+    box.appendChild(bar(() => sumOf(b.store), CAPS[b.kind].store));
+    box.appendChild(goodsList(() => b.store, 'Ancora niente.'));
+    box.appendChild(liveText('div', 'pwarn', () => b.full ? 'Deposito prodotti pieno: scegli dove mandarli.' :
+      b.noInput ? 'Mancano materie prime: mandale qui da una fattoria o mettile in un magazzino.' : ''));
+    destSection(box, b);
+  }
+
+  if (b.kind === 'supermarket') {
+    box.appendChild(liveText('div', 'prow', () => 'Clienti (abitanti entro ' + SHOP.radius + ' tile): ' + (b.customers || 0)));
+    box.appendChild(liveText('div', 'prow', () => 'Venduti: ' + b.sold + ' - tasse incassate: ' + b.taxes.toLocaleString('it-IT') + ' €'));
+    box.appendChild(liveText('div', 'prow', () => 'Scaffali: ' + sumOf(b.store) + ' / ' + CAPS.supermarket.store));
+    box.appendChild(bar(() => sumOf(b.store), CAPS.supermarket.store));
+    box.appendChild(goodsList(() => b.store, 'Scaffali vuoti.'));
+    box.appendChild(liveText('div', 'pwarn', () => b.empty ? 'Scaffali vuoti: serve merce da fabbrica, panificio o magazzini.' : ''));
+    box.appendChild(el('div', 'pnote', 'Si rifornisce dai magazzini; fabbrica e panificio possono anche mandare i prodotti direttamente qui. Tasse: ' + Math.round(TAX_RATE * 100) + '% del prezzo.'));
   }
 }
 

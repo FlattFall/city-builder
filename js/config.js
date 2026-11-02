@@ -35,6 +35,9 @@ const BUILDINGS = {
   house:     { name: 'Casa', w: 1, h: 1, cost: 100, height: 16, group: 'homes' },
   farm:      { name: 'Fattoria', w: 2, h: 2, cost: 500, height: 34, group: 'industry' },
   warehouse: { name: 'Magazzino alimenti', w: 2, h: 2, cost: 400, height: 20, group: 'industry' },
+  factory:   { name: 'Fabbrica alimentare', w: 2, h: 2, cost: 1500, height: 40, group: 'industry' },
+  bakery:    { name: 'Panificio', w: 1, h: 1, cost: 400, height: 18, group: 'industry' },
+  supermarket: { name: 'Supermercato', w: 2, h: 2, cost: 1200, height: 20, group: 'industry' },
 };
 
 // ---------- Abitanti ----------
@@ -46,9 +49,12 @@ const VAN_SPEED = 1.4;
 
 // ---------- Agricoltura ----------
 const CROPS = {
-  wheat:  { name: 'Grano',   ripe: '#d9b44a', young: '#9cc94a' },
-  carrot: { name: 'Carote',  ripe: '#f08a24', young: '#5dae3a' },
-  potato: { name: 'Patate',  ripe: '#7a9a3a', young: '#5dae3a' },
+  wheat:   { name: 'Grano',    ripe: '#d9b44a', young: '#9cc94a' },
+  carrot:  { name: 'Carote',   ripe: '#f08a24', young: '#5dae3a' },
+  potato:  { name: 'Patate',   ripe: '#7a9a3a', young: '#5dae3a' },
+  corn:    { name: 'Mais',     ripe: '#e8c84a', young: '#6fbf3a' },
+  tomato:  { name: 'Pomodori', ripe: '#d94141', young: '#5dae3a' },
+  cabbage: { name: 'Cavoli',   ripe: '#8fd16a', young: '#5dae3a' },
 };
 const FARM = {
   fieldRadius: 6,     // i campi devono stare entro questa distanza (in tile) dalla fattoria
@@ -60,10 +66,68 @@ const FARM = {
 };
 const WAREHOUSE_CAPACITY = 1000;
 
+// ---------- Merci ----------
+// cat: raw = dai campi, food = dalla fabbrica, bakery = dal panificio.
+// price = prezzo al supermercato (le merci senza prezzo non si vendono lì)
+const GOODS = {
+  wheat:      { name: 'Grano', cat: 'raw' },
+  carrot:     { name: 'Carote', cat: 'raw' },
+  potato:     { name: 'Patate', cat: 'raw' },
+  corn:       { name: 'Mais', cat: 'raw' },
+  tomato:     { name: 'Pomodori', cat: 'raw' },
+  cabbage:    { name: 'Cavoli', cat: 'raw', price: 3 },        // si vendono freschi
+  flour:      { name: 'Farina', cat: 'food', price: 4 },
+  chips:      { name: 'Patatine confezionate', cat: 'food', price: 6 },
+  carrotPack: { name: 'Carote confezionate', cat: 'food', price: 5 },
+  sauce:      { name: 'Salsa di pomodoro', cat: 'food', price: 6 },
+  cornFlour:  { name: 'Farina di mais', cat: 'food', price: 4 },
+  pasta:      { name: 'Pasta', cat: 'food', price: 8 },
+  bread:      { name: 'Pane', cat: 'bakery', price: 5 },
+  biscuits:   { name: 'Biscotti', cat: 'bakery', price: 7 },
+  cakes:      { name: 'Torte', cat: 'bakery', price: 12 },
+};
+
+// Ricette: in = materie prime consumate, out = prodotto (1 unità per ciclo)
+const RECIPES = {
+  factory: [
+    { in: { wheat: 1 }, out: 'flour' },
+    { in: { potato: 1 }, out: 'chips' },
+    { in: { carrot: 1 }, out: 'carrotPack' },
+    { in: { tomato: 1 }, out: 'sauce' },
+    { in: { corn: 1 }, out: 'cornFlour' },
+    { in: { wheat: 1, tomato: 1 }, out: 'pasta' },
+  ],
+  bakery: [
+    { in: { flour: 1 }, out: 'bread' },
+    { in: { flour: 1 }, out: 'biscuits' },
+    { in: { flour: 2 }, out: 'cakes' },
+  ],
+};
+const PRODUCE_TICK = { factory: 4, bakery: 5 };   // secondi per ciclo con tutto il personale
+
+// Capienze: input = materie prime in attesa, store = merce pronta (o in deposito)
+const CAPS = {
+  farm: { store: 100 },
+  warehouse: { store: WAREHOUSE_CAPACITY },
+  factory: { input: 100, store: 60 },
+  bakery: { input: 40, store: 40 },
+  supermarket: { store: 200 },
+};
+// Dove può mandare la merce ogni attività
+const DEST_KINDS = {
+  farm: ['warehouse', 'factory'],
+  factory: ['warehouse', 'supermarket', 'bakery'],
+  bakery: ['warehouse', 'supermarket'],
+};
+
+// ---------- Supermercato e tasse ----------
+const SHOP = { tick: 10, radius: 25, buyRate: 0.25 }; // ogni 10 s un quarto dei clienti compra qualcosa
+const TAX_RATE = 0.3;                                 // tasse sulle vendite che vanno al giocatore
+
 // ---------- Lavoro ----------
 // Persone che servono per far funzionare un'attività; lavorano lì gli abitanti delle case
 // entro JOB_RADIUS tile
-const JOBS = { farm: 4, warehouse: 2 };
+const JOBS = { farm: 4, warehouse: 2, factory: 6, bakery: 2, supermarket: 3 };
 const JOB_RADIUS = 12;
 
 // ---------- Modellare il terreno ----------

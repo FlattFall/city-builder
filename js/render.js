@@ -11,7 +11,7 @@ const DIRT_COLORS = ['#a07c4c', '#ad8a59', '#8c6a3d'];  // piano, rampa chiara, 
 const DIRT_EDGE = '#7d5f38';
 const BALLAST = '#8d8273', SLEEPER = '#5e4128', STEEL = '#d5dade';
 const SOIL = '#8b5e34';
-const GROUND = { farm: '#b89a5e', warehouse: '#9a9a92' };   // terreno sotto gli edifici grandi
+const GROUND = { farm: '#b89a5e', warehouse: '#9a9a92', factory: '#8f8f88', supermarket: '#9a9a92' };   // terreno sotto gli edifici grandi
 
 const HOUSE_STYLES = [
   { l: '#d9c3a0', r: '#b39d7c', roof: '#b5473a', lip: '#8f372d' },
@@ -350,10 +350,78 @@ function drawBuildingOn(c, x, y, b) {
     drawHouse(c, (x - y) * TW / 2, (x + y) * TH / 2 - t.elev * STEP, b.variant, b.rot);
     return;
   }
+  if (b.kind === 'bakery') { drawBakery(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (x !== b.ax + def.w - 1 || y !== b.ay + def.h - 1) return;
   const base = game.map[b.ay][b.ax].elev;
   if (b.kind === 'farm') drawFarm(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'warehouse') drawWarehouse(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'factory') drawFactory(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'supermarket') drawSupermarket(c, b.ax, b.ay, base, b.rot || 0);
+}
+
+// Fabbrica alimentare 2x2: capannone in mattoni con tetto a shed, ciminiera che fuma, cisterna e uffici
+function drawFactory(c, ax, ay, base, r) {
+  const P = (u, v, h) => iso(ax, ay, u, v, h);
+  groundRect(c, ax, ay, base, [0.28, 1.45, 0.72, 2.0], r, '#7b7f86');
+  const brick = { l: '#b0603f', r: '#8a4a30', t: '#7d8590' };
+  drawParts(c, ax, ay, base, r, [
+    { box: [0.1, 0.25, 1.5, 1.45], h: 18, col: brick,
+      doors: [{ face: '+v', a: 0.32, b: 0.72, z1: 12, color: '#4a4f5a' },
+        { face: '+v', a: 0.9, b: 1.35, z0: 9, z1: 14, color: '#9fd3e8' },
+        { face: '+u', a: 0.45, b: 1.25, z0: 9, z1: 14, color: '#9fd3e8' }],
+      after(b, top) { // tetto a shed: strisce chiare e scure
+        const alongU = b[2] - b[0] >= b[3] - b[1];
+        for (let i = 0; i < 4; i++) {
+          const f0 = i / 4 + 0.03, f1 = i / 4 + 0.14;
+          const q = alongU
+            ? [P(b[0] + (b[2] - b[0]) * f0, b[1], top), P(b[0] + (b[2] - b[0]) * f1, b[1], top + 0.4), P(b[0] + (b[2] - b[0]) * f1, b[3], top + 0.4), P(b[0] + (b[2] - b[0]) * f0, b[3], top)]
+            : [P(b[0], b[1] + (b[3] - b[1]) * f0, top), P(b[0], b[1] + (b[3] - b[1]) * f1, top + 0.4), P(b[2], b[1] + (b[3] - b[1]) * f1, top + 0.4), P(b[2], b[1] + (b[3] - b[1]) * f0, top)];
+          poly(c, q, '#9fb0c0');
+        }
+      } },
+    { box: [1.62, 0.25, 1.86, 0.49], h: 40, col: brick,
+      after(b, top) { // fumo
+        const [sx, sy] = P((b[0] + b[2]) / 2, (b[1] + b[3]) / 2, top);
+        c.fillStyle = 'rgba(220,220,225,0.7)';
+        for (const [dx, dy, rr] of [[0, -4, 3], [3, -9, 4], [7, -15, 5]]) { c.beginPath(); c.arc(sx + dx, sy + dy, rr, 0, Math.PI * 2); c.fill(); }
+      } },
+    { box: [1.6, 0.7, 1.9, 1.05], h: 16, col: { l: '#c9d2dc', r: '#a5b0bd', t: '#e8eef3' } },
+    { box: [1.0, 1.55, 1.55, 1.9], h: 10, col: { l: '#e6d9c2', r: '#c0b399', t: '#b0a48c' },
+      doors: [{ face: '+v', a: 1.15, b: 1.4, z0: 4, z1: 8, color: '#9fd3e8' }] },
+  ]);
+}
+
+// Supermercato 2x2: negozio bianco con vetrina e fascia blu, parcheggio davanti all'entrata
+function drawSupermarket(c, ax, ay, base, r) {
+  const P = (u, v, h) => iso(ax, ay, u, v, h);
+  groundRect(c, ax, ay, base, [0.08, 1.32, 1.92, 1.96], r, '#55555e');
+  for (const u of [0.85, 1.2, 1.55]) { // strisce dei posti auto
+    const A = rotUV(u, 1.45, r), B = rotUV(u, 1.85, r);
+    line(c, P(A[0], A[1], base), P(B[0], B[1], base), '#e8e8e8');
+  }
+  drawParts(c, ax, ay, base, r, [
+    { box: [0.15, 0.15, 1.85, 1.25], h: 16, col: { l: '#ece8de', r: '#cbc6ba', t: '#9aa3ad' },
+      doors: [{ face: '+v', a: 0.25, b: 1.75, z0: 11, z1: 15, color: '#3f6fd9' },
+        { face: '+u', a: 0.15, b: 1.25, z0: 11, z1: 15, color: '#3f6fd9' },
+        { face: '+v', a: 0.3, b: 1.0, z0: 0, z1: 9, color: '#9fd3e8' },
+        { face: '+v', a: 1.15, b: 1.7, z0: 3, z1: 8, color: '#9fd3e8' }] },
+    { box: [0.85, 0.5, 1.25, 0.7], h: 22, col: { l: '#d94141', r: '#a83030', t: '#e86a6a' } }, // insegna sul tetto
+  ]);
+}
+
+// Panificio 1x1: bottega con tetto a due falde, tenda a strisce e vetrina sul lato della porta
+function drawBakery(c, x, y, base, r) {
+  const P = (u, v, h) => iso(x, y, u, v, h);
+  const top = box(c, x, y, base, 0.14, 0.14, 0.86, 0.86, 12, { l: '#efdcbc', r: '#cdb894', t: '#efdcbc' });
+  gableRoof(c, x, y, top, 0.1, 0.1, 0.9, 0.9, 6, { back: '#6b3a24', roof: '#8a4a2a', gable: '#cdb894', gableL: '#efdcbc' }, (r & 1) === 1);
+  const front = (r & 1) === 0 ? 'v' : 'u';   // lato con porta, vetrina e tenda (sempre uno dei due visibili)
+  const F = (a, z, out) => front === 'v' ? P(a, 0.86 + (out || 0), base + z / STEP) : P(0.86 + (out || 0), a, base + z / STEP);
+  poly(c, [F(0.22, 2), F(0.45, 2), F(0.45, 7), F(0.22, 7)], '#9fd3e8');      // vetrina
+  poly(c, [F(0.55, 0), F(0.72, 0), F(0.72, 7), F(0.55, 7)], '#6b3a24');      // porta
+  for (let i = 0; i < 5; i++) {                                              // tenda a strisce
+    const a0 = 0.16 + i * 0.136, a1 = a0 + 0.136;
+    poly(c, [F(a0, 10), F(a1, 10), F(a1, 8, 0.12), F(a0, 8, 0.12)], i % 2 ? '#f2f5f8' : '#d94141');
+  }
 }
 
 // ---------- Tile ----------
@@ -597,20 +665,33 @@ function drawSelection(c, b) {
 }
 
 // Icona sopra le attività senza abbastanza lavoratori: rossa se non c'è nessuno, arancione se ne mancano
+// Icone di stato sopra le attività:
+//  persona rossa/arancione = mancano lavoratori, scatola arancione = deposito pieno,
+//  cassa vuota blu = mancano materie prime, scaffale viola = supermercato senza merce
+const STATUS_COLORS = { noWorkers: '#d94141', fewWorkers: '#e8a33a', full: '#e07b39', noInput: '#3f6fd9', empty: '#8e5bd1' };
 function drawWorkerIcons(c) {
   for (const b of game.buildings.values()) {
-    const need = JOBS[b.kind];
-    if (!need || (b.workers || 0) >= need) continue;
+    const st = buildingStatus(b);
+    if (!st) continue;
     const d = BUILDINGS[b.kind], e = game.map[b.ay][b.ax].elev;
     const [x, y] = iso(b.ax, b.ay, d.w / 2, d.h / 2, e + (d.height + 10) / STEP);
-    c.fillStyle = b.workers ? '#e8a33a' : '#d94141';
+    c.fillStyle = STATUS_COLORS[st];
     c.strokeStyle = '#1a1c2c'; c.lineWidth = 1;
     c.beginPath(); c.arc(x, y, 6, 0, Math.PI * 2); c.fill(); c.stroke();
-    c.fillStyle = '#ffffff';
-    c.beginPath(); c.arc(x, y - 2.5, 1.6, 0, Math.PI * 2); c.fill();   // testa
-    c.fillRect(x - 2, y - 0.5, 4, 4);                                  // corpo
-    c.fillStyle = b.workers ? '#e8a33a' : '#d94141';
-    c.fillRect(x - 0.5, y + 1.5, 1, 2);                                // gambe
+    c.fillStyle = '#ffffff'; c.strokeStyle = '#ffffff';
+    if (st === 'noWorkers' || st === 'fewWorkers') {
+      c.beginPath(); c.arc(x, y - 2.5, 1.6, 0, Math.PI * 2); c.fill();   // testa
+      c.fillRect(x - 2, y - 0.5, 4, 4);                                  // corpo
+      c.fillStyle = STATUS_COLORS[st];
+      c.fillRect(x - 0.5, y + 1.5, 1, 2);                                // gambe
+    } else if (st === 'full') {
+      c.fillRect(x - 3, y - 1, 6, 4); c.fillRect(x - 2, y - 4, 4, 2);   // casse impilate
+    } else if (st === 'noInput') {
+      c.lineWidth = 1; c.strokeRect(x - 3, y - 2, 6, 5);                 // cassa vuota
+      c.fillRect(x - 0.5, y - 4.5, 1, 1.5);
+    } else if (st === 'empty') {
+      for (const dy of [-3, 0, 3]) c.fillRect(x - 3.5, y + dy, 7, 1);    // scaffale vuoto
+    }
   }
 }
 

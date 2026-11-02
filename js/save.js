@@ -22,7 +22,7 @@ const PATH_FROM_CODE = { 1: 'road', 2: 'dirt', 3: 'rail' };
 // dati da salvare di un edificio (senza quelli che valgono solo mentre si gioca)
 function buildingData(b) {
   const out = {};
-  for (const [k, v] of Object.entries(b)) if (!['incoming', 'van', 'status', 'retry', 'unreachable', 'workers', 'employed'].includes(k)) out[k] = v;
+  for (const [k, v] of Object.entries(b)) if (!['incoming', 'van', 'status', 'retry', 'unreachable', 'workers', 'employed', 'expect', 'full', 'noInput', 'empty', 'pullTimer', 'customers'].includes(k)) out[k] = v;
   return out;
 }
 
@@ -83,7 +83,7 @@ function loadGame(id) {
     for (const [x, y, farm] of d.fields) { game.map[y][x].field = true; game.map[y][x].farm = farm || null; }
     for (const bd of d.buildings) {
       if (!BUILDINGS[bd.kind]) continue;
-      const b = Object.assign({}, bd, bd.kind === 'house' ? { incoming: 0 } : {});
+      const b = initEconomy(Object.assign({}, bd, bd.kind === 'house' ? { incoming: 0 } : {}));
       for (const p of footprint(b.kind, b.ax, b.ay)) if (inMap(p.x, p.y)) game.map[p.y][p.x].building = b;
     }
     game.entries = d.entries || [];

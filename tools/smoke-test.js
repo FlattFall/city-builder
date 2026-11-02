@@ -457,18 +457,18 @@ function check(cond, msg) {
   });
   check(fm.fieldMode, 'dopo la fattoria si scelgono i campi');
   check(fm.fields === 12 && fm.far, `campi assegnati alla fattoria: ${fm.fields}, lontano rifiutato`);
-  await page.click('#panel .pchoice:text("Patate")');
+  await page.click('#panel .pchoice:has-text("Patate")');
   await page.click('#panel .pchoice:text("Magazzino #")');
   const del = await page.evaluate(() => {
     const farm = [...game.buildings.values()].find(b => b.kind === 'farm');
     const wh = [...game.buildings.values()].find(b => b.kind === 'warehouse');
     const r = { crop: farm.crop, storage: farm.storage === wh.id };
     for (let i = 0; i < 200 * 20; i++) simUpdate(0.05);
-    r.stock = wh.stock.potato; r.inv = farm.inventory; r.workers = [farm.workers, wh.workers];
+    r.stock = wh.store.potato || 0; r.inv = sumOf(farm.store); r.workers = [farm.workers, wh.workers];
     // senza magazzino l'inventario si riempie fino al limite e poi si ferma
     farm.storage = null;
     for (let i = 0; i < 400 * 10; i++) simUpdate(0.1);
-    r.capped = farm.inventory === FARM.inventoryCap;
+    r.capped = sumOf(farm.store) === CAPS.farm.store;
     return r;
   });
   check(del.crop === 'potato' && del.storage, 'pannello: coltura patate e magazzino scelti');
@@ -479,7 +479,7 @@ function check(cond, msg) {
   // 22. salva e ricarica tutto (abitanti, fattoria, magazzino, strada principale) in poco spazio
   const sv = await page.evaluate(() => {
     const snap = () => JSON.stringify([game.population, game.roads, game.fields,
-      [...game.buildings.values()].sort((a, b) => a.id - b.id).map(b => [b.id, b.kind, b.residents, b.crop, b.storage, b.inventory, b.stock && b.stock.potato]),
+      [...game.buildings.values()].sort((a, b) => a.id - b.id).map(b => [b.id, b.kind, b.residents, b.crop, b.storage, JSON.stringify(b.store || {}), JSON.stringify(b.accept || {})]),
       game.entries, [...game.pathKeys].filter(k => game.map[(k / game.size) | 0][k % game.size].main).length]);
     const before = snap();
     game.saveId = null; saveGame(); const id = game.saveId;
@@ -603,6 +603,61 @@ function check(cond, msg) {
   });
   check(k1.x > k0.x + 50 && k1.y > k0.y + 50, `W + A insieme: la mappa si muove in diagonale (${Math.round(k1.x - k0.x)}, ${Math.round(k1.y - k0.y)})`);
   check(k2.tx >= -0.01 && k2.ty >= -0.01 && k2.tx <= k2.n + 0.01 && k2.ty <= k2.n + 0.01, `WASD si ferma al bordo della mappa (centro ${k2.tx.toFixed(1)}, ${k2.ty.toFixed(1)})`);
+
+  // 26. catena alimentare: fattoria -> fabbrica -> magazzino -> supermercato (tasse), panificio con la farina
+  const ch = await page.evaluate(() => {
+    clearVehicles(); newGame(1, 128);
+    const N = game.size, c = N / 2, r = {};
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, rb: null, elev: 2 });
+    recount(); game.money = 1e6;
+    for (let x = 0; x < N; x++) { useTool('road', x, c); game.map[c][x].main = true; }
+    game.entries = [{ x: 0, y: c }, { x: N - 1, y: c }];
+    game.rotation = 2;
+    useTool('farm', c - 8, c + 1); exitFieldMode();
+    useTool('factory', c - 5, c + 1); useTool('warehouse', c - 2, c + 1);
+    useTool('supermarket', c + 1, c + 1); useTool('bakery', c + 4, c + 1);
+    game.rotation = 0;
+    for (let x = c - 9; x <= c + 6; x++) useTool('house', x, c - 1);
+    const B = k => [...game.buildings.values()].find(b => b.kind === k);
+    const farm = B('farm'), fac = B('factory'), wh = B('warehouse'), sm = B('supermarket'), bk = B('bakery');
+    r.crops = Object.keys(CROPS).join(',');
+    farm.crop = 'wheat'; farm.store = { wheat: 60 };
+    farm.storage = fac.id; fac.storage = wh.id; bk.storage = sm.id;
+    wh.store = { tomato: 40, cabbage: 30 };
+    wh.accept.chips = false;
+    r.refuses = freeFor(wh, 'chips') === 0 && freeFor(wh, 'flour') > 0;
+    const money0 = game.money;
+    let flourSeen = 0, pastaSeen = 0;
+    for (let i = 0; i < 240 * 10; i++) {
+      simUpdate(0.1);
+      flourSeen = Math.max(flourSeen, (fac.store.flour || 0) + (wh.store.flour || 0));
+      pastaSeen = Math.max(pastaSeen, (fac.store.pasta || 0) + (wh.store.pasta || 0) + (sm.store.pasta || 0));
+    }
+    r.flour = flourSeen > 0; r.pasta = pastaSeen > 0;
+    r.bakery = sumOf(bk.store) + (sm.sold || 0) > 0 && Object.keys(bk.store).some(g => GOODS[g].cat === 'bakery');
+    r.sold = sm.sold; r.taxes = sm.taxes; r.income = game.money - money0;
+    // fabbrica senza materie prime: stato "mancano materie prime"; deposito pieno: stato "pieno"
+    fac.input = {}; fac.noInput = false; fac.storage = null;
+    for (let i = 0; i < 100; i++) simUpdate(0.1);
+    r.noInput = buildingStatus(fac) === 'noInput';
+    fac.input = { wheat: 100 }; fac.store = { flour: CAPS.factory.store };
+    for (let i = 0; i < 20; i++) simUpdate(0.1);
+    r.full = buildingStatus(fac) === 'full';
+    // salvataggio con le merci
+    game.saveId = null; saveGame(); const id = game.saveId;
+    const before = JSON.stringify([fac.recipes, fac.store, wh.accept, sm.taxes]);
+    loadGame(id);
+    const f2 = [...game.buildings.values()].find(b => b.kind === 'factory'), w2 = [...game.buildings.values()].find(b => b.kind === 'warehouse'), s2 = [...game.buildings.values()].find(b => b.kind === 'supermarket');
+    r.saved = JSON.stringify([f2.recipes, f2.store, w2.accept, s2.taxes]) === before;
+    return r;
+  });
+  check(ch.crops === 'wheat,carrot,potato,corn,tomato,cabbage', 'colture: grano, carote, patate, mais, pomodori, cavoli');
+  check(ch.refuses, 'il magazzino rifiuta quello che non accetta');
+  check(ch.flour && ch.pasta, 'la fabbrica fa farina e pasta (grano + pomodori)');
+  check(ch.bakery, 'il panificio usa la farina per pane, biscotti e torte');
+  check(ch.sold > 0 && ch.taxes > 0 && ch.income >= ch.taxes, `supermercato: ${ch.sold} venduti, ${ch.taxes} € di tasse`);
+  check(ch.noInput && ch.full, 'icone di stato: mancano materie prime / deposito pieno');
+  check(ch.saved, 'salva/carica conserva ricette, merci, scelte del magazzino e tasse');
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();

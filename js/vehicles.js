@@ -130,65 +130,6 @@ function spawnResident() {
   }
 }
 
-// ---------- Fattorie e furgoni ----------
-function farmTotal(f) { return f.inventory; }
-
-function warehouseFree(w) {
-  return WAREHOUSE_CAPACITY - Object.values(w.stock).reduce((a, b) => a + b, 0);
-}
-
-// Il furgone carica il raccolto, lo porta al magazzino scelto e torna
-function dispatchVan(farm) {
-  const wh = game.buildings.get(farm.storage);
-  if (!wh) { farm.storage = null; return; }
-  const free = warehouseFree(wh);
-  if (free <= 0) { farm.status = 'Il magazzino è pieno'; return; }
-  if (!wh.workers) { farm.status = 'Il magazzino non ha personale'; farm.retry = 3; return; }
-  const route = findRoute(accessTiles(farm), accessTiles(wh));
-  if (!route) { farm.status = 'Nessuna strada verso il magazzino'; farm.retry = 3; return; }
-  const load = Math.min(farm.inventory, FARM.vanCapacity, free);
-  const crop = farm.crop;
-  farm.inventory -= load;
-  farm.status = 'Furgone in viaggio verso il magazzino';
-  farm.van = spawnVehicle({
-    kind: 'van', farm: farm.id, wh: wh.id, load, crop, tiles: route, pts: routePoints(route, false), speed: VAN_SPEED,
-    arrive() {
-      const w = game.buildings.get(wh.id), f = game.buildings.get(farm.id);
-      if (w) w.stock[crop] += Math.min(load, warehouseFree(w));
-      if (!f) return;
-      // ritorno alla fattoria
-      const back = findRoute(accessTiles(w || wh), accessTiles(f));
-      if (!back) { f.van = null; f.status = 'Consegna fatta'; return; }
-      f.status = 'Furgone di ritorno';
-      f.van = spawnVehicle({
-        kind: 'van', farm: f.id, load: 0, tiles: back, pts: routePoints(back, false), speed: VAN_SPEED,
-        arrive() { const ff = game.buildings.get(f.id); if (ff) { ff.van = null; ff.status = 'Furgone fermo in fattoria'; } },
-        cancel() { const ff = game.buildings.get(f.id); if (ff) ff.van = null; },
-      });
-    },
-    cancel() {
-      const f = game.buildings.get(farm.id);
-      if (f) { f.van = null; f.inventory = Math.min(FARM.inventoryCap, f.inventory + load); }
-    },
-  });
-}
-
-function updateFarm(f, dt) {
-  // cresce solo se ha campi, personale e l'inventario non è pieno; più personale = più veloce
-  const staff = (f.workers || 0) / JOBS.farm;
-  if (f.fields > 0 && staff > 0 && f.inventory < FARM.inventoryCap) {
-    const before = Math.floor(f.growth * 4);
-    f.growth += dt / FARM.cycleSec * staff;
-    if (f.growth >= 1) {
-      f.growth = 0;
-      f.inventory = Math.min(FARM.inventoryCap, f.inventory + f.fields * FARM.yieldPerField);
-    }
-    if (Math.floor(f.growth * 4) !== before) requestDraw();
-  }
-  if (f.retry > 0) { f.retry -= dt; return; }
-  if (!f.van && f.storage && f.inventory >= FARM.vanMinLoad) dispatchVan(f);
-}
-
 // ---------- Aggiornamento ----------
 function moveVehicle(v, dt) {
   let left = v.speed * dt;
@@ -238,13 +179,13 @@ function simUpdate(dt) {
   if (jobsTimer <= 0) { jobsTimer = 1; updateJobs(); updateHud(); }
   moveInTimer -= dt;
   if (moveInTimer <= 0) { moveInTimer = MOVE_IN_EVERY; spawnResident(); }
-  for (const b of game.buildings.values()) if (b.kind === 'farm') updateFarm(b, dt);
+  economyUpdate(dt);
   if (vehicles.length) requestDraw();
 }
 
 // Un edificio demolito: spariscono i veicoli diretti lì o che ne partivano
 function removeVehiclesFor(id) {
-  const gone = vehicles.filter(v => v.target === id || v.farm === id || v.wh === id);
+  const gone = vehicles.filter(v => v.target === id || v.from === id || v.to === id);
   vehicles = vehicles.filter(v => !gone.includes(v));
   for (const v of gone) v.cancel && v.cancel();
 }
@@ -288,7 +229,8 @@ function drawVehicle(c, v) {
   const [hu, hv] = alongU ? [L, W] : [W, L];
   if (v.kind === 'van') {
     box(c, 0, 0, h, mx - hu, my - hv, mx + hu, my + hv, 7, { l: '#e8e8e8', r: '#c4c4c4', t: '#f6f6f6' });
-    box(c, 0, 0, h + 3 / STEP, mx - hu, my - hv, mx + hu, my + hv, 1.5, { l: '#3fa34d', r: '#2f7f3a', t: null }); // striscia verde
+    const st = v.stripe || '#3fa34d';
+    box(c, 0, 0, h + 3 / STEP, mx - hu, my - hv, mx + hu, my + hv, 1.5, { l: st, r: shade(st, -0.2), t: null }); // striscia colorata
   } else {
     const col = v.color;
     box(c, 0, 0, h, mx - hu, my - hv, mx + hu, my + hv, 4, { l: col, r: shade(col, -0.25), t: shade(col, 0.15) });

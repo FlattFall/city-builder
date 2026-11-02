@@ -34,7 +34,7 @@ Sul tuo PC: `npm install` e poi `npm run dist`; l'.exe compare nella cartella `d
   1. **Mano**: trascina la mappa
   2. **Strade**: strada, strada di terra, binari, campo coltivabile
   3. **Case**
-  4. **Industrie**: fattoria (2x2), magazzino alimenti (2x2)
+  4. **Industrie**: fattoria, magazzino alimenti, fabbrica alimentare, panificio, supermercato
   5. **Demolisci**: demolisci, alza terreno, abbassa terreno, livella terreno
 - **R** (o il pulsante Ruota): ruota l'edificio prima di costruirlo
 - Strade, binari, campi, case e demolizione si trascinano per fare più tile
@@ -52,7 +52,12 @@ Le partite salvate restano sul PC (versione programma) o nel browser usato (vers
 - Le attività hanno bisogno di **lavoratori**: abitanti che vivono entro 12 tile. Senza lavoratori compare un'icona rossa. In alto vedi i **disoccupati**.
 - Piazza una **fattoria** (non in montagna: serve l'erba) e disegna i suoi **campi** (entro il riquadro tratteggiato), poi premi Fatto. Un raccolto ogni 2 minuti con tutto il personale.
 - Con la **Mano**, clic sulla fattoria: scegli **grano, carote o patate** e il **magazzino** dove portare il cibo. Il furgone ci va se c'è una strada. L'inventario della fattoria ha un limite (100).
-- Clic su magazzino o casa per vederne scorte e abitanti.
+- Colture: grano, carote, patate, mais, pomodori, cavoli. Il raccolto va a un **magazzino** o alla **fabbrica alimentare**.
+- **Fabbrica alimentare**: grano → farina, patate → patatine confezionate, carote → carote confezionate, pomodori → salsa, mais → farina di mais, grano + pomodori → pasta. Ricette accendibili dal pannello.
+- **Panificio**: farina → pane, biscotti, torte.
+- **Magazzino**: scegli con le immagini cosa accetta. Fabbrica, panificio e supermercato si riforniscono dai magazzini.
+- **Supermercato**: vende agli abitanti vicini; incassi il 30% del prezzo come tasse.
+- Icone sopra gli edifici: persona = mancano lavoratori, casse = deposito pieno, cassa vuota = mancano materie prime, scaffale = supermercato vuoto.
 
 ## Strade e binari
 

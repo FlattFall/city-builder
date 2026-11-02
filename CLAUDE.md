@@ -4,7 +4,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 
 ## Struttura
 - `index.html` + `style.css`: pagina e interfaccia (barra in alto, barra strumenti con sottomenu, info tile, toast, menu).
-- `js/`: script classici (niente moduli ES, così funziona anche aprendo il file con doppio clic). L'ordine in `index.html` conta: config, noise, terrain, game, roadgen, camera, render, vehicles, ui, panel, input, save, menu, app.
+- `js/`: script classici (niente moduli ES, così funziona anche aprendo il file con doppio clic). L'ordine in `index.html` conta: config, noise, terrain, game, roadgen, camera, render, vehicles, economy, ui, panel, input, save, menu, app.
   - `config.js` costanti: grandezze mappa (`MAP_SIZES`: 128, 256, 512, 1024), terreno, `PATHS` (strada, terra, binari), `BUILDINGS` (casa 1x1, fattoria e magazzino 2x2), abitanti, `CROPS`, `FARM`, costi
   - `game.js` stato (`game`) e regole: percorsi, rampe, rotonde, edifici, `checkTool` / `useTool` / `canUseTool`, `recount()`
   - `render.js` disegno (ordine del pittore, solo tile visibili sullo schermo); `requestDraw()` per ridisegnare
@@ -47,6 +47,16 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - WASD/frecce: tasti tenuti premuti (`keysHeld`), movimento continuo in `panWithKeys(dt)` dal ciclo del gioco, anche in diagonale con due tasti.
 - `pickTile` conta l'altezza degli edifici solo con Mano e Demolisci, così con gli altri strumenti si costruisce dietro gli edifici.
 
+## Economia (economy.js)
+- `GOODS` (6 colture, 6 prodotti della fabbrica, 3 del panificio; `price` = vendibile al supermercato), `RECIPES` (fabbrica, panificio), `CAPS` (store/input per tipo), `DEST_KINDS`.
+- Ogni attività ha `store` (merce pronta) e, se trasforma, `input`. `initEconomy(b)` prepara i dati e converte i vecchi salvataggi (`inventory`, `stock`).
+- Spinta: fattoria/fabbrica/panificio mandano la merce alla destinazione `storage` (`pushGoods`, almeno `VAN_MIN_LOAD` in totale). Rifornimento: fabbrica/panificio/supermercato chiedono ai magazzini (`pullGoods`); il supermercato lascia la precedenza ai produttori per le merci che trasformano (es. farina). `expect` = merce già in viaggio verso un edificio (riserva lo spazio).
+- `sendGoods`: furgone dall'entrata alla destinazione e ritorno; un furgone per edificio (`b.van`).
+- Magazzino: `accept[g] === false` = rifiuta. Ricette: `recipes[out] === false` = spenta.
+- Supermercato: clienti = abitanti entro `SHOP.radius`; ogni `SHOP.tick` compra `buyRate` dei clienti; tasse `TAX_RATE` del prezzo a `game.money`.
+- `buildingStatus(b)`: icone noWorkers/fewWorkers/full/noInput/empty (`drawWorkerIcons`).
+- Icone delle merci: `GOOD_ICONS` (`drawGoodIcon` in ui.js), usate nei pannelli.
+
 ## Rotonde
 - Rotonde circolari (l'utente ha provato quelle quadrate e la piazzola rialzata: non gli piacevano). Un 2x2 di strade asfaltate diventa rotonda (`t.rb = { ax, ay, slope, low }`), in piano o su un gradino di 1 (2 tile sopra, 2 sotto): i tile bassi sono rampe, senza aggiungere terreno.
 - Le strade che entrano di lato nella parte inclinata "si piegano": in `cornerHeights` gli angoli in comune con un tile basso di rotonda prendono la sua altezza (adattatore), così si collegano.
@@ -76,4 +86,4 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 
 ## Da fare / idee
 - Prestazioni: con zoom molto lontano si disegnano tanti tile ad ogni movimento del mouse; si può mettere in memoria la mappa a blocchi (chunk) e ridisegnare solo l'anteprima.
-- Treni sui binari, uso del cibo nei magazzini (negozi, abitanti che mangiano), lavoro per gli abitanti, sprite PNG.
+- Treni sui binari, prezzi/tasse regolabili, bisogni degli abitanti (cibo, felicità), sprite PNG.
