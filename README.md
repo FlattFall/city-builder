@@ -1,6 +1,6 @@
 # City Builder
 
-City builder isometrico in stile retro. Per ora: generazione del terreno (mappa 128x128).
+City builder isometrico in stile retro. Per ora: terreno 128x128, strade, case e demolizione.
 
 ## Provarlo sul tuo PC
 
@@ -30,7 +30,11 @@ Il file `.exe` compare nella cartella `dist/`. E' portatile: basta un doppio cli
 
 ## Comandi nel gioco
 
-- Trascina o WASD/frecce: muovi la mappa
+- 1 Mano (trascina la mappa), 2 Strada, 3 Casa, 4 Demolisci; Esc torna alla Mano
+- Con Strada e Demolisci tieni premuto il tasto sinistro e trascina per fare più tile
+- Tasto destro o centrale + trascina, oppure WASD/frecce: muovi la mappa
 - Rotella: zoom
-- R: nuovo terreno
+- R: nuovo terreno (chiede conferma se hai costruito qualcosa)
 - F11: schermo intero
+
+Il codice è diviso in file dentro `js/`: vedi `CLAUDE.md` per la struttura.

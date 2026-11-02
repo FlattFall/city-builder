@@ -1,0 +1,34 @@
+html, body { margin: 0; height: 100%; background: #1a1c2c; overflow: hidden; font-family: monospace; color: #f4f4f4; user-select: none; }
+canvas { display: block; }
+
+#topbar {
+  position: fixed; top: 0; left: 0; right: 0;
+  display: flex; gap: 18px; align-items: center; flex-wrap: wrap;
+  padding: 6px 12px; background: rgba(0, 0, 0, .65); font-size: 13px;
+}
+#topbar b { color: #ffd966; }
+#topbar button { font: inherit; padding: 2px 8px; cursor: pointer; margin-left: auto; }
+
+#toolbar {
+  position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 6px; padding: 6px; background: rgba(0, 0, 0, .65); border-radius: 6px;
+}
+#toolbar button {
+  font: inherit; font-size: 14px; padding: 8px 14px; cursor: pointer;
+  background: #2c2f48; color: #f4f4f4; border: 2px solid #44486b; border-radius: 4px;
+}
+#toolbar button:hover { background: #3a3e5e; }
+#toolbar button.active { border-color: #ffd966; background: #4a4f78; }
+#toolbar .k { color: #ffd966; margin-right: 4px; }
+
+#toast {
+  position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%);
+  background: rgba(160, 40, 40, .9); padding: 6px 14px; border-radius: 4px; font-size: 13px;
+  opacity: 0; transition: opacity .2s; pointer-events: none;
+}
+#toast.show { opacity: 1; }
+
+#help {
+  position: fixed; bottom: 12px; left: 12px; font-size: 11px; line-height: 1.5;
+  background: rgba(0, 0, 0, .5); padding: 6px 8px; border-radius: 4px;
+}

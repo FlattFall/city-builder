@@ -14,7 +14,7 @@
   "build": {
     "appId": "com.tuonome.citybuilder",
     "productName": "CityBuilder",
-    "files": ["index.html", "main.js", "package.json"],
+    "files": ["index.html", "style.css", "main.js", "package.json", "js/**/*"],
     "win": {
       "target": "portable"
     }
