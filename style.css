@@ -53,6 +53,7 @@ canvas { display: block; }
 
 #help {
   position: fixed; bottom: 12px; left: 12px; font-size: 11px; line-height: 1.5; max-width: 330px;
+  pointer-events: none; /* i clic passano alla mappa */
   background: rgba(0, 0, 0, .5); padding: 6px 8px; border-radius: 4px;
 }
 
@@ -123,3 +124,10 @@ canvas { display: block; }
 }
 #fieldbar[hidden] { display: none; }
 #fieldbar button { font: inherit; cursor: pointer; margin-left: 8px; padding: 2px 10px; }
+
+#rotate-btn {
+  position: fixed; bottom: 92px; left: calc(50% + 150px); z-index: 4;
+  font: inherit; font-size: 12px; cursor: pointer; color: #f4f4f4;
+  background: #2c2f48; border: 2px solid #ffd966; border-radius: 4px; padding: 2px 8px;
+}
+#rotate-btn[hidden] { display: none; }

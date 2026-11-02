@@ -45,6 +45,7 @@ canvas.addEventListener('mousedown', e => {
   } else if (e.button === 0) {
     painting = true;
     lastTile = null;
+    game.levelTarget = null; // Livella: la quota la decide il primo tile
     const tile = pickTile(e.clientX, e.clientY);
     if (tile) paintTo(tile);
   }
@@ -87,6 +88,7 @@ addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   const s = 48;
   if (selectGroupByKey(e.key)) { /* strumento scelto */ }
+  else if (k === 'r') rotateTool();
   else if (k === 'w' || k === 'arrowup') cam.y += s;
   else if (k === 's' || k === 'arrowdown') cam.y -= s;
   else if (k === 'a' || k === 'arrowleft') cam.x += s;

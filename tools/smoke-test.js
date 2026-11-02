@@ -136,6 +136,7 @@ function check(cond, msg) {
 
   // 8. demolizione (tasto 5): casa e strade
   await page.keyboard.press('5');
+  await page.keyboard.press('Escape'); // chiude il sottomenu che si apre col tasto 5
   const roadsBefore = await page.evaluate(() => game.roads);
   const a2 = await screenOf(run.x, run.y), b2 = await screenOf(run.x + 5, run.y);
   await page.mouse.move(a2.x, a2.y);
@@ -442,6 +443,7 @@ function check(cond, msg) {
   // 21. fattoria: campi assegnati, coltura scelta dal pannello, furgone fino al magazzino
   const fm = await page.evaluate(() => {
     const c = game.size / 2, r = {};
+    game.rotation = 2;                              // entrata verso la strada (dietro)
     useTool('farm', c - 40, c + 1);
     const farm = game.buildings.get(game.fieldMode);
     r.fieldMode = !!farm && game.tool === 'field';
@@ -461,8 +463,8 @@ function check(cond, msg) {
     const farm = [...game.buildings.values()].find(b => b.kind === 'farm');
     const wh = [...game.buildings.values()].find(b => b.kind === 'warehouse');
     const r = { crop: farm.crop, storage: farm.storage === wh.id };
-    for (let i = 0; i < 80 * 20; i++) simUpdate(0.05);
-    r.stock = wh.stock.potato; r.inv = farm.inventory;
+    for (let i = 0; i < 200 * 20; i++) simUpdate(0.05);
+    r.stock = wh.stock.potato; r.inv = farm.inventory; r.workers = [farm.workers, wh.workers];
     // senza magazzino l'inventario si riempie fino al limite e poi si ferma
     farm.storage = null;
     for (let i = 0; i < 400 * 10; i++) simUpdate(0.1);
@@ -470,7 +472,7 @@ function check(cond, msg) {
     return r;
   });
   check(del.crop === 'potato' && del.storage, 'pannello: coltura patate e magazzino scelti');
-  check(del.stock > 0, `il furgone ha portato le patate al magazzino: ${del.stock}`);
+  check(del.stock > 0, `il furgone ha portato le patate al magazzino: ${del.stock} (lavoratori fattoria/magazzino ${del.workers})`);
   check(del.capped, 'inventario della fattoria limitato a ' + 100);
   await page.screenshot({ path: process.env.SHOTS + '/5b-farm-panel.png' });
 
@@ -489,6 +491,84 @@ function check(cond, msg) {
   });
   check(sv.same, 'salva/carica conserva abitanti, fattoria, magazzino e strada principale');
   check(sv.size < 200000, `salvataggio di una mappa 1024x1024: ${Math.round(sv.size / 1024)} KB`);
+
+  // 23. strumenti del terreno: alza, abbassa (fino all'acqua), livella trascinando
+  const tr = await page.evaluate(() => {
+    newGame(1, 128); game.money = 1e6;
+    const y = 30, r = {};
+    for (let x = 10; x < 20; x++) Object.assign(game.map[y][x], { type: T.GRASS, elev: 2, path: null, building: null, field: false });
+    useTool('raise', 10, y); useTool('raise', 10, y);
+    r.raise = game.map[y][10].elev === 4;
+    useTool('lower', 11, y); useTool('lower', 11, y);
+    r.water = game.map[y][11].elev === 0 && game.map[y][11].type === T.WATER && !useTool('lower', 11, y).ok;
+    useTool('raise', 11, y);
+    r.sand = game.map[y][11].type === T.SAND && game.map[y][11].elev === 1;
+    game.levelTarget = null;
+    for (let x = 10; x <= 15; x++) useTool('level', x, y);   // il primo tile (quota 4) decide
+    r.level = [10, 11, 12, 13, 14, 15].every(x => game.map[y][x].elev === 4);
+    useTool('road', 16, y);
+    r.blocked = !useTool('raise', 16, y).ok;
+    return r;
+  });
+  check(tr.raise, 'Alza terreno');
+  check(tr.water, 'Abbassa terreno fino al mare (poi diventa acqua)');
+  check(tr.sand, 'alzando l\'acqua si crea sabbia');
+  check(tr.level, 'Livella: tutti i tile alla quota del primo');
+  check(tr.blocked, 'non si modella sotto una strada');
+
+  // 24. montagna, rotazione, entrata unica, lavoratori, costruire dietro un edificio
+  await scene();
+  const mt = await page.evaluate(() => {
+    const c = game.size / 2, r = {};
+    for (let y = c + 10; y < c + 14; y++) for (let x = c + 10; x < c + 14; x++) game.map[y][x].type = T.ROCK;
+    r.noFarm = !useTool('farm', c + 10, c + 10).ok;
+    r.house = useTool('house', c + 12, c + 12).ok;
+    // fattoria lontana dalle case: niente lavoratori, niente crescita
+    game.rotation = 0;
+    useTool('farm', c + 40, c + 3); exitFieldMode();
+    const farm = [...game.buildings.values()].find(b => b.kind === 'farm');
+    for (let x = c + 39; x <= c + 43; x++) useTool('field', x, c + 6);
+    farm.fields = farmFieldCount(farm);
+    // entrata con rotazione 0: davanti a sinistra (tile ax, ay+1 -> strada su ay+2)
+    const ent = entranceOf(farm);
+    r.entrance = ent.x === c + 40 && ent.y === c + 4 && ent.rx === c + 40 && ent.ry === c + 5;
+    r.noAccess = accessTiles(farm).length === 0;          // la strada è dietro, non all'entrata
+    for (let i = 0; i < 60 * 10; i++) simUpdate(0.1);
+    r.noWorkers = (farm.workers || 0) === 0 && farm.growth === 0;
+    // ruotata di 2: entrata verso la strada (dietro)
+    game.rotation = 2;
+    useTool('warehouse', c + 44, c + 1);
+    const wh = [...game.buildings.values()].find(b => b.kind === 'warehouse');
+    r.whAccess = accessTiles(wh).length === 1 && wh.rot === 2;
+    // casa vicino alla fattoria: arrivano abitanti e lavoratori
+    useTool('house', c + 42, c - 1); useTool('house', c + 38, c - 1);
+    for (let i = 0; i < 40 * 20; i++) simUpdate(0.05);
+    r.workers = farm.workers;
+    r.unemployed = game.population - game.employed;
+    r.hud = document.getElementById('unemployed').textContent === String(r.unemployed);
+    return r;
+  });
+  check(mt.noFarm && mt.house, 'in montagna: casa sì, fattoria no');
+  check(mt.entrance && mt.noAccess, 'entrata unica della fattoria (strada dietro = non collegata)');
+  check(mt.noWorkers, 'fattoria senza abitanti vicini: niente lavoratori, niente crescita');
+  check(mt.whAccess, 'magazzino ruotato con l\'entrata verso la strada');
+  check(mt.workers > 0 && mt.hud, `lavoratori dalla casa vicina: ${mt.workers}, disoccupati ${mt.unemployed}`);
+  await page.keyboard.press('3');
+  const rot0 = await page.evaluate(() => game.rotation);
+  await page.keyboard.press('r');
+  check(await page.evaluate(() => game.rotation) === (rot0 + 1) % 4 && await page.isVisible('#rotate-btn'), 'tasto R ruota, pulsante Ruota visibile');
+  // dietro una casa si può costruire: il tile dietro va selezionato anche se la casa lo copre
+  const behind = await page.evaluate(() => {
+    const c = game.size / 2, hx = c + 20, hy = c - 3;
+    useTool('house', hx, hy);
+    game.tool = 'road';
+    // punto sullo schermo del tile dietro (hx-1, hy-1), coperto dal disegno della casa
+    const t = game.map[hy - 1][hx - 1], z = zoomLevel();
+    const px = cam.x + ((hx - 1) - (hy - 1)) * TW / 2 * z, py = cam.y + (((hx - 1) + (hy - 1)) * TH / 2 - t.elev * STEP + TH / 2 + 2) * z;
+    const p = pickTile(px, py);
+    return p && p.x === hx - 1 && p.y === hy - 1;
+  });
+  check(behind, 'si può scegliere (e costruire) il tile dietro una casa');
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();

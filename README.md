@@ -35,7 +35,8 @@ Sul tuo PC: `npm install` e poi `npm run dist`; l'.exe compare nella cartella `d
   2. **Strade**: strada, strada di terra, binari, campo coltivabile
   3. **Case**
   4. **Industrie**: fattoria (2x2), magazzino alimenti (2x2)
-  5. **Demolisci**
+  5. **Demolisci**: demolisci, alza terreno, abbassa terreno, livella terreno
+- **R** (o il pulsante Ruota): ruota l'edificio prima di costruirlo
 - Strade, binari, campi, case e demolizione si trascinano per fare più tile
 - Tasto destro o centrale + trascina, oppure WASD/frecce: muovi la mappa
 - Rotella: zoom
@@ -47,7 +48,9 @@ Le partite salvate restano sul PC (versione programma) o nel browser usato (vers
 
 - Ogni mappa nuova ha una **strada principale** da un bordo all'altro: da lì arrivano i nuovi abitanti.
 - Costruisci **case** vicino a una strada collegata: arrivano le auto e il contatore **Abitanti** sale (4 per casa).
-- Piazza una **fattoria** e disegna i suoi **campi** (entro il riquadro tratteggiato), poi premi Fatto.
+- Fattoria e magazzino hanno **una sola entrata** (segnata in giallo/verde quando li piazzi): la strada va collegata lì. Ruotali con **R**.
+- Le attività hanno bisogno di **lavoratori**: abitanti che vivono entro 12 tile. Senza lavoratori compare un'icona rossa. In alto vedi i **disoccupati**.
+- Piazza una **fattoria** (non in montagna: serve l'erba) e disegna i suoi **campi** (entro il riquadro tratteggiato), poi premi Fatto. Un raccolto ogni 2 minuti con tutto il personale.
 - Con la **Mano**, clic sulla fattoria: scegli **grano, carote o patate** e il **magazzino** dove portare il cibo. Il furgone ci va se c'è una strada. L'inventario della fattoria ha un limite (100).
 - Clic su magazzino o casa per vederne scorte e abitanti.
 

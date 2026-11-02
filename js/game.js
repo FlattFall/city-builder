@@ -22,6 +22,9 @@ const game = {
   buildings: new Map(), // id -> edificio
   nextId: 1,
   fieldMode: null, // id della fattoria a cui si stanno assegnando i campi
+  rotation: 0,     // rotazione (0-3) dei prossimi edifici
+  levelTarget: null, // quota scelta dallo strumento Livella
+  employed: 0,     // abitanti che lavorano
   base: null,      // terreno appena generato { type, elev } per salvare solo le differenze
 };
 
@@ -155,10 +158,13 @@ function roadLinked(x, y, d) {
   return true;
 }
 
-// Punto più alto del tile, compresi gli edifici (serve per capire cosa c'è sotto il mouse)
-function topHeightPx(x, y) {
+// Punto più alto del tile (serve per capire cosa c'è sotto il mouse). Con withBuildings conta
+// anche l'altezza degli edifici: serve per cliccarli con la Mano o la ruspa, ma quando si
+// costruisce si devono poter scegliere anche i tile dietro un edificio.
+function topHeightPx(x, y, withBuildings) {
   const t = game.map[y][x];
-  return Math.max(...cornerHeights(x, y)) * STEP + (t.building ? BUILDINGS[t.building.kind].height : 0);
+  const b = withBuildings && t.building ? BUILDINGS[t.building.kind].height : 0;
+  return Math.max(...cornerHeights(x, y)) * STEP + b;
 }
 
 // ---------- Rotonde ----------
@@ -243,11 +249,32 @@ function farmFieldCount(farm) {
 
 // Dati iniziali di un edificio appena costruito
 function newBuilding(kind, x, y) {
-  const b = { id: game.nextId++, kind, variant: houseVariant(x, y), ax: x, ay: y };
+  const b = { id: game.nextId++, kind, variant: houseVariant(x, y), ax: x, ay: y, rot: game.rotation || 0 };
   if (kind === 'house') { b.residents = 0; b.incoming = 0; }
   if (kind === 'farm') { b.crop = 'wheat'; b.storage = null; b.inventory = 0; b.growth = 0; b.fields = 0; }
   if (kind === 'warehouse') b.stock = { wheat: 0, carrot: 0, potato: 0 };
   return b;
+}
+
+// ---------- Rotazione ed entrata ----------
+// Gli edifici 2x2 si disegnano in un riquadro (u, v da 0 a 2); rot (0-3) lo gira di 90° alla volta
+function rotUV(u, v, r) {
+  switch (r & 3) {
+    case 0: return [u, v];
+    case 1: return [2 - v, u];
+    case 2: return [2 - u, 2 - v];
+    default: return [v, 2 - u];
+  }
+}
+
+// Fattoria e magazzino hanno una sola entrata: il tile dell'impronta da cui si entra e il tile
+// fuori (dove deve esserci la strada). Senza rotazione l'entrata è davanti a sinistra.
+function entranceOf(b) {
+  if (BUILDINGS[b.kind].w === 1) return null;
+  const inn = rotUV(0.5, 1.5, b.rot || 0), out = rotUV(0.5, 2.5, b.rot || 0);
+  const x = b.ax + Math.floor(inn[0]), y = b.ay + Math.floor(inn[1]);
+  const rx = b.ax + Math.floor(out[0]), ry = b.ay + Math.floor(out[1]);
+  return { x, y, rx, ry, d: DIRS.findIndex(D => D.dx === rx - x && D.dy === ry - y) };
 }
 
 function footprint(kind, ax, ay) {
@@ -256,8 +283,9 @@ function footprint(kind, ax, ay) {
   return out;
 }
 
-// Dove si può costruire (niente acqua, roccia o neve)
-function isBuildable(t) { return t.type === T.SAND || t.type === T.GRASS || t.type === T.FOREST; }
+// Dove si può costruire: tutto tranne l'acqua (anche in montagna, su roccia e neve)
+function isBuildable(t) { return t.type !== T.WATER; }
+function isMountain(t) { return t.type === T.ROCK || t.type === T.SNOW; }
 
 function spend(cost) {
   if (game.money < cost) return false;
@@ -298,6 +326,7 @@ function rememberBaseTerrain() {
 function recount() {
   game.roads = game.rails = game.fields = game.houses = game.industries = 0;
   game.population = 0;
+  game.employed = 0;
   game.maxElev = 0;
   game.pathKeys = new Set();
   game.buildings = new Map();
@@ -316,6 +345,29 @@ function recount() {
     }
   updateRoundabouts();
   for (const b of game.buildings.values()) if (b.kind === 'farm') b.fields = farmFieldCount(b);
+  updateJobs();
+}
+
+// ---------- Lavoro ----------
+// Ogni attività prende i lavoratori tra gli abitanti delle case vicine (entro JOB_RADIUS).
+// Chi abita in città ma non lavora è disoccupato.
+function updateJobs() {
+  const all = [...game.buildings.values()];
+  const houses = all.filter(b => b.kind === 'house');
+  for (const h of houses) h.employed = 0;
+  let total = 0;
+  for (const b of all.sort((a, c) => a.id - c.id)) {
+    if (!JOBS[b.kind]) continue;
+    b.workers = 0;
+    for (const h of houses) {
+      if (b.workers >= JOBS[b.kind]) break;
+      if (distToBuilding(b, h.ax, h.ay) > JOB_RADIUS) continue;
+      const take = Math.min((h.residents || 0) - h.employed, JOBS[b.kind] - b.workers);
+      if (take <= 0) continue;
+      h.employed += take; b.workers += take; total += take;
+    }
+  }
+  game.employed = total;
 }
 
 // ---------- Strumenti ----------
@@ -329,6 +381,13 @@ function checkTool(tool, x, y) {
     if (t.building) return { msg: "C'è già un edificio" };
     if (t.field) return { msg: "C'è un campo: demolisci prima" };
     if (!isBuildable(t)) return { msg: 'Qui non si può costruire' };
+    return null;
+  }
+  if (tool === 'raise' || tool === 'lower' || tool === 'level') {
+    if (t.building || t.path) return { msg: 'Libera il terreno prima di modellarlo' };
+    if (tool === 'raise' && t.elev >= MAX_ELEV) return { msg: 'Più in alto non si può' };
+    if (tool === 'lower' && t.type === T.WATER) return { msg: 'Più in basso non si può' };
+    if (tool === 'level' && game.levelTarget != null && t.elev === game.levelTarget) return { silent: true };
     return null;
   }
   if (tool === 'field') {
@@ -348,6 +407,8 @@ function checkTool(tool, x, y) {
       if (q.building || q.path || q.field || !isBuildable(q))
         return { msg: b.w > 1 ? 'Serve uno spazio libero ' + b.w + 'x' + b.h : 'Qui non si può costruire' };
       if (q.elev !== t.elev) return { msg: 'Serve un terreno piano ' + b.w + 'x' + b.h };
+      if (tool === 'farm' && isMountain(q)) return { msg: 'In montagna fa troppo freddo e non c\'è erba per la fattoria' };
+      if (tool === 'farm' && q.type === T.SAND) return { msg: 'La fattoria ha bisogno di erba, non di sabbia' };
     }
     return null;
   }
@@ -367,6 +428,8 @@ function toolCost(tool, x, y) {
   const forest = t.type === T.FOREST ? COSTS.clearForest : 0;
   if (PATHS[tool]) return PATHS[tool].cost + forest;
   if (tool === 'field') return t.field ? 0 : COSTS.field;
+  if (tool === 'raise' || tool === 'lower') return COSTS.terrain;
+  if (tool === 'level') return COSTS.terrain * Math.abs((game.levelTarget ?? t.elev) - t.elev);
   if (BUILDINGS[tool]) return BUILDINGS[tool].cost;
   if (tool === 'demolish') {
     if (t.building) return COSTS.demolishBuilding;
@@ -379,6 +442,8 @@ function toolCost(tool, x, y) {
 
 // Ogni azione restituisce { ok, msg?, silent? }
 function useTool(tool, x, y) {
+  // Livella: il primo tile della passata decide la quota per tutti gli altri
+  if (tool === 'level' && game.levelTarget == null && inMap(x, y)) { game.levelTarget = game.map[y][x].elev; return { ok: false, silent: true }; }
   const bad = checkTool(tool, x, y);
   if (bad) return { ok: false, msg: bad.msg, silent: bad.silent };
   if (!spend(toolCost(tool, x, y))) return { ok: false, msg: 'Fondi insufficienti' };
@@ -407,6 +472,9 @@ function useTool(tool, x, y) {
     game.buildings.set(b.id, b);
     if (tool === 'house') game.houses++; else game.industries++;
     if (tool === 'farm' && typeof onFarmPlaced === 'function') onFarmPlaced(b);
+  } else if (tool === 'raise' || tool === 'lower' || tool === 'level') {
+    const target = tool === 'raise' ? t.elev + 1 : tool === 'lower' ? t.elev - 1 : game.levelTarget;
+    setElevation(x, y, target);
   } else if (tool === 'demolish') {
     // priorità: edificio > percorso > campo > alberi
     if (t.building) removeBuilding(t.building);
@@ -442,6 +510,18 @@ function removeBuilding(b) {
     for (const f of game.buildings.values()) if (f.storage === b.id) f.storage = null;
   if (typeof removeVehiclesFor === 'function') removeVehiclesFor(b.id);
   if (typeof onBuildingRemoved === 'function') onBuildingRemoved(b);
+}
+
+// Cambia la quota di un tile: sotto il livello del mare diventa acqua, l'acqua alzata diventa sabbia
+function setElevation(x, y, e) {
+  const t = game.map[y][x];
+  e = Math.max(0, Math.min(MAX_ELEV, e));
+  if (e === 0) {
+    if (t.field) { t.field = false; t.farm = null; game.fields--; }
+    t.type = T.WATER;
+  } else if (t.type === T.WATER) t.type = T.SAND;
+  t.elev = e;
+  if (e > game.maxElev) game.maxElev = e;
 }
 
 // Scorciatoie (usate anche dai test)

@@ -9,6 +9,9 @@ const TOOL_INFO = {
   farm:      { label: 'Fattoria (2x2)', cost: BUILDINGS.farm.cost },
   warehouse: { label: 'Magazzino alimenti (2x2)', cost: BUILDINGS.warehouse.cost },
   demolish:  { label: 'Demolisci' },
+  raise:     { label: 'Alza terreno', cost: COSTS.terrain },
+  lower:     { label: 'Abbassa terreno', cost: COSTS.terrain },
+  level:     { label: 'Livella terreno', cost: COSTS.terrain },
 };
 
 // Gruppi della barra: il tasto numerico sceglie il gruppo (premuto di nuovo passa al prossimo)
@@ -17,7 +20,7 @@ const TOOL_GROUPS = [
   { key: '2', id: 'paths',    label: 'Strade',    tools: ['road', 'dirt', 'rail', 'field'] },
   { key: '3', id: 'homes',    label: 'Case',      tools: ['house'] },
   { key: '4', id: 'industry', label: 'Industrie', tools: ['farm', 'warehouse'] },
-  { key: '5', id: 'demolish', label: 'Demolisci', tools: ['demolish'] },
+  { key: '5', id: 'demolish', label: 'Demolisci', tools: ['demolish', 'raise', 'lower', 'level'] },
 ];
 const groupChoice = {};   // gruppo -> ultimo strumento scelto
 const ICONS = {};         // strumento -> immagine (data URL)
@@ -66,6 +69,27 @@ function buildIcons() {
   ICONS.house = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawHouse(c, 0, 0, 0); });
   ICONS.farm = bigIcon(c => drawFarm(c, 0, 0, 0), GROUND.farm);
   ICONS.warehouse = bigIcon(c => drawWarehouse(c, 0, 0, 0), GROUND.warehouse);
+
+  // terreno: blocchetto con freccia su, freccia giù, oppure piano
+  const terrainIcon = (hgt, mark) => tileIcon((c, P) => {
+    const up = p => [p[0], p[1] - hgt];
+    const W = P(0, 1), S = P(1, 1), E = P(1, 0);
+    poly(c, [W, S, up(S), up(W)], COLORS[T.GRASS][1]);
+    poly(c, [S, E, up(E), up(S)], COLORS[T.GRASS][2]);
+    poly(c, [up(P(0, 0)), up(E), up(S), up(W)], COLORS[T.GRASS][0]);
+    const m = up(P(0.5, 0.5));
+    c.strokeStyle = '#ffffff'; c.fillStyle = '#ffffff'; c.lineWidth = 1.6;
+    if (mark === 'up' || mark === 'down') {
+      const dir = mark === 'up' ? -1 : 1;
+      c.beginPath(); c.moveTo(m[0], m[1] - 5 * dir); c.lineTo(m[0], m[1] + 3 * dir); c.stroke();
+      c.beginPath(); c.moveTo(m[0], m[1] + 6 * dir); c.lineTo(m[0] - 3.5, m[1] + 2 * dir); c.lineTo(m[0] + 3.5, m[1] + 2 * dir); c.closePath(); c.fill();
+    } else {
+      for (const o of [-1.8, 1.8]) { c.beginPath(); c.moveTo(m[0] - 5, m[1] + o); c.lineTo(m[0] + 5, m[1] + o); c.stroke(); }
+    }
+  });
+  ICONS.raise = terrainIcon(7, 'up');
+  ICONS.lower = terrainIcon(0, 'down');
+  ICONS.level = terrainIcon(3, 'flat');
 
   // mano (per spostare la mappa)
   ICONS.hand = makeIcon(c => {
@@ -177,24 +201,32 @@ function setTool(id) {
     b.querySelector('img').src = ICONS[groupChoice[gr.id]];
   }
   for (const b of document.querySelectorAll('#submenu .sub')) b.classList.toggle('active', b.dataset.tool === id);
-  document.getElementById('toolname').textContent = toolLabel(id);
+  const rotatable = !!BUILDINGS[id];
+  document.getElementById('toolname').textContent = toolLabel(id) + (rotatable ? '  |  R: ruota' : '');
+  document.getElementById('rotate-btn').hidden = !rotatable;
   canvas.style.cursor = id === 'hand' ? 'grab' : 'crosshair';
   requestDraw();
 }
 
 // ---------- Contatori e informazioni ----------
+// Barra in alto: fondi, abitanti, disoccupati (abitano qui ma non lavorano), case, industrie
 function updateHud() {
   document.getElementById('money').textContent = game.money.toLocaleString('it-IT') + ' €';
-  document.getElementById('roads').textContent = game.roads;
-  document.getElementById('rails').textContent = game.rails;
+  document.getElementById('population').textContent = game.population;
+  document.getElementById('unemployed').textContent = Math.max(0, game.population - (game.employed || 0));
   document.getElementById('houses').textContent = game.houses;
   document.getElementById('industries').textContent = game.industries;
-  document.getElementById('population').textContent = game.population;
-  document.getElementById('seed').textContent = game.seed + ' (' + game.size + 'x' + game.size + ')';
+}
+
+// Ruota i prossimi edifici di 90°
+function rotateTool() {
+  game.rotation = (game.rotation + 1) % 4;
+  requestDraw();
 }
 
 function updateInfo() {
   const el = document.getElementById('info');
+  if (!el) return; // la riga di informazioni sul tile non è più nella barra in alto
   const h = game.hover;
   if (!h) { el.textContent = '-'; return; }
   const t = game.map[h.y][h.x];

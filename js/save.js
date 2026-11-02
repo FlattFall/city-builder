@@ -22,7 +22,7 @@ const PATH_FROM_CODE = { 1: 'road', 2: 'dirt', 3: 'rail' };
 // dati da salvare di un edificio (senza quelli che valgono solo mentre si gioca)
 function buildingData(b) {
   const out = {};
-  for (const [k, v] of Object.entries(b)) if (!['incoming', 'van', 'status', 'retry', 'unreachable'].includes(k)) out[k] = v;
+  for (const [k, v] of Object.entries(b)) if (!['incoming', 'van', 'status', 'retry', 'unreachable', 'workers', 'employed'].includes(k)) out[k] = v;
   return out;
 }
 

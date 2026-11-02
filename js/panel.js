@@ -34,7 +34,7 @@ function bar(valueFn, max) {
 function panelShapeOf(b) {
   if (!b) return '';
   const whs = [...game.buildings.values()].filter(w => w.kind === 'warehouse').map(w => w.id).join(',');
-  return [b.id, b.crop, b.storage, b.fields, whs, b.residents >= HOUSE_CAPACITY, !!b.unreachable,
+  return [b.id, b.crop, b.storage, b.fields, whs, b.residents >= HOUSE_CAPACITY, !!b.unreachable, accessTiles(b).length,
     b.inventory >= FARM.inventoryCap, !!b.incoming].join('|');
 }
 
@@ -83,6 +83,15 @@ function renderPanel() {
     if (!accessTiles(b).length) box.appendChild(el('div', 'pwarn', 'Nessuna strada accanto alla casa.'));
     else if (b.unreachable) box.appendChild(el('div', 'pwarn', 'Non è collegata alla strada principale.'));
     else if (b.residents >= HOUSE_CAPACITY) box.appendChild(el('div', 'pnote', 'Casa piena.'));
+    box.appendChild(liveText('div', 'pnote', () => 'Lavorano: ' + (b.employed || 0) + ' - disoccupati: ' + Math.max(0, b.residents - (b.employed || 0))));
+  }
+
+  if (JOBS[b.kind]) {
+    box.appendChild(liveText('div', 'prow', () => 'Lavoratori: ' + (b.workers || 0) + ' / ' + JOBS[b.kind]));
+    box.appendChild(bar(() => b.workers || 0, JOBS[b.kind]));
+    box.appendChild(liveText('div', 'pwarn', () => (b.workers || 0) >= JOBS[b.kind] ? '' :
+      'Servono abitanti che vivano entro ' + JOB_RADIUS + ' tile per lavorare qui.'));
+    if (!accessTiles(b).length) box.appendChild(el('div', 'pwarn', "L'entrata non è collegata a una strada."));
   }
 
   if (b.kind === 'warehouse') {
@@ -90,7 +99,6 @@ function renderPanel() {
     box.appendChild(liveText('div', 'prow', () => 'Scorte: ' + tot() + ' / ' + WAREHOUSE_CAPACITY));
     box.appendChild(bar(tot, WAREHOUSE_CAPACITY));
     for (const [id, c] of Object.entries(CROPS)) box.appendChild(liveText('div', 'prow', () => c.name + ': ' + b.stock[id]));
-    if (!accessTiles(b).length) box.appendChild(el('div', 'pwarn', 'Nessuna strada accanto al magazzino.'));
   }
 
   if (b.kind === 'farm') {
@@ -173,5 +181,6 @@ function exitFieldMode(keepTool) {
 function onFarmPlaced(b) { enterFieldMode(b); }
 
 function initPanel() {
+  document.getElementById('rotate-btn').addEventListener('click', e => { rotateTool(); e.target.blur(); });
   document.getElementById('fieldbar-done').addEventListener('click', () => exitFieldMode());
 }

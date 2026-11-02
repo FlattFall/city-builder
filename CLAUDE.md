@@ -36,6 +36,15 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - Fattoria: dopo averla piazzata si entra in modalità campi (`game.fieldMode`), i campi entro `FARM.fieldRadius` vengono assegnati (`t.farm`). Coltura, crescita (`growth` 0..1, raccolto a 1), inventario limitato (`FARM.inventoryCap`), magazzino di destinazione (`storage`); il furgone parte con almeno `vanMinLoad` e torna indietro.
 - Pannello: costruito una volta; numeri e barre si aggiornano sul posto (`panelLive`), si ricostruisce solo se cambia la forma (`panelShapeOf`), altrimenti i clic si perderebbero.
 
+## Terreno, rotazione, entrate, lavoro
+- Strumenti Alza / Abbassa / Livella nel gruppo 5 (solo su tile senza edifici e percorsi; `setElevation`: quota 0 = acqua, acqua alzata = sabbia). Livella: la quota la decide il primo tile della passata (`game.levelTarget`, azzerato a ogni mousedown).
+- Si costruisce anche in montagna (roccia, neve), ma la fattoria vuole erba (niente montagna né sabbia).
+- `game.rotation` (tasto R o pulsante Ruota) si applica agli edifici; `rotUV` ruota il riquadro 2x2. Fattoria e magazzino si disegnano con `drawParts` (parti descritte senza rotazione, entrata sul lato +v); porte e insegne solo se la faccia guarda verso lo schermo.
+- `entranceOf(b)`: una sola entrata per fattoria e magazzino; `accessTiles` usa solo il tile di strada davanti all'entrata. L'anteprima e la selezione mostrano l'entrata (verde = strada c'è, giallo = manca).
+- Lavoro: `JOBS` (fattoria 4, magazzino 2) presi dagli abitanti delle case entro `JOB_RADIUS` (`updateJobs`, ogni secondo). La fattoria cresce in proporzione al personale; il magazzino senza personale non riceve. Icona rossa/arancione sopra le attività senza abbastanza lavoratori. HUD: Fondi, Abitanti, Disoccupati, Case, Industrie.
+- Grafica del terreno: colori più chiari in alto e più scuri in basso (`tint`), bordo scuro sui lati dietro dove il terreno scende.
+- `pickTile` conta l'altezza degli edifici solo con Mano e Demolisci, così con gli altri strumenti si costruisce dietro gli edifici.
+
 ## Rotonde
 - Rotonde circolari (l'utente ha provato quelle quadrate e la piazzola rialzata: non gli piacevano). Un 2x2 di strade asfaltate diventa rotonda (`t.rb = { ax, ay, slope, low }`), in piano o su un gradino di 1 (2 tile sopra, 2 sotto): i tile bassi sono rampe, senza aggiungere terreno.
 - Le strade che entrano di lato nella parte inclinata "si piegano": in `cornerHeights` gli angoli in comune con un tile basso di rotonda prendono la sua altezza (adattatore), così si collegano.

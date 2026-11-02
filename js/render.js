@@ -200,7 +200,7 @@ function drawRoundabout(c, x, y, P) {
 }
 
 // ---------- Edifici ----------
-function drawHouse(c, sx, sy, variant) {
+function drawHouse(c, sx, sy, variant, rot) {
   const s = HOUSE_STYLES[variant % HOUSE_STYLES.length];
   const hw = 12, hh = 6, h = 14;
   const cx = sx, cy = sy + TH / 2;
@@ -218,6 +218,14 @@ function drawHouse(c, sx, sy, variant) {
     c.fillRect(Math.round(L[0] + (B[0] - L[0]) * t) - 1, Math.round(L[1] + (B[1] - L[1]) * t - h * 0.5) - 1, 2, 3);
     c.fillRect(Math.round(B[0] + (R[0] - B[0]) * t) - 1, Math.round(B[1] + (R[1] - B[1]) * t - h * 0.5) - 1, 2, 3);
   }
+  // porta: sul lato sinistro (rot 0) o destro (rot 3); con rot 1 e 2 è sul retro e non si vede
+  const r = (rot || 0) & 3;
+  if (r === 0 || r === 3) {
+    const [a, b] = r === 0 ? [L, B] : [B, R];
+    const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    poly(c, [[m[0] - 1.5, m[1] - 0.75 * (r === 0 ? 1 : -1)], [m[0] + 1.5, m[1] + 0.75 * (r === 0 ? 1 : -1)],
+      [m[0] + 1.5, m[1] + 0.75 * (r === 0 ? 1 : -1) - 6], [m[0] - 1.5, m[1] - 0.75 * (r === 0 ? 1 : -1) - 6]], '#5a3a22');
+  }
 }
 
 // Parallelepipedo da (u0, v0) a (u1, v1) rispetto all'angolo (ax, ay), alla quota base, alto hp pixel
@@ -231,55 +239,106 @@ function box(c, ax, ay, base, u0, v0, u1, v1, hp, col) {
 }
 
 // Tetto a due falde con il colmo lungo u, appoggiato alla quota top, alto rh pixel
-function gableRoof(c, ax, ay, top, u0, v0, u1, v1, rh, col) {
+function gableRoof(c, ax, ay, top, u0, v0, u1, v1, rh, col, alongV) {
   const P = (u, v, h) => iso(ax, ay, u, v, h);
-  const vm = (v0 + v1) / 2, ridge = top + rh / STEP;
-  poly(c, [P(u0, v0, top), P(u1, v0, top), P(u1, vm, ridge), P(u0, vm, ridge)], col.back);
-  poly(c, [P(u1, v1, top), P(u1, v0, top), P(u1, vm, ridge)], col.gable);
-  poly(c, [P(u0, v1, top), P(u1, v1, top), P(u1, vm, ridge), P(u0, vm, ridge)], col.roof);
+  const ridge = top + rh / STEP;
+  if (!alongV) {
+    const vm = (v0 + v1) / 2;
+    poly(c, [P(u0, v0, top), P(u1, v0, top), P(u1, vm, ridge), P(u0, vm, ridge)], col.back);
+    poly(c, [P(u1, v1, top), P(u1, v0, top), P(u1, vm, ridge)], col.gable);
+    poly(c, [P(u0, v1, top), P(u1, v1, top), P(u1, vm, ridge), P(u0, vm, ridge)], col.roof);
+  } else { // colmo lungo v (edificio ruotato)
+    const um = (u0 + u1) / 2;
+    poly(c, [P(u0, v0, top), P(u0, v1, top), P(um, v1, ridge), P(um, v0, ridge)], col.back);
+    poly(c, [P(u0, v1, top), P(u1, v1, top), P(um, v1, ridge)], col.gableL || col.gable);
+    poly(c, [P(u1, v0, top), P(u1, v1, top), P(um, v1, ridge), P(um, v0, ridge)], col.roof);
+  }
 }
 
-// Fattoria 2x2: fienile rosso, silo, casetta e balle di fieno.
-// Le parti sono ben separate e disegnate dalla più lontana alla più vicina, così non si incastrano.
-function drawFarm(c, ax, ay, base) {
-  const P = (u, v, h) => iso(ax, ay, u, v, h);
-  const parts = [
-    { depth: 2.0, draw() { // fienile (dietro a sinistra)
-      const bt = box(c, ax, ay, base, 0.12, 0.15, 1.0, 0.95, 14, { l: '#b5473a', r: '#8f372d', t: '#b5473a' });
-      gableRoof(c, ax, ay, bt, 0.08, 0.1, 1.04, 1.0, 8, { back: '#5a4036', roof: '#6b4a3a', gable: '#8f372d' });
-      const dl = [P(0.38, 0.95, base), P(0.74, 0.95, base), P(0.74, 0.95, base + 9 / STEP), P(0.38, 0.95, base + 9 / STEP)];
-      poly(c, dl, '#5a2a22');
-      line(c, dl[0], dl[2], '#f2f5f8'); line(c, dl[1], dl[3], '#f2f5f8');
-    } },
-    { depth: 2.3, draw() { // silo (dietro a destra, staccato dal fienile)
-      const st = box(c, ax, ay, base, 1.38, 0.18, 1.74, 0.54, 30, { l: '#c9d2dc', r: '#a5b0bd', t: '#e8eef3' });
-      poly(c, [P(1.42, 0.22, st + 0.4), P(1.7, 0.22, st + 0.4), P(1.7, 0.5, st + 0.4), P(1.42, 0.5, st + 0.4)], '#8f9aa6');
-      for (const hh of [0.3, 0.6]) line(c, P(1.38, 0.54, base + 30 * hh / STEP), P(1.74, 0.54, base + 30 * hh / STEP), '#a5b0bd');
-    } },
-    { depth: 2.6, draw() { // casetta del contadino (davanti a sinistra)
-      const ht = box(c, ax, ay, base, 0.2, 1.3, 0.78, 1.82, 9, { l: '#e6d9c2', r: '#c0b399', t: '#e6d9c2' });
-      gableRoof(c, ax, ay, ht, 0.16, 1.26, 0.82, 1.86, 5, { back: '#7a2f27', roof: '#9a3a30', gable: '#c0b399' });
-    } },
-    { depth: 2.9, draw() { // balle di fieno (davanti a destra)
-      box(c, ax, ay, base, 1.3, 1.25, 1.5, 1.45, 4, { l: '#d9b44a', r: '#b8952f', t: '#ecd17a' });
-      box(c, ax, ay, base, 1.55, 1.3, 1.75, 1.5, 4, { l: '#d9b44a', r: '#b8952f', t: '#ecd17a' });
-    } },
-  ];
-  for (const p of parts.sort((a, b) => a.depth - b.depth)) p.draw();
+// ---------- Edifici grandi ruotabili ----------
+// Le parti sono descritte senza rotazione nel riquadro 2x2 (u, v da 0 a 2), con l'entrata
+// davanti a sinistra (lato +v). Vengono ruotate, ordinate dalla più lontana alla più vicina e disegnate.
+function rotVec(du, dv, r) {
+  switch (r & 3) { case 0: return [du, dv]; case 1: return [-dv, du]; case 2: return [-du, -dv]; default: return [dv, -du]; }
+}
+function rotBox(bx, r) {
+  const A = rotUV(bx[0], bx[1], r), B = rotUV(bx[2], bx[3], r);
+  return [Math.min(A[0], B[0]), Math.min(A[1], B[1]), Math.max(A[0], B[0]), Math.max(A[1], B[1])];
+}
+// quadrilatero piano sul terreno (vialetti)
+function groundRect(c, ax, ay, base, bx, r, color) {
+  const [u0, v0, u1, v1] = rotBox(bx, r);
+  poly(c, [iso(ax, ay, u0, v0, base), iso(ax, ay, u1, v0, base), iso(ax, ay, u1, v1, base), iso(ax, ay, u0, v1, base)], color);
+}
+// porta/insegna su una faccia (+v o +u) della parte; si vede solo se dopo la rotazione guarda verso di noi
+function drawDoor(c, ax, ay, base, r, bx, d) {
+  const n = rotVec(d.face === '+u' ? 1 : 0, d.face === '+u' ? 0 : 1, r);
+  if (!((n[0] === 0 && n[1] === 1) || (n[0] === 1 && n[1] === 0))) return;
+  const pa = d.face === '+u' ? [bx[2], d.a] : [d.a, bx[3]];
+  const pb = d.face === '+u' ? [bx[2], d.b] : [d.b, bx[3]];
+  const A = rotUV(pa[0], pa[1], r), B = rotUV(pb[0], pb[1], r);
+  const z0 = base + (d.z0 || 0) / STEP, z1 = base + d.z1 / STEP;
+  const q = [iso(ax, ay, A[0], A[1], z0), iso(ax, ay, B[0], B[1], z0), iso(ax, ay, B[0], B[1], z1), iso(ax, ay, A[0], A[1], z1)];
+  poly(c, q, d.color);
+  if (d.cross) { line(c, q[0], q[2], '#f2f5f8'); line(c, q[1], q[3], '#f2f5f8'); }
+}
+function drawParts(c, ax, ay, base, r, parts) {
+  const items = parts.map(p => { const b = rotBox(p.box, r); return { p, b, depth: b[2] + b[3] }; })
+    .sort((a, b) => a.depth - b.depth);
+  for (const { p, b } of items) {
+    const top = box(c, ax, ay, base, b[0], b[1], b[2], b[3], p.h, p.col);
+    if (p.roof) gableRoof(c, ax, ay, top, b[0] - 0.04, b[1] - 0.04, b[2] + 0.04, b[3] + 0.04, p.roof.rh,
+      Object.assign({ gableL: p.col.l }, p.roof), (r & 1) === 1);
+    if (p.doors) for (const d of p.doors) drawDoor(c, ax, ay, base, r, p.box, d);
+    if (p.after) p.after(b, top);
+  }
 }
 
-// Magazzino alimenti 2x2: capannone con tetto piatto, portoni di carico, insegna verde e casse
-function drawWarehouse(c, ax, ay, base) {
+// Fattoria 2x2: fienile rosso con il portone verso l'entrata, silo, casetta, balle di fieno
+// e il vialetto di terra che parte dall'entrata
+function drawFarm(c, ax, ay, base, r) {
   const P = (u, v, h) => iso(ax, ay, u, v, h);
-  const top = box(c, ax, ay, base, 0.15, 0.3, 1.85, 1.55, 18, { l: '#d2ccbe', r: '#aaa497', t: '#7d8a96' });
-  for (const u of [0.45, 0.8, 1.15, 1.5]) line(c, P(u, 0.3, top), P(u, 1.55, top), '#6b7682'); // lamiere
-  for (const u0 of [0.3, 0.8, 1.3]) // portoni di carico
-    poly(c, [P(u0, 1.55, base), P(u0 + 0.35, 1.55, base), P(u0 + 0.35, 1.55, base + 11 / STEP), P(u0, 1.55, base + 11 / STEP)], '#4a4f5a');
-  // insegna verde sul lato destro
-  poly(c, [P(1.85, 1.35, top - 2 / STEP), P(1.85, 0.5, top - 2 / STEP), P(1.85, 0.5, top - 6 / STEP), P(1.85, 1.35, top - 6 / STEP)], '#3fa34d');
-  // casse davanti
-  for (const u0 of [0.35, 1.45])
-    box(c, ax, ay, base, u0, 1.68, u0 + 0.22, 1.9, 5, { l: '#a0703f', r: '#7f5630', t: '#c08a52' });
+  groundRect(c, ax, ay, base, [0.3, 0.95, 0.7, 2.0], r, '#a07c4c');
+  const hay = { l: '#d9b44a', r: '#b8952f', t: '#ecd17a' };
+  drawParts(c, ax, ay, base, r, [
+    { box: [0.12, 0.15, 1.0, 0.95], h: 14, col: { l: '#b5473a', r: '#8f372d', t: '#b5473a' },
+      roof: { rh: 8, back: '#5a4036', roof: '#6b4a3a', gable: '#8f372d' },
+      doors: [{ face: '+v', a: 0.36, b: 0.74, z1: 9, color: '#5a2a22', cross: true }] },
+    { box: [1.38, 0.18, 1.74, 0.54], h: 30, col: { l: '#c9d2dc', r: '#a5b0bd', t: '#e8eef3' },
+      after(b, top) {
+        poly(c, [P(b[0] + 0.04, b[1] + 0.04, top + 0.4), P(b[2] - 0.04, b[1] + 0.04, top + 0.4),
+          P(b[2] - 0.04, b[3] - 0.04, top + 0.4), P(b[0] + 0.04, b[3] - 0.04, top + 0.4)], '#8f9aa6');
+        for (const f of [0.3, 0.6]) line(c, P(b[0], b[3], base + 30 * f / STEP), P(b[2], b[3], base + 30 * f / STEP), '#a5b0bd');
+      } },
+    { box: [1.15, 1.2, 1.75, 1.75], h: 9, col: { l: '#e6d9c2', r: '#c0b399', t: '#e6d9c2' },
+      roof: { rh: 5, back: '#7a2f27', roof: '#9a3a30', gable: '#c0b399' },
+      doors: [{ face: '+v', a: 1.38, b: 1.52, z1: 6, color: '#5a3a22' }] },
+    { box: [0.06, 1.25, 0.24, 1.45], h: 4, col: hay },
+    { box: [0.06, 1.55, 0.24, 1.75], h: 4, col: hay },
+  ]);
+}
+
+// Magazzino alimenti 2x2: capannone con i portoni di carico verso l'entrata, vialetto di cemento,
+// insegna verde e casse
+function drawWarehouse(c, ax, ay, base, r) {
+  const P = (u, v, h) => iso(ax, ay, u, v, h);
+  groundRect(c, ax, ay, base, [0.28, 1.45, 0.72, 2.0], r, '#7b7f86');
+  const door = a => ({ face: '+v', a, b: a + 0.35, z1: 11, color: '#4a4f5a' });
+  const crate = { l: '#a0703f', r: '#7f5630', t: '#c08a52' };
+  drawParts(c, ax, ay, base, r, [
+    { box: [0.15, 0.3, 1.85, 1.45], h: 18, col: { l: '#d2ccbe', r: '#aaa497', t: '#7d8a96' },
+      doors: [door(0.32), door(0.82), door(1.32),
+        { face: '+u', a: 0.5, b: 1.25, z0: 12, z1: 16, color: '#3fa34d' }],
+      after(b, top) { // lamiere del tetto
+        const alongU = b[2] - b[0] > b[3] - b[1];
+        for (const f of [0.2, 0.4, 0.6, 0.8]) {
+          if (alongU) { const u = b[0] + (b[2] - b[0]) * f; line(c, P(u, b[1], top), P(u, b[3], top), '#6b7682'); }
+          else { const v = b[1] + (b[3] - b[1]) * f; line(c, P(b[0], v, top), P(b[2], v, top), '#6b7682'); }
+        }
+      } },
+    { box: [1.1, 1.66, 1.32, 1.88], h: 5, col: crate },
+    { box: [1.45, 1.66, 1.67, 1.88], h: 5, col: crate },
+  ]);
 }
 
 // Disegna la parte di edificio di un tile: case subito, edifici grandi sul tile più avanti
@@ -288,13 +347,13 @@ function drawBuildingOn(c, x, y, b) {
   const def = BUILDINGS[b.kind];
   if (b.kind === 'house') {
     const t = game.map[y][x];
-    drawHouse(c, (x - y) * TW / 2, (x + y) * TH / 2 - t.elev * STEP, b.variant);
+    drawHouse(c, (x - y) * TW / 2, (x + y) * TH / 2 - t.elev * STEP, b.variant, b.rot);
     return;
   }
   if (x !== b.ax + def.w - 1 || y !== b.ay + def.h - 1) return;
   const base = game.map[b.ay][b.ax].elev;
-  if (b.kind === 'farm') drawFarm(c, b.ax, b.ay, base);
-  else if (b.kind === 'warehouse') drawWarehouse(c, b.ax, b.ay, base);
+  if (b.kind === 'farm') drawFarm(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'warehouse') drawWarehouse(c, b.ax, b.ay, base, b.rot || 0);
 }
 
 // ---------- Tile ----------
@@ -315,11 +374,23 @@ function slopeShade(x, y, colors) {
   return r < 0 ? colors[0] : (r === 0 || r === 3 ? colors[1] : colors[2]);
 }
 
+// Colori del terreno un po' più chiari in alto e più scuri in basso: così si capisce la quota
+const tintCache = new Map();
+function tint(type, elev, i) {
+  const k = (type * 64 + elev) * 3 + i;
+  let c = tintCache.get(k);
+  if (!c) {
+    c = type === T.WATER ? COLORS[type][i] : shade(COLORS[type][i], Math.max(-0.35, Math.min(0.3, (elev - 3) * 0.05)));
+    tintCache.set(k, c);
+  }
+  return c;
+}
+
 // onlyTop = disegna solo la superficie e l'oggetto sopra (usato per l'anteprima)
 function drawTile(c, x, y, detail, onlyTop) {
   const t = game.map[y][x];
   const h = cornerHeights(x, y);
-  const col = COLORS[t.type];
+  const col = [tint(t.type, t.elev, 0), tint(t.type, t.elev, 1), tint(t.type, t.elev, 2)];
   const P = (u, v) => iso(x, y, u, v, heightIn(h, u, v));
 
   if (!onlyTop) {
@@ -333,6 +404,17 @@ function drawTile(c, x, y, detail, onlyTop) {
   else if (t.field) top = SOIL;
   else if (t.building && GROUND[t.building.kind]) top = GROUND[t.building.kind];
   poly(c, [P(0, 0), P(1, 0), P(1, 1), P(0, 1)], top);
+
+  // bordo scuro sui lati dietro dove il terreno scende: si vede subito che dietro c'è un salto
+  if (!onlyTop && t.type !== T.WATER) {
+    c.strokeStyle = 'rgba(20, 24, 30, 0.45)'; c.lineWidth = 1;
+    for (const [d, ka, kb] of [[0, 0, 1], [3, 3, 0]]) {
+      if (neighborCornerHeight(x, y, d, ka) < h[ka] || neighborCornerHeight(x, y, d, kb) < h[kb]) {
+        const a = P(...CORNERS[ka]), b = P(...CORNERS[kb]);
+        c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke();
+      }
+    }
+  }
 
   if (t.path) {
     const links = [0, 1, 2, 3].map(d => roadLinked(x, y, d));
@@ -388,7 +470,7 @@ function withPreview(p, draw) {
   if (PATHS[tool]) { setPath(p.x, p.y, tool); updateRoundabouts(); }
   else if (tool === 'field') t.field = true;
   else if (BUILDINGS[tool]) {
-    const b = { kind: tool, variant: houseVariant(p.x, p.y), ax: p.x, ay: p.y };
+    const b = { kind: tool, variant: houseVariant(p.x, p.y), ax: p.x, ay: p.y, rot: game.rotation };
     for (const [q] of saved) game.map[q.y][q.x].building = b;
   }
   try { draw(); } finally {
@@ -433,6 +515,23 @@ function drawHover(c) {
   };
   // con l'anteprima il contorno segue la forma finale (es. la rampa)
   if (previewTile()) withPreview(h, draw); else draw();
+  if (BUILDINGS[game.tool] && s.w > 1) drawEntrance(c, { kind: game.tool, ax: h.x, ay: h.y, rot: game.rotation });
+}
+
+// Segno dell'entrata (lato da collegare alla strada): verde se la strada c'è già, giallo se manca
+function drawEntrance(c, b) {
+  const ent = entranceOf(b);
+  if (!ent || !inMap(ent.x, ent.y)) return;
+  const e = game.map[b.ay][b.ax].elev;
+  const [k1, k2] = EDGES[ent.d];
+  const A = iso(ent.x, ent.y, ...CORNERS[k1], e), B = iso(ent.x, ent.y, ...CORNERS[k2], e);
+  const M = iso(ent.x, ent.y, 0.5 + DIRS[ent.d].dx * 0.5, 0.5 + DIRS[ent.d].dy * 0.5, e);
+  const O = iso(ent.x, ent.y, 0.5 + DIRS[ent.d].dx * 1.0, 0.5 + DIRS[ent.d].dy * 1.0, e);
+  const ok = roadAt(ent.rx, ent.ry);
+  c.strokeStyle = ok ? '#5dff7a' : '#ffd966'; c.lineWidth = 3;
+  c.beginPath(); c.moveTo(A[0], A[1]); c.lineTo(B[0], B[1]); c.stroke();
+  c.lineWidth = 2;
+  c.beginPath(); c.moveTo(M[0], M[1]); c.lineTo(O[0], O[1]); c.stroke();
 }
 
 function drawFrame() {
@@ -482,6 +581,7 @@ function drawFrame() {
     }
   }
   if (game.fieldMode) drawFieldArea(ctx);
+  drawWorkerIcons(ctx);
 }
 
 // Contorno giallo dell'edificio selezionato (pannello aperto)
@@ -492,6 +592,25 @@ function drawSelection(c, b) {
   c.beginPath(); c.moveTo(pts[0][0], pts[0][1]);
   for (const p of pts.slice(1)) c.lineTo(p[0], p[1]);
   c.closePath(); c.stroke();
+  if (d.w > 1) drawEntrance(c, b);
+}
+
+// Icona sopra le attività senza abbastanza lavoratori: rossa se non c'è nessuno, arancione se ne mancano
+function drawWorkerIcons(c) {
+  for (const b of game.buildings.values()) {
+    const need = JOBS[b.kind];
+    if (!need || (b.workers || 0) >= need) continue;
+    const d = BUILDINGS[b.kind], e = game.map[b.ay][b.ax].elev;
+    const [x, y] = iso(b.ax, b.ay, d.w / 2, d.h / 2, e + (d.height + 10) / STEP);
+    c.fillStyle = b.workers ? '#e8a33a' : '#d94141';
+    c.strokeStyle = '#1a1c2c'; c.lineWidth = 1;
+    c.beginPath(); c.arc(x, y, 6, 0, Math.PI * 2); c.fill(); c.stroke();
+    c.fillStyle = '#ffffff';
+    c.beginPath(); c.arc(x, y - 2.5, 1.6, 0, Math.PI * 2); c.fill();   // testa
+    c.fillRect(x - 2, y - 0.5, 4, 4);                                  // corpo
+    c.fillStyle = b.workers ? '#e8a33a' : '#d94141';
+    c.fillRect(x - 0.5, y + 1.5, 1, 2);                                // gambe
+  }
 }
 
 // In modalità campi: zona tratteggiata dove si possono mettere i campi della fattoria

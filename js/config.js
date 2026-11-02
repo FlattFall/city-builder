@@ -53,12 +53,21 @@ const CROPS = {
 const FARM = {
   fieldRadius: 6,     // i campi devono stare entro questa distanza (in tile) dalla fattoria
   inventoryCap: 100,  // inventario massimo della fattoria
-  cycleSec: 30,       // secondi dalla semina al raccolto
+  cycleSec: 120,      // secondi dalla semina al raccolto (con tutto il personale)
   yieldPerField: 4,   // unità raccolte per ogni campo
   vanCapacity: 25,    // quanto porta il furgone in un viaggio
   vanMinLoad: 10,     // il furgone parte quando c'è almeno questo
 };
 const WAREHOUSE_CAPACITY = 1000;
+
+// ---------- Lavoro ----------
+// Persone che servono per far funzionare un'attività; lavorano lì gli abitanti delle case
+// entro JOB_RADIUS tile
+const JOBS = { farm: 4, warehouse: 2 };
+const JOB_RADIUS = 12;
+
+// ---------- Modellare il terreno ----------
+const MAX_ELEV = 14;
 
 // ---------- Economia (valori provvisori) ----------
 const START_MONEY = 50000;
@@ -68,4 +77,5 @@ const COSTS = {
   demolishBuilding: 20,
   demolishField: 1,
   clearForest: 2,
+  terrain: 15,        // per ogni livello alzato o abbassato
 };

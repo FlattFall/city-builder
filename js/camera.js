@@ -29,11 +29,12 @@ function tileFromWorld(wx, wy) {
 function pickTile(mx, my) {
   const z = zoomLevel();
   const wx = (mx - cam.x) / z, wy = (my - cam.y) / z;
-  const maxDy = (game.maxElev + 1) * STEP + 16;
+  const withBuildings = game.tool === 'hand' || game.tool === 'demolish';
+  const maxDy = (game.maxElev + 1) * STEP + 40;
   let best = null;
   for (let dy = 0; dy <= maxDy; dy++) {
     const p = tileFromWorld(wx, wy + dy);
-    if (!inMap(p.x, p.y) || topHeightPx(p.x, p.y) < dy) continue;
+    if (!inMap(p.x, p.y) || topHeightPx(p.x, p.y, withBuildings) < dy) continue;
     if (!best || p.y > best.y || (p.y === best.y && p.x > best.x)) best = p;
   }
   return best;

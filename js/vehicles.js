@@ -4,7 +4,7 @@
 // I furgoni portano il raccolto dalle fattorie ai magazzini e tornano indietro.
 
 let vehicles = [];
-let moveInTimer = 0, houseCursor = 0;
+let moveInTimer = 0, houseCursor = 0, jobsTimer = 0;
 const CAR_COLORS = ['#d94141', '#3f6fd9', '#e8c23a', '#3fa34d', '#e8e8e8', '#2b2b33', '#e07b39', '#8e5bd1'];
 
 function clearVehicles() { vehicles = []; moveInTimer = 0; }
@@ -25,8 +25,11 @@ function driveNeighbors(x, y) {
   return out;
 }
 
-// Strade attaccate a un edificio (da qui si parte e qui si arriva)
+// Strade attaccate a un edificio (da qui si parte e qui si arriva).
+// Fattoria e magazzino si raggiungono solo dalla loro entrata.
 function accessTiles(b) {
+  const ent = entranceOf(b);
+  if (ent) return roadAt(ent.rx, ent.ry) ? [[ent.rx, ent.ry]] : [];
   const out = [], seen = new Set();
   for (const p of footprint(b.kind, b.ax, b.ay))
     for (const D of DIRS) {
@@ -140,6 +143,7 @@ function dispatchVan(farm) {
   if (!wh) { farm.storage = null; return; }
   const free = warehouseFree(wh);
   if (free <= 0) { farm.status = 'Il magazzino è pieno'; return; }
+  if (!wh.workers) { farm.status = 'Il magazzino non ha personale'; farm.retry = 3; return; }
   const route = findRoute(accessTiles(farm), accessTiles(wh));
   if (!route) { farm.status = 'Nessuna strada verso il magazzino'; farm.retry = 3; return; }
   const load = Math.min(farm.inventory, FARM.vanCapacity, free);
@@ -170,10 +174,11 @@ function dispatchVan(farm) {
 }
 
 function updateFarm(f, dt) {
-  // cresce solo se ha campi e l'inventario non è pieno
-  if (f.fields > 0 && f.inventory < FARM.inventoryCap) {
+  // cresce solo se ha campi, personale e l'inventario non è pieno; più personale = più veloce
+  const staff = (f.workers || 0) / JOBS.farm;
+  if (f.fields > 0 && staff > 0 && f.inventory < FARM.inventoryCap) {
     const before = Math.floor(f.growth * 4);
-    f.growth += dt / FARM.cycleSec;
+    f.growth += dt / FARM.cycleSec * staff;
     if (f.growth >= 1) {
       f.growth = 0;
       f.inventory = Math.min(FARM.inventoryCap, f.inventory + f.fields * FARM.yieldPerField);
@@ -229,6 +234,8 @@ function simUpdate(dt) {
     vehicles = vehicles.filter(v => !done.includes(v));
     for (const v of done) v.arrive();
   }
+  jobsTimer -= dt;
+  if (jobsTimer <= 0) { jobsTimer = 1; updateJobs(); updateHud(); }
   moveInTimer -= dt;
   if (moveInTimer <= 0) { moveInTimer = MOVE_IN_EVERY; spawnResident(); }
   for (const b of game.buildings.values()) if (b.kind === 'farm') updateFarm(b, dt);
