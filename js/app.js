@@ -10,6 +10,7 @@ let lastTime = performance.now();
 function loop(now) {
   const dt = Math.max(0, ((now || performance.now()) - lastTime) / 1000);
   lastTime = now || performance.now();
+  panWithKeys(Math.min(dt, 0.05));
   simUpdate(dt);
   panelUpdate(dt);
   if (needsDraw) { needsDraw = false; drawFrame(); }

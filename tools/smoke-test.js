@@ -587,6 +587,23 @@ function check(cond, msg) {
     `telecamera dentro la mappa (centro su ${edge.tx.toFixed(1)}, ${edge.ty.toFixed(1)})`);
   await page.screenshot({ path: process.env.SHOTS + '/6-edge.png' });
 
+  // 25. WASD: movimento continuo, anche con due tasti insieme (diagonale), sempre dentro i bordi
+  await page.evaluate(() => { newGame(2, 128); cam.zi = 2; centerCamera(); });
+  const k0 = await page.evaluate(() => ({ x: cam.x, y: cam.y }));
+  await page.keyboard.down('w'); await page.keyboard.down('a');
+  await page.waitForTimeout(400);
+  const k1 = await page.evaluate(() => ({ x: cam.x, y: cam.y }));
+  await page.keyboard.up('a');
+  await page.waitForTimeout(6000);                 // tenendo W a lungo si arriva al bordo
+  await page.keyboard.up('w');
+  const k2 = await page.evaluate(() => {
+    const z = zoomLevel(), cx = (view.w / 2 - cam.x) / z, cy = (view.h / 2 - cam.y) / z;
+    const a = cx / (TW / 2), b = cy / (TH / 2);
+    return { tx: (a + b) / 2, ty: (b - a) / 2, n: game.size };
+  });
+  check(k1.x > k0.x + 50 && k1.y > k0.y + 50, `W + A insieme: la mappa si muove in diagonale (${Math.round(k1.x - k0.x)}, ${Math.round(k1.y - k0.y)})`);
+  check(k2.tx >= -0.01 && k2.ty >= -0.01 && k2.tx <= k2.n + 0.01 && k2.ty <= k2.n + 0.01, `WASD si ferma al bordo della mappa (centro ${k2.tx.toFixed(1)}, ${k2.ty.toFixed(1)})`);
+
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();
 })();

@@ -63,7 +63,9 @@ addEventListener('mouseup', e => {
   canvas.style.cursor = game.tool === 'hand' ? 'grab' : 'crosshair';
 });
 
+let mouseX = 0, mouseY = 0;
 addEventListener('mousemove', e => {
+  mouseX = e.clientX; mouseY = e.clientY;
   if (menuIsOpen()) return;
   if (panning) {
     cam.x += e.clientX - lastX; cam.y += e.clientY - lastY;
@@ -83,16 +85,33 @@ canvas.addEventListener('wheel', e => {
 }, { passive: false });
 
 // (Esc apre il menu: vedi menu.js. Nuova mappa e caricamento sono nel menu.)
+// Movimento con WASD/frecce: si tiene conto dei tasti premuti in questo momento e la mappa
+// scorre in modo continuo a ogni fotogramma (anche in diagonale, es. W + A insieme)
+const PAN_KEYS = { w: [0, 1], arrowup: [0, 1], s: [0, -1], arrowdown: [0, -1],
+  a: [1, 0], arrowleft: [1, 0], d: [-1, 0], arrowright: [-1, 0] };
+const PAN_SPEED = 900; // pixel dello schermo al secondo
+const keysHeld = new Set();
+
 addEventListener('keydown', e => {
   if (menuIsOpen()) return; // con il menu aperto la tastiera non comanda il gioco
   const k = e.key.toLowerCase();
-  const s = 48;
+  if (PAN_KEYS[k]) { keysHeld.add(k); e.preventDefault(); return; }
+  if (e.repeat) return;
   if (selectGroupByKey(e.key)) { /* strumento scelto */ }
   else if (k === 'r') rotateTool();
-  else if (k === 'w' || k === 'arrowup') cam.y += s;
-  else if (k === 's' || k === 'arrowdown') cam.y -= s;
-  else if (k === 'a' || k === 'arrowleft') cam.x += s;
-  else if (k === 'd' || k === 'arrowright') cam.x -= s;
-  else return;
-  requestDraw();
 });
+addEventListener('keyup', e => keysHeld.delete(e.key.toLowerCase()));
+addEventListener('blur', () => keysHeld.clear()); // la finestra perde il fuoco: niente tasti "incollati"
+
+function panWithKeys(dt) {
+  if (!keysHeld.size || menuIsOpen()) return;
+  let dx = 0, dy = 0;
+  for (const k of keysHeld) { dx += PAN_KEYS[k][0]; dy += PAN_KEYS[k][1]; }
+  if (!dx && !dy) return;
+  const len = Math.hypot(dx, dy); // in diagonale stessa velocità
+  cam.x += dx / len * PAN_SPEED * dt;
+  cam.y += dy / len * PAN_SPEED * dt;
+  clampCamera();
+  if (game.hover) { game.hover = pickTile(mouseX, mouseY); updateInfo(); }
+  requestDraw();
+}
