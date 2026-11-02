@@ -570,6 +570,23 @@ function check(cond, msg) {
   });
   check(behind, 'si può scegliere (e costruire) il tile dietro una casa');
 
+  // 25. limiti ai bordi: trascinando o con i tasti non si esce dalla mappa
+  await page.keyboard.press('1');
+  for (let i = 0; i < 6; i++) {
+    await page.mouse.move(200, 300); await page.mouse.down();
+    await page.mouse.move(1200, 700, { steps: 4 }); await page.mouse.up();
+  }
+  for (let i = 0; i < 80; i++) await page.keyboard.press('w');
+  await page.waitForTimeout(100);
+  const edge = await page.evaluate(() => {
+    const z = zoomLevel(), cx = (view.w / 2 - cam.x) / z, cy = (view.h / 2 - cam.y) / z;
+    const a = cx / (TW / 2), b = cy / (TH / 2), tx = (a + b) / 2, ty = (b - a) / 2;
+    return { tx, ty, N: game.size };
+  });
+  check(edge.tx >= -0.01 && edge.ty >= -0.01 && edge.tx <= edge.N + 0.01 && edge.ty <= edge.N + 0.01,
+    `telecamera dentro la mappa (centro su ${edge.tx.toFixed(1)}, ${edge.ty.toFixed(1)})`);
+  await page.screenshot({ path: process.env.SHOTS + '/6-edge.png' });
+
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();
 })();

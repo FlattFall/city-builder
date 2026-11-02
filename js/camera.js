@@ -15,6 +15,21 @@ function zoomAt(mx, my, dir) {
   const z = zoomLevel();
   cam.x = mx - (mx - cam.x) * z / old;
   cam.y = my - (my - cam.y) * z / old;
+  clampCamera();
+}
+
+// Limiti ai bordi: il centro dello schermo deve restare sopra la mappa,
+// così non si può scorrere nel vuoto fuori dal bordo
+function clampCamera() {
+  if (!game.map) return;
+  const z = zoomLevel(), N = game.size;
+  const cx = (view.w / 2 - cam.x) / z, cy = (view.h / 2 - cam.y) / z;   // centro in coordinate mondo
+  // da mondo a tile (a quota 0), limiti, e di nuovo a mondo
+  const a = cx / (TW / 2), b = cy / (TH / 2);
+  const tx = Math.max(0, Math.min(N, (a + b) / 2)), ty = Math.max(0, Math.min(N, (b - a) / 2));
+  const ncx = (tx - ty) * TW / 2, ncy = (tx + ty) * TH / 2;
+  cam.x = view.w / 2 - ncx * z;
+  cam.y = view.h / 2 - ncy * z;
 }
 
 // Coordinate "mondo" (senza quota) -> tile

@@ -540,6 +540,7 @@ function drawFrame() {
   ctx.fillRect(0, 0, view.w, view.h);
   if (!game.map) return;
 
+  clampCamera(); // la telecamera non esce dai bordi della mappa
   const z = zoomLevel();
   ctx.setTransform(z, 0, 0, z, Math.round(cam.x), Math.round(cam.y));
   ctx.imageSmoothingEnabled = false;

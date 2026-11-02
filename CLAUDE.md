@@ -43,6 +43,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - `entranceOf(b)`: una sola entrata per fattoria e magazzino; `accessTiles` usa solo il tile di strada davanti all'entrata. L'anteprima e la selezione mostrano l'entrata (verde = strada c'è, giallo = manca).
 - Lavoro: `JOBS` (fattoria 4, magazzino 2) presi dagli abitanti delle case entro `JOB_RADIUS` (`updateJobs`, ogni secondo). La fattoria cresce in proporzione al personale; il magazzino senza personale non riceve. Icona rossa/arancione sopra le attività senza abbastanza lavoratori. HUD: Fondi, Abitanti, Disoccupati, Case, Industrie.
 - Grafica del terreno: colori più chiari in alto e più scuri in basso (`tint`), bordo scuro sui lati dietro dove il terreno scende.
+- `clampCamera()` (chiamata a ogni `drawFrame`): il centro dello schermo resta dentro la mappa, non si scorre fuori dai bordi.
 - `pickTile` conta l'altezza degli edifici solo con Mano e Demolisci, così con gli altri strumenti si costruisce dietro gli edifici.
 
 ## Rotonde
