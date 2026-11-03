@@ -62,7 +62,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - Gli sprite sono disegnati per tile da 64x32: 2 pixel dello sprite per unità del mondo (che resta a 32x16, `SPRITE_SCALE`). Allo zoom normale (x2) e a x4 i pixel sono netti; rimpiccioliti si sfumano.
 - `assets/sprites/*.png` = fogli (colonne = rotazioni 0..3, righe = varianti). `node tools/sprites/build.js` li incorpora come data URI in `js/sprite-data.js` (generato: non modificare a mano), così niente problemi con file:// e `toDataURL` delle icone.
 - `js/sprites.js`: `drawSprite(c, name, col, row, wx, wy)` con (wx, wy) = angolo in alto del tile; restituisce false finché l'immagine non è caricata (si usa il disegno di riserva). `onSpritesLoaded` (ui.js) rifà le icone.
-- Casa: `tools/sprites/house.py` (Python + Pillow) crea `house.png` da un piccolo modello 3D "fotografato" pixel per pixel con scale di toni (muri a doghe, tetto a tegole, comignolo, finestre con persiane, porta, gradino, vialetto, cespugli). Prima prova approvata dall'utente come direzione: pixel art più dettagliata, un edificio alla volta.
+- Casa: `tools/sprites/house.py` (Python + Pillow) crea `house.png` da un piccolo modello 3D "fotografato" pixel per pixel con scale di toni (muri a doghe, tetto a tegole, comignolo, finestre con persiane, porta, gradino, vialetto, cespugli). L'utente vuole pixel art più dettagliata; la casa è la prima prova, poi un edificio alla volta.
 
 ## Rotonde
 - Rotonde circolari (l'utente ha provato quelle quadrate e la piazzola rialzata: non gli piacevano). Un 2x2 di strade asfaltate diventa rotonda (`t.rb = { ax, ay, slope, low }`), in piano o su un gradino di 1 (2 tile sopra, 2 sotto): i tile bassi sono rampe, senza aggiungere terreno.
