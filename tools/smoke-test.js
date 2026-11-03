@@ -977,6 +977,41 @@ function check(cond, msg) {
   await page.keyboard.press('Escape');
   check(/Azienda forestale/.test(desc1) && /tronchi/.test(desc1) && /Segheria/.test(desc2) && /assi di legno/.test(desc2), 'descrizione dello strumento nel menu (con la catena di montaggio)');
 
+  // 32. ruspa precisa al pixel: si toglie quello che si vede dietro un edificio, senza toccarlo
+  const px = await page.evaluate(() => {
+    clearVehicles(); newGame(1, 128);
+    const N = game.size, c = N / 2, r = {};
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, rb: null, bridge: null, elev: 2 });
+    recount(); resetBridges(); game.money = 1e7; game.started = true;
+    for (let x = c - 3; x <= c + 3; x++) useTool('road', x, c - 1);   // strada dietro
+    useTool('house', c, c);                                             // casa davanti
+    game.rotation = 2; useTool('factory', c + 2, c + 1); game.rotation = 0;   // edificio alto davanti
+    game.tool = 'demolish';
+    const z = zoomLevel();
+    cam.x = view.w / 2; cam.y = view.h / 2 - (2 * c * TH / 2) * z; requestDraw(); drawFrame();
+    const exact = pickTileExact;
+    let found = null;
+    for (let my = 0; my < view.h && !found; my += 2) for (let mx = 0; mx < view.w && !found; mx += 2) {
+      const now = pickTile(mx, my);
+      if (!now || now.y !== c - 1 || !roadAt(now.x, now.y)) continue;
+      pickTileExact = () => null; const before = pickTile(mx, my); pickTileExact = exact;
+      if (before && game.map[before.y][before.x].building) found = { mx, my, t: now };
+    }
+    r.found = !!found;
+    if (found) {
+      lastTile = null; paintTo(pickTile(found.mx, found.my));
+      r.roadGone = !roadAt(found.t.x, found.t.y) && game.houses === 1 && game.industries === 1;
+    }
+    // e cliccando sulla casa si toglie la casa
+    const [hx, hy] = iso(c, c, 0.5, 0.5, 2 + 1.2);
+    const hp = pickTile(Math.round(hx * z + cam.x), Math.round(hy * z + cam.y));
+    r.houseHit = !!hp && game.map[hp.y][hp.x].building && game.map[hp.y][hp.x].building.kind === 'house';
+    game.tool = 'hand';
+    return r;
+  });
+  check(px.found && px.roadGone, 'ruspa: si demolisce la strada che si vede dietro un edificio, l\'edificio resta');
+  check(px.houseHit, 'ruspa: cliccando sulla casa si prende la casa');
+
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();
 })();

@@ -781,45 +781,27 @@ function drawPortal(c, x, y, face, floor) {
   line(c, at(0.2, 0.02), at(0.8, 0.02), '#2c2c34');
 }
 
-// Anteprima del tunnel, disegnata sopra a tutto (così l'uscita si vede anche se è dietro la collina):
-// entrata verde, percorso tratteggiato dentro la collina, uscita azzurra con la scritta
-function drawTunnelPlan(c, plan) {
-  const diamond = (x, y, stroke, fill, dash) => {
-    const P = surface(x, y), a = 0.08, b = 0.92;
-    c.beginPath(); c.moveTo(...P(a, a)); c.lineTo(...P(b, a)); c.lineTo(...P(b, b)); c.lineTo(...P(a, b)); c.closePath();
-    if (fill) { c.fillStyle = fill; c.fill(); }
-    c.setLineDash(dash ? [3, 2] : []); c.strokeStyle = stroke; c.lineWidth = 1.5; c.stroke(); c.setLineDash([]);
-  };
-  const label = (x, y, text, color) => {
-    const [sx, sy] = iso(x, y, 0.5, 0.5, Math.max(...cornerHeights(x, y)) + 2.2);
-    c.font = 'bold 6px monospace'; c.textAlign = 'center';
-    c.lineWidth = 2; c.strokeStyle = '#0e0f1a'; c.strokeText(text, sx, sy);
-    c.fillStyle = color; c.fillText(text, sx, sy);
-  };
-  const t = plan.tiles;
-  if (!plan.ok) {
-    diamond(t[0].x, t[0].y, '#ff5d5d', 'rgba(255,93,93,0.3)');
-    for (let i = 1; i < t.length; i++) diamond(t[i].x, t[i].y, '#ff5d5d', null, true);
+// Anteprima del tunnel: entrata e uscita evidenziate, percorso tratteggiato sopra la collina
+function drawTunnelPlanTile(c, x, y, plan, i) {
+  const P = surface(x, y), a = 0.1, b = 0.9;
+  const shape = () => { c.beginPath(); c.moveTo(...P(a, a)); c.lineTo(...P(b, a)); c.lineTo(...P(b, b)); c.lineTo(...P(a, b)); c.closePath(); };
+  const head = i === 0 || i === plan.n;
+  if (head) {
+    shape();
+    c.fillStyle = plan.ok ? (i === 0 ? 'rgba(93,255,122,0.35)' : 'rgba(93,200,255,0.45)') : 'rgba(255,93,93,0.35)'; c.fill();
+    c.strokeStyle = plan.ok ? (i === 0 ? '#5dff7a' : '#5dc8ff') : '#ff5d5d'; c.lineWidth = 1.5; c.stroke();
+    if (plan.ok && plan.n > 0) drawPortal(c, ...(i === 0 ? bridgeTile(plan, 1) : bridgeTile(plan, plan.n - 1)), i === 0 ? (plan.d + 2) % 4 : plan.d, plan.e[i === 0 ? 0 : plan.n - 1]);
     return;
   }
-  for (let i = 1; i < plan.n; i++) diamond(t[i].x, t[i].y, 'rgba(255,217,102,0.8)', null, true);
-  // il percorso della galleria, alla sua quota, tratteggiato
-  c.setLineDash([4, 3]); c.strokeStyle = 'rgba(93,200,255,0.9)'; c.lineWidth = 2;
-  c.beginPath();
-  for (let i = 0; i <= plan.n; i++) {
-    const p = iso(t[i].x, t[i].y, 0.5, 0.5, i === 0 ? plan.e[0] : i === plan.n ? plan.e[plan.n - 1] : deckHeight(plan, t[i].x + 0.5, t[i].y + 0.5));
-    if (i) c.lineTo(...p); else c.moveTo(...p);
-  }
-  c.stroke(); c.setLineDash([]);
-  diamond(t[0].x, t[0].y, '#5dff7a', 'rgba(93,255,122,0.35)');
-  diamond(t[plan.n].x, t[plan.n].y, '#5dc8ff', 'rgba(93,200,255,0.45)');
-  label(t[0].x, t[0].y, 'ENTRATA', '#5dff7a');
-  label(t[plan.n].x, t[plan.n].y, 'USCITA', '#5dc8ff');
+  c.setLineDash([3, 2]);
+  shape(); c.strokeStyle = plan.ok ? '#ffd966' : '#ff5d5d'; c.lineWidth = 1; c.stroke();
+  c.setLineDash([]);
 }
 
 // Anteprima del ponte che si sta trascinando: impalcato trasparente se va bene,
 // contorno rosso sui tile se non si può fare
 function drawBridgePlanTile(c, x, y, plan, i) {
+  if (plan.kind === 'tunnel') { drawTunnelPlanTile(c, x, y, plan, i); return; }
   if (plan.ok && i > 0 && i < plan.n) {
     c.globalAlpha = 0.7;
     drawBridgeSpan(c, x, y, plan, i);
@@ -976,7 +958,7 @@ function drawFrame() {
         withPreview(pv, () => drawTile(ctx, x, y, detail, true));
         ctx.globalAlpha = 1;
       }
-      if (ha && x === ha.x && y === ha.y && game.tool !== 'tunnel') drawHover(ctx);
+      if (ha && x === ha.x && y === ha.y) drawHover(ctx);
       if (selFront && x === selFront[0] && y === selFront[1]) drawSelection(ctx, sel);
       const vs = vmap.get(y * game.size + x);
       if (vs) for (const v of vs) drawVehicle(ctx, v);
@@ -988,13 +970,12 @@ function drawFrame() {
         else if (tb.i === 1) drawPortal(ctx, x, y, (br.d + 2) % 4, br.e[0]);           // bocca verso la prima testa
         if (isTunnel(br) && tb.i === br.n - 1) drawPortal(ctx, x, y, br.d, br.e[br.n - 1]);  // e verso l'altra
       }
-      if (planKeys && plan.kind !== 'tunnel' && planKeys.has(y * game.size + x)) drawBridgePlanTile(ctx, x, y, plan, planKeys.get(y * game.size + x));
+      if (planKeys && planKeys.has(y * game.size + x)) drawBridgePlanTile(ctx, x, y, plan, planKeys.get(y * game.size + x));
       const vb = vmap.get(nodeKey(x, y, 1));
       if (vb) for (const v of vb) drawVehicle(ctx, v);
     }
   }
   if (game.fieldMode) drawFieldArea(ctx);
-  if (plan && plan.kind === 'tunnel') drawTunnelPlan(ctx, plan);
   drawWorkerIcons(ctx);
 }
 

@@ -72,12 +72,13 @@ canvas.addEventListener('mousedown', e => {
     requestDraw();
   } else if (e.button === 0 && game.tool === 'tunnel') {
     // tunnel: un clic ai piedi della collina; l'anteprima mostra già da dove esce
-    const plan = tunnelPlanAtMouse(e.clientX, e.clientY);
+    const tile = pickTile(e.clientX, e.clientY);
+    const plan = tile && planTunnel(tile, rotationDir());
     if (!plan) return;
     const r = buildBridge(plan);
     if (r.ok) { game.dirty = true; updateHud(); toast('Tunnel costruito'); }
     else if (r.msg) toast(r.msg);
-    game.bridgePlan = tunnelPlanAtMouse(e.clientX, e.clientY);
+    game.bridgePlan = planTunnel(tile, rotationDir());
     requestDraw();
   } else if (e.button === 0) {
     painting = true;
@@ -126,8 +127,8 @@ addEventListener('mousemove', e => {
   game.hover = pickTile(e.clientX, e.clientY);
   if (painting && game.hover) paintTo(game.hover);
   if (bridgeStart && game.hover) game.bridgePlan = planBridge(bridgeStart, game.hover);
-  if (game.tool === 'tunnel') game.bridgePlan = tunnelPlanAtMouse(e.clientX, e.clientY);
-  if (game.tool === 'tunnel' || bridgeStart) setPlanMsg(game.bridgePlan);
+  if (game.tool === 'tunnel') game.bridgePlan = game.hover ? planTunnel(game.hover, rotationDir()) : null;
+  if (bridgeStart) setPlanMsg(game.bridgePlan);
   updateInfo();
   requestDraw();
 });

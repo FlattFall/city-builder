@@ -166,22 +166,6 @@ function planTunnel(a, prefer) {
   return firstFail || { ok: false, kind: 'tunnel', tiles: [a], msg: 'Mettilo ai piedi di una collina o di una montagna' };
 }
 
-// Tunnel dal tile sotto il mouse: se il mouse è sulla collina (anche sul fianco), il tunnel parte
-// dal tile ai suoi piedi, prima quelli con una strada (così si fanno anche da dietro la collina)
-function planTunnelAt(h, prefer) {
-  const direct = planTunnel(h, prefer);
-  if (direct.ok) return direct;
-  const e = game.map[h.y][h.x].elev, cands = [];
-  for (let d = 0; d < 4; d++) {
-    const x = h.x - DIRS[d].dx, y = h.y - DIRS[d].dy;   // ai piedi, guardando verso la collina in direzione d
-    if (!inMap(x, y) || game.map[y][x].elev >= e) continue;
-    const p = planTunnelDir({ x, y }, d);
-    cands.push({ p, road: roadAt(x, y), pref: (d - prefer + 4) % 4 });
-  }
-  cands.sort((a, b) => (b.p.ok - a.p.ok) || (b.road - a.road) || (a.pref - b.pref));
-  return cands.length && (cands[0].p.ok || direct.tiles.length < 2) ? cands[0].p : direct;
-}
-
 // Costruisce il ponte o il tunnel progettato. opts.free = gratis, opts.main = fa parte della strada principale
 function buildBridge(plan, opts) {
   opts = opts || {};

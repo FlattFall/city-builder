@@ -232,14 +232,27 @@ function buildIcons() {
     const fake = { d: 1, e: [0.6, 0.6] };
     drawBridgeSpan(c, 0, 0, fake, 1);
   });
+  // tunnel: collina rocciosa nella metà dietro, bocca ad arco sul fianco davanti, strada che ci entra
   ICONS.tunnel = tileIcon((c, P) => {
     diamond(c, P, COLORS[T.GRASS][0]);
-    box(c, 0, 0, 0, 0.35, 0, 1, 1, 18, { l: COLORS[T.ROCK][1], r: COLORS[T.ROCK][2], t: COLORS[T.ROCK][0] });
-    const at = (v, z) => iso(0, 0, 0.35, v, z / STEP);
-    poly(c, [at(0.15, 0), at(0.15, 9), at(0.3, 13), at(0.7, 13), at(0.85, 9), at(0.85, 0)], '#b9b4aa');
-    poly(c, [at(0.25, 0), at(0.25, 8), at(0.38, 11), at(0.62, 11), at(0.75, 8), at(0.75, 0)], '#16161c');
+    const V = 0.5, H = 15;                                   // fianco della collina (v = V), alta H pixel
     const R = (u, v) => iso(0, 0, u, v, 0);
-    poly(c, [R(0, 0.3), R(0.35, 0.3), R(0.35, 0.7), R(0, 0.7)], ROAD_COLOR);
+    poly(c, [R(0.3, V), R(0.7, V), R(0.7, 1), R(0.3, 1)], ROAD_COLOR);           // strada davanti alla bocca
+    line(c, R(0.5, V + 0.08), R(0.5, 0.95), LANE_COLOR);
+    box(c, 0, 0, 0, 0, 0, 1, V, H, { l: COLORS[T.ROCK][1], r: COLORS[T.ROCK][2], t: COLORS[T.GRASS][0] });
+    const at = (u, z) => iso(0, 0, u, V, z / STEP);           // punto sul fianco: u lungo il fianco, z in pixel
+    const arch = (u0, u1, zs, zt) => {
+      const pts = [at(u0, 0)];
+      for (let k = 0; k <= 10; k++) { const u = u0 + (u1 - u0) * k / 10; pts.push(at(u, zs + (zt - zs) * Math.sin(Math.PI * k / 10))); }
+      pts.push(at(u1, 0));
+      return pts;
+    };
+    poly(c, arch(0.22, 0.78, 7, 12), '#c9c4ba');              // cornice di pietra
+    poly(c, arch(0.3, 0.7, 5.5, 9.5), '#16161c');             // galleria buia
+    for (const [u, v] of [[0.15, 0.15], [0.7, 0.25]]) {       // due cespugli sulla collina
+      const [x, y] = iso(0, 0, u, v, H / STEP);
+      c.fillStyle = '#3f8f3a'; c.beginPath(); c.arc(x, y - 1.5, 2.2, 0, Math.PI * 2); c.fill();
+    }
   });
   ICONS.dirt = tileIcon((c, P) => { diamond(c, P, DIRT_COLORS[0]); drawDirt(c, P, straight); });
   ICONS.rail = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawRail(c, P, straight); });
@@ -442,7 +455,7 @@ function rotationDir() { return [1, 2, 3, 0][game.rotation & 3]; }
 function rotateTool() {
   game.rotation = (game.rotation + 1) % 4;
   game.pathDir = rotationDir();
-  if (game.tool === 'tunnel') { game.bridgePlan = tunnelPlanAtMouse(mouseX, mouseY); setPlanMsg(game.bridgePlan); }
+  if (game.tool === 'tunnel' && game.hover) game.bridgePlan = planTunnel(game.hover, rotationDir());
   requestDraw();
 }
 
