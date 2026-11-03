@@ -25,7 +25,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - Un percorso diventa rampa (`rampDir`) se un solo vicino della stessa rete è a +1 livello e ai lati non ci sono percorsi della stessa rete allo stesso livello.
 - Due percorsi sono collegati (`roadLinked`) se sono della stessa rete e il bordo in comune ha la stessa altezza.
 - Anteprima: `withPreview` costruisce per finta, disegna e annulla. Anteprima e contorno si disegnano in ordine, subito dopo il loro tile, così i blocchi davanti li coprono (scelta dell'utente). Contorno rientrato di 0.1; per gli edifici 2x2 è disegnato sul tile più avanti dell'impronta.
-- `pickTile` tratta ogni tile come una colonna dal suolo al punto più alto (edifici compresi) e prende quella disegnata per ultima.
+- `pickTile` tratta ogni tile come una colonna dal suolo al punto più alto (edifici compresi) e prende quella disegnata per ultima. Sotto un ponte la colonna ha un buco: `p.deck` = true sull'impalcato, false sotto (la ruspa toglie la casa sotto senza toccare il ponte). `pickTilesAll` = tutti i tile attraversati dal puntatore (usato dal tunnel per partire anche da dietro una collina: `tunnelPlanAtMouse`, `planTunnelAt`).
 
 ## Livellamento e strada principale
 - `fillDips`: lungo una strada dritta, 1 o 2 tile più bassi tra due tile alla stessa quota vengono alzati (scelta dell'utente); con 3 o più bassi restano le rampe (discesa, tratto piano, salita).
@@ -37,7 +37,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - Pannello: costruito una volta; numeri e barre si aggiornano sul posto (`panelLive`), si ricostruisce solo se cambia la forma (`panelShapeOf`), altrimenti i clic si perderebbero.
 
 ## Terreno, rotazione, entrate, lavoro
-- Strumenti Alza / Abbassa / Livella nel gruppo 5 (solo su tile senza edifici e percorsi; `setElevation`: quota 0 = acqua, acqua alzata = sabbia). Livella: la quota la decide il primo tile della passata (`game.levelTarget`, azzerato a ogni mousedown).
+- Strumenti Alza / Abbassa / Livella nel gruppo 6 (Demolisci) (solo su tile senza edifici e percorsi; `setElevation`: quota 0 = acqua, acqua alzata = sabbia). Livella: la quota la decide il primo tile della passata (`game.levelTarget`, azzerato a ogni mousedown).
 - Si costruisce anche in montagna (roccia, neve), ma la fattoria vuole erba (niente montagna né sabbia).
 - `game.rotation` (tasto R o pulsante Ruota) si applica agli edifici; `rotUV` ruota il riquadro 2x2. Fattoria e magazzino si disegnano con `drawParts` (parti descritte senza rotazione, entrata sul lato +v); porte e insegne solo se la faccia guarda verso lo schermo.
 - `entranceOf(b)`: una sola entrata per fattoria e magazzino; `accessTiles` usa solo il tile di strada davanti all'entrata. L'anteprima e la selezione mostrano l'entrata (verde = strada c'è, giallo = manca).
@@ -54,7 +54,8 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - Spinta: chi produce manda la merce alle destinazioni `b.dests` (`pushGoods`: per ogni destinazione la merce più abbondante che accetta; almeno `VAN_MIN_LOAD` in totale). I vecchi salvataggi con `storage` vengono convertiti in `dests`. Rifornimento: fabbrica/panificio/supermercato chiedono ai magazzini (`pullGoods`); il supermercato lascia la precedenza ai produttori per le merci che trasformano (es. farina). `expect` = merce già in viaggio verso un edificio (riserva lo spazio).
 - `sendGoods`: furgone dall'entrata alla destinazione e ritorno; un furgone per edificio (`b.van`).
 - Magazzino: `accept[g] === false` = rifiuta. Ha anche un'uscita: `dests` (DEST_KINDS.warehouse: altri magazzini, fabbrica, panificio, caseificio, macello, supermercato), spinta con `pushGoods` se ha personale; due magazzini che si puntano a vicenda vengono saltati. Ricette: `recipes[out] === false` = spenta.
-- Supermercato: clienti = abitanti entro `SHOP.radius`; ogni `SHOP.tick` compra `buyRate` dei clienti; tasse `TAX_RATE` del prezzo a `game.money`.
+- Negozi (`SHOPS`: supermercato, mercato dell'arredamento): clienti = abitanti entro `radius`; ogni `tick` compra `buyRate` dei clienti; tasse `TAX_RATE` del prezzo. `shopOf(g)` = dove si vende la merce (`GOODS[g].shop`, se manca il supermercato).
+- Settore del legno (gruppo 5 Legno): azienda forestale (`FORESTRY`, in `NATURE` con gli allevamenti: produce tronchi e legna da ardere in proporzione ai tile di bosco entro `radius`, `b.trees`; senza bosco icona materie prime mancanti; gli alberi restano), segheria (tronchi -> assi, travature, pannelli), fabbrica di mobili (assi/pannelli -> tavoli, sedie, armadi, letti, mobili da cucina), mercato dell'arredamento (vende mobili e legname; la legna da ardere va al supermercato).
 - `buildingStatus(b)`: icone noRoad/noWorkers/fewWorkers/full/noInput/empty (`drawWorkerIcons`). Casa: noRoad se non ha strada accanto o se `b.unreachable` (`checkHouseLinks` in vehicles.js: BFS dalle entrate della mappa ogni ~3 s).
 - Icone delle merci: `GOOD_ICONS` (`drawGoodIcon` in ui.js), usate nei pannelli.
 
@@ -66,7 +67,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 
 ## Strade speciali e ponti
 - `PATHS[p].speed`: autostrada 2.2, terra 0.7, resto 1; `routePoints` mette in ogni punto [mx, my, quota, velocità, livello] e `moveVehicle` usa la velocità del tratto.
-- Una strada si può trasformare in un'altra della rete stradale passandoci sopra (es. strada -> autostrada); la principale resta principale ma non diventa senso unico né terra. Le rotonde si fanno solo con `road`.
+- Una strada si può trasformare in un'altra della rete stradale passandoci sopra (es. strada -> autostrada), ma solo se la passata parte da una strada (`game.convertRoads`, deciso al mousedown): così trascinando una strada nuova non si rovinano quelle che incrocia. La principale resta principale ma non diventa senso unico né terra. Le rotonde si fanno solo con `road`.
 - Senso unico: `t.dir` = direzione di marcia (quella del trascinamento, `paintTo` gira anche il primo tile; con un clic `rotationDir()` dal tasto R). Ripassando al contrario si gira. `onewayOk(t, d)`: vietato muoversi contro la freccia, di lato si entra/esce. Corsia al centro.
 - Ponti (`bridges.js`, `kind: 'bridge'`): si trascinano dritti da testa a testa, oppure clic sulla prima sponda e clic sull'altra (tasto destro annulla). `planBridge` / `buildBridge`, anteprima `game.bridgePlan`. Quote `e[k]` sui bordi: salgono di 1 per tile dalle teste fino a quanto serve (sopra strade/binari `BRIDGE.clearPath` = 2 livelli liberi, sopra le case `buildingClear`, il terreno non deve bucare). Teste: anche su rampa se il lato verso il ponte è in piano (`headInfo`); un campo sulla testa viene tolto. Sotto: case 1x1 se ci stanno, niente edifici grandi né terreno modellato. Pilastri mai sopra strade/binari/case (l'utente non li voleva sulla strada).
 - Tunnel (`kind: 'tunnel'`, stessa struttura dei ponti): un clic su un tile ai piedi di una collina; `planTunnel(a, rotationDir())` va dritto finché il terreno è più alto dell'entrata, l'uscita è il primo tile non più alto (anteprima: entrata verde, percorso tratteggiato, uscita azzurra, R cambia direzione). Dentro le auto non si vedono; bocche ad arco (`drawPortal`) sui lati visibili. Sopra il tunnel strade ed edifici sì, terreno modellato no.
@@ -75,6 +76,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - Demolire un tile del ponte (o la strada di una testa) toglie tutto il ponte (`removeBridge`, `onBridgeRemoved`). Salvataggio: `bridges` e `dir` nei `paths` (codici 4 senso unico, 5 autostrada).
 
 ## Demolizioni e veicoli
+- Ruspa: `demolishTarget(x, y)` = cosa toglierebbe ('bridge', 'building', 'path', 'field', 'tree', 'tunnel'). Il primo clic decide la categoria (`game.demolishCat`); trascinando si toglie solo quella (ponti e tunnel solo con il clic), così non si rompe tutto quello che c'è davanti.
 - Una casa demolita: chi ci abitava riparte in auto (`relocate`) verso una casa con posto, altrimenti esce dalla mappa (`leaveMap`, `routePoints(..., toOutside)`). Le auto dirette lì vengono dirottate (`redirectVehicle` dal prossimo nodo, `vehicleNextNode` con `v.ptOff`). Furgoni verso un edificio demolito: tornano indietro e rimettono la merce; furgoni senza più casa escono dalla mappa. Non far mai sparire i veicoli di colpo (richiesta dell'utente).
 
 ## Attenzione (errori già fatti)
@@ -89,7 +91,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - Impronta da (ax, ay) verso +x e +y; tutti i tile puntano allo stesso oggetto `{ kind, variant, ax, ay }`. Serve terreno piano e libero. Gli edifici grandi si disegnano sul tile più avanti dell'impronta (`drawBuildingOn`), con `box` e `gableRoof`.
 
 ## Barra strumenti
-- `TOOL_GROUPS` in `ui.js`: 1 Mano, 2 Strade (strada, senso unico, autostrada, ponte, tunnel, terra, binari; il campo non è nella barra: si usa solo in modalità campi della fattoria, `checkTool` lo rifiuta senza `game.fieldMode`, `setTool` accetta strumenti senza gruppo), 3 Case, 4 Industrie (fattoria, allevamenti di mucche/polli/maiali/pecore, magazzino, fabbrica alimentare, caseificio, macello, panificio, supermercato), 5 Demolisci. Il tasto numerico ripetuto passa al prossimo strumento del gruppo. Le icone sono disegnate con le funzioni di `render.js` (`buildIcons`).
+- `TOOL_GROUPS` in `ui.js`: 1 Mano, 2 Strade (strada, senso unico, autostrada, ponte, tunnel, terra, binari; il campo non è nella barra: si usa solo in modalità campi della fattoria, `checkTool` lo rifiuta senza `game.fieldMode`, `setTool` accetta strumenti senza gruppo), 3 Case, 4 Industrie (fattoria, allevamenti di mucche/polli/maiali/pecore, magazzino, fabbrica alimentare, caseificio, macello, panificio, supermercato), 5 Legno (azienda forestale, segheria, fabbrica di mobili, mercato dell'arredamento), 6 Demolisci. Nel sottomenu `#subdesc` mostra la descrizione (`TOOL_INFO[id].desc`) e la catena di montaggio presa dai dati (`chainLines`: ricette, produzione, cosa vende, dove manda, lavoratori) per lo strumento sotto il mouse. Il tasto numerico ripetuto passa al prossimo strumento del gruppo. Le icone sono disegnate con le funzioni di `render.js` (`buildIcons`).
 
 ## Menu e salvataggi
 - `menu.js`: menu principale/pausa (Riprendi e Salva solo se `game.started`), Nuova mappa (scelta grandezza), Carica, Opzioni ("ci stiamo lavorando"), Esci (`window.close()` in Electron). Esc apre/chiude il menu (prima chiude il sottomenu).
@@ -109,4 +111,5 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 
 ## Da fare / idee
 - Prestazioni: con zoom molto lontano si disegnano tanti tile ad ogni movimento del mouse; si può mettere in memoria la mappa a blocchi (chunk) e ridisegnare solo l'anteprima.
+- Prodotti senza sbocco: lana (non si usa né si vende), travature (solo vendita), farina di mais e cavoli (solo vendita). Idee: industria tessile, uova/burro al panificio.
 - Treni sui binari, prezzi/tasse regolabili, bisogni degli abitanti (cibo, felicità), sprite in pixel art anche per gli altri edifici, strade e terreno.

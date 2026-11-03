@@ -27,7 +27,7 @@ function initEconomy(b) {
   }
   if (b.kind === 'warehouse') b.accept = b.accept || {};    // accept[g] === false: non accetta g
   if (RECIPES[b.kind]) b.recipes = b.recipes || {};         // recipes[out] === false: ricetta spenta
-  if (b.kind === 'supermarket') { b.sold = b.sold || 0; b.taxes = b.taxes || 0; }
+  if (SHOPS[b.kind]) { b.sold = b.sold || 0; b.taxes = b.taxes || 0; }
   // destinazioni: lista di id (prima era una sola, "storage")
   if (!Array.isArray(b.dests)) b.dests = b.storage ? [b.storage] : [];
   delete b.storage;
@@ -51,7 +51,7 @@ function freeFor(b, g) {
   if (!caps) return 0;
   if (b.kind === 'warehouse') return b.accept[g] === false ? 0 : caps.store - sumOf(b.store);
   if (isProcessor(b)) return usesInput(b, g) ? caps.input - sumOf(b.input) : 0;
-  if (b.kind === 'supermarket') return GOODS[g].price ? caps.store - sumOf(b.store) : 0;
+  if (SHOPS[b.kind]) return shopOf(g) === b.kind ? caps.store - sumOf(b.store) : 0;   // ogni negozio vende le sue merci
   return 0;
 }
 
@@ -69,7 +69,7 @@ function receive(b, g, q) {
 function buildingLabel(b) { return BUILDINGS[b.kind].name.toLowerCase() + ' #' + b.id; }
 
 const VAN_STRIPES = { farm: '#3fa34d', warehouse: '#3f6fd9', factory: '#e07b39', bakery: '#8a5a3a',
-  dairy: '#8fc6e8', slaughterhouse: '#c83232', cowFarm: '#2b2b33', chickenFarm: '#e8c23a', pigFarm: '#e8899a', sheepFarm: '#c9c4b8' };
+  dairy: '#8fc6e8', slaughterhouse: '#c83232', forestry: '#2f6b2a', sawmill: '#c9a25a', furnitureFactory: '#8a5a3a', cowFarm: '#2b2b33', chickenFarm: '#e8c23a', pigFarm: '#e8899a', sheepFarm: '#c9c4b8' };
 
 // Il furgone di "from" porta q unità di g a "to" e poi torna indietro
 function sendGoods(from, to, g, q) {
@@ -131,7 +131,7 @@ function pushGoods(b) {
 // Merci che servono a un edificio: materie prime delle ricette attive o merce da vendere
 function wantedGoods(b) {
   // il supermercato lascia la precedenza a chi la merce la trasforma (es. la farina al panificio)
-  if (b.kind === 'supermarket') return Object.keys(GOODS).filter(g => GOODS[g].price &&
+  if (SHOPS[b.kind]) return Object.keys(GOODS).filter(g => shopOf(g) === b.kind &&
     ![...game.buildings.values()].some(p => isProcessor(p) && p.workers && roomFor(p, g) >= VAN_MIN_LOAD));
   return Object.keys(GOODS).filter(g => usesInput(b, g));
 }
@@ -169,9 +169,25 @@ function updateFarm(f, dt) {
 }
 
 // Allevamenti: con il personale, ogni tanto producono latte, uova, lana e animali per il macello
+// Alberi (tile di bosco) entro "radius" tile dall'azienda forestale
+function treesNear(b, radius) {
+  const d = BUILDINGS[b.kind];
+  let n = 0;
+  for (let y = b.ay - radius; y < b.ay + d.h + radius; y++)
+    for (let x = b.ax - radius; x < b.ax + d.w + radius; x++)
+      if (inMap(x, y) && game.map[y][x].type === T.FOREST) n++;
+  return n;
+}
+
 function updateLivestock(b, dt) {
-  const L = LIVESTOCK[b.kind], cap = CAPS[b.kind].store;
-  const staff = (b.workers || 0) / JOBS[b.kind];
+  const L = NATURE[b.kind], cap = CAPS[b.kind].store;
+  let staff = (b.workers || 0) / JOBS[b.kind];
+  if (L.trees) {   // azienda forestale: più bosco vicino = più legno (fino a L.trees tile)
+    if (!(b.treeTimer > 0)) { b.trees = treesNear(b, L.radius); b.treeTimer = 5; }
+    b.treeTimer -= dt;
+    staff *= Math.min(1, b.trees / L.trees);
+    b.noInput = !b.trees;
+  }
   b.full = sumOf(b.store) >= cap;
   if (staff > 0 && !b.full) {
     b.growth = (b.growth || 0) + dt / L.every * staff;
@@ -210,17 +226,18 @@ function updateProducer(b, dt) {
 
 // Supermercato: gli abitanti delle case vicine comprano; le tasse vanno al giocatore
 function updateShop(b, dt) {
-  const staff = (b.workers || 0) / JOBS.supermarket;
+  const S = SHOPS[b.kind];
+  const staff = (b.workers || 0) / JOBS[b.kind];
   pullGoods(b);
   if (!staff) return;
-  b.work += dt * staff / SHOP.tick;
+  b.work += dt * staff / S.tick;
   if (b.work < 1) return;
   b.work -= 1;
   let customers = 0;
   for (const h of game.buildings.values())
-    if (h.kind === 'house' && distToBuilding(b, h.ax, h.ay) <= SHOP.radius) customers += h.residents || 0;
+    if (h.kind === 'house' && distToBuilding(b, h.ax, h.ay) <= S.radius) customers += h.residents || 0;
   b.customers = customers;
-  let buys = Math.ceil(customers * SHOP.buyRate);
+  let buys = Math.ceil(customers * S.buyRate);
   const goods = Object.keys(b.store);
   b.empty = customers > 0 && !goods.length;
   let i = b.cursor || 0;
@@ -240,9 +257,9 @@ function economyUpdate(dt) {
     if (b.retry > 0) b.retry -= dt;
     if (b.pullTimer > 0) b.pullTimer -= dt;
     if (b.kind === 'farm') updateFarm(b, dt);
-    else if (LIVESTOCK[b.kind]) updateLivestock(b, dt);
+    else if (NATURE[b.kind]) updateLivestock(b, dt);
     else if (isProcessor(b)) updateProducer(b, dt);
-    else if (b.kind === 'supermarket') updateShop(b, dt);
+    else if (SHOPS[b.kind]) updateShop(b, dt);
     else if (b.kind === 'warehouse') {
       b.full = sumOf(b.store) >= CAPS.warehouse.store;
       if (b.workers) pushGoods(b);   // uscita: manda le scorte alle destinazioni scelte

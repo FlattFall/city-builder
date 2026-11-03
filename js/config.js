@@ -53,6 +53,11 @@ const BUILDINGS = {
   dairy:     { name: 'Caseificio', w: 2, h: 2, cost: 1200, height: 26, group: 'industry' },
   slaughterhouse: { name: 'Macello e industria della carne', w: 2, h: 2, cost: 1400, height: 24, group: 'industry' },
   supermarket: { name: 'Supermercato', w: 2, h: 2, cost: 1200, height: 20, group: 'industry' },
+  // settore forestale e del legno
+  forestry:  { name: 'Azienda forestale', w: 2, h: 2, cost: 800, height: 20, group: 'wood' },
+  sawmill:   { name: 'Segheria', w: 2, h: 2, cost: 1300, height: 24, group: 'wood' },
+  furnitureFactory: { name: 'Fabbrica di mobili', w: 2, h: 2, cost: 1800, height: 28, group: 'wood' },
+  furnitureStore: { name: "Mercato dell'arredamento", w: 2, h: 2, cost: 1500, height: 22, group: 'wood' },
 };
 
 // ---------- Abitanti ----------
@@ -82,8 +87,9 @@ const FARM = {
 const WAREHOUSE_CAPACITY = 1000;
 
 // ---------- Merci ----------
-// cat: raw = dai campi, food = dalla fabbrica, bakery = dal panificio.
-// price = prezzo al supermercato (le merci senza prezzo non si vendono lì)
+// cat: raw = dai campi, food = dalla fabbrica, bakery = dal panificio...
+// price = prezzo di vendita (le merci senza prezzo non si vendono); shop = negozio dove si
+// vendono (se manca: supermercato)
 const GOODS = {
   wheat:      { name: 'Grano', cat: 'raw' },
   carrot:     { name: 'Carote', cat: 'raw', price: 2 },        // le verdure si vendono anche fresche
@@ -113,7 +119,18 @@ const GOODS = {
   sausages:   { name: 'Salsicce', cat: 'meat', price: 8 },
   ham:        { name: 'Prosciutto', cat: 'meat', price: 12 },
   packedMeat: { name: 'Carne confezionata', cat: 'meat', price: 9 },
+  logs:       { name: 'Tronchi', cat: 'wood' },
+  firewood:   { name: 'Legna da ardere', cat: 'wood', price: 3 },
+  planks:     { name: 'Assi di legno', cat: 'lumber', price: 6, shop: 'furnitureStore' },
+  beams:      { name: 'Travature', cat: 'lumber', price: 7, shop: 'furnitureStore' },
+  panels:     { name: 'Pannelli di legno', cat: 'lumber', price: 8, shop: 'furnitureStore' },
+  tables:     { name: 'Tavoli', cat: 'furniture', price: 30, shop: 'furnitureStore' },
+  chairs:     { name: 'Sedie', cat: 'furniture', price: 15, shop: 'furnitureStore' },
+  wardrobes:  { name: 'Armadi', cat: 'furniture', price: 45, shop: 'furnitureStore' },
+  beds:       { name: 'Letti', cat: 'furniture', price: 50, shop: 'furnitureStore' },
+  kitchens:   { name: 'Mobili da cucina', cat: 'furniture', price: 80, shop: 'furnitureStore' },
 };
+function shopOf(g) { return GOODS[g].price ? (GOODS[g].shop || 'supermarket') : null; }
 
 // Ricette: in = materie prime consumate, out = prodotto (1 unità per ciclo)
 const RECIPES = {
@@ -135,6 +152,18 @@ const RECIPES = {
     { in: { milk: 2 }, out: 'butter' },
     { in: { milk: 1 }, out: 'yogurt' },
   ],
+  sawmill: [
+    { in: { logs: 1 }, out: 'planks' },
+    { in: { logs: 1 }, out: 'beams' },
+    { in: { logs: 2 }, out: 'panels' },
+  ],
+  furnitureFactory: [
+    { in: { planks: 2 }, out: 'tables' },
+    { in: { planks: 1 }, out: 'chairs' },
+    { in: { panels: 2, planks: 1 }, out: 'wardrobes' },
+    { in: { planks: 2, panels: 1 }, out: 'beds' },
+    { in: { panels: 3, planks: 1 }, out: 'kitchens' },
+  ],
   slaughterhouse: [
     { in: { cattle: 1 }, out: 'freshMeat' },
     { in: { pigs: 1 }, out: 'sausages' },
@@ -142,7 +171,7 @@ const RECIPES = {
     { in: { poultry: 1 }, out: 'packedMeat' },
   ],
 };
-const PRODUCE_TICK = { factory: 4, bakery: 5, dairy: 5, slaughterhouse: 6 };   // secondi per ciclo con tutto il personale
+const PRODUCE_TICK = { factory: 4, bakery: 5, dairy: 5, slaughterhouse: 6, sawmill: 5, furnitureFactory: 8 };   // secondi per ciclo con tutto il personale
 
 // Allevamenti: ogni "every" secondi (con tutto il personale) producono queste merci
 const LIVESTOCK = {
@@ -151,6 +180,10 @@ const LIVESTOCK = {
   pigFarm:     { animal: 'Maiali', every: 40, out: { pigs: 4 } },
   sheepFarm:   { animal: 'Pecore', every: 45, out: { wool: 6 } },
 };
+// Azienda forestale: taglia nei boschi vicini (gli alberi ricrescono, il bosco resta).
+// Lavora a pieno ritmo con almeno "trees" tile di bosco entro "radius" tile.
+const FORESTRY = { forestry: { every: 40, out: { logs: 6, firewood: 3 }, trees: 12, radius: 5 } };
+const NATURE = Object.assign({}, LIVESTOCK, FORESTRY);   // chi produce dalla natura (animali, boschi)
 
 // Capienze: input = materie prime in attesa, store = merce pronta (o in deposito)
 const CAPS = {
@@ -162,12 +195,17 @@ const CAPS = {
   slaughterhouse: { input: 60, store: 50 },
   cowFarm: { store: 80 }, chickenFarm: { store: 80 }, pigFarm: { store: 80 }, sheepFarm: { store: 80 },
   supermarket: { store: 200 },
+  forestry: { store: 80 }, sawmill: { input: 80, store: 50 }, furnitureFactory: { input: 80, store: 40 },
+  furnitureStore: { store: 150 },
 };
 // Dove può mandare la merce ogni attività (se ne possono scegliere più di una:
 // ogni merce va alla prima destinazione che la accetta)
 const ANIMAL_DESTS = ['warehouse', 'dairy', 'slaughterhouse', 'supermarket'];
 const DEST_KINDS = {
-  warehouse: ['warehouse', 'factory', 'bakery', 'dairy', 'slaughterhouse', 'supermarket'],
+  warehouse: ['warehouse', 'factory', 'bakery', 'dairy', 'slaughterhouse', 'supermarket', 'sawmill', 'furnitureFactory', 'furnitureStore'],
+  forestry: ['warehouse', 'sawmill', 'supermarket'],
+  sawmill: ['warehouse', 'furnitureFactory', 'furnitureStore'],
+  furnitureFactory: ['warehouse', 'furnitureStore'],
   farm: ['warehouse', 'factory', 'supermarket'],
   factory: ['warehouse', 'supermarket', 'bakery'],
   bakery: ['warehouse', 'supermarket'],
@@ -177,14 +215,20 @@ const DEST_KINDS = {
 };
 
 // ---------- Supermercato e tasse ----------
-const SHOP = { tick: 10, radius: 25, buyRate: 0.25 }; // ogni 10 s un quarto dei clienti compra qualcosa
+// Negozi: ogni "tick" secondi una parte (buyRate) degli abitanti entro "radius" compra qualcosa
+const SHOPS = {
+  supermarket: { tick: 10, radius: 25, buyRate: 0.25 },
+  furnitureStore: { tick: 20, radius: 30, buyRate: 0.06 },   // i mobili si comprano di rado
+};
+const SHOP = SHOPS.supermarket;
 const TAX_RATE = 0.3;                                 // tasse sulle vendite che vanno al giocatore
 
 // ---------- Lavoro ----------
 // Persone che servono per far funzionare un'attività; lavorano lì gli abitanti delle case
 // entro JOB_RADIUS tile
 const JOBS = { farm: 4, warehouse: 2, factory: 6, bakery: 2, supermarket: 3,
-  cowFarm: 3, chickenFarm: 2, pigFarm: 2, sheepFarm: 2, dairy: 5, slaughterhouse: 5 };
+  cowFarm: 3, chickenFarm: 2, pigFarm: 2, sheepFarm: 2, dairy: 5, slaughterhouse: 5,
+  forestry: 3, sawmill: 4, furnitureFactory: 5, furnitureStore: 3 };
 const JOB_RADIUS = 12;
 
 // ---------- Modellare il terreno ----------

@@ -149,3 +149,12 @@ canvas { display: block; }
 .parrow { color: #94b0c2; margin: 0 2px; }
 
 #submenu { flex-wrap: wrap; max-width: min(96vw, 800px); justify-content: center; }
+
+/* descrizione dello strumento nel sottomenu */
+#subdesc { flex-basis: 100%; max-width: 100%; box-sizing: border-box; padding: 4px 6px 6px; font-size: 12px; line-height: 1.4; color: #e8ecf2; border-bottom: 1px solid #44486b; margin-bottom: 2px; }
+#subdesc b { color: #ffd966; }
+#subdesc .chain { color: #a7f070; font-size: 11px; }
+.pwrapicons { flex-wrap: wrap; }
+#planmsg { color: #ff9b6b; display: block; text-align: center; }
+#planmsg:empty { display: none; }
+#toolname { white-space: nowrap; text-align: center; }

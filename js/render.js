@@ -15,7 +15,8 @@ const DECK = { top: ROAD_COLOR, l: '#a7a7ae', r: '#86868e', pillarL: '#b3b3ba', 
 const BALLAST = '#8d8273', SLEEPER = '#5e4128', STEEL = '#d5dade';
 const SOIL = '#8b5e34';
 const GROUND = { farm: '#b89a5e', warehouse: '#9a9a92', factory: '#8f8f88', supermarket: '#9a9a92',
-  cowFarm: '#7cbf5a', chickenFarm: '#c9b07a', pigFarm: '#9a7a52', sheepFarm: '#8fc96a', dairy: '#9a9a92', slaughterhouse: '#8f8f88' };   // terreno sotto gli edifici grandi
+  cowFarm: '#7cbf5a', chickenFarm: '#c9b07a', pigFarm: '#9a7a52', sheepFarm: '#8fc96a', dairy: '#9a9a92', slaughterhouse: '#8f8f88',
+  forestry: '#8a6a40', sawmill: '#a08a64', furnitureFactory: '#8f8f88', furnitureStore: '#9a9a92' };   // terreno sotto gli edifici grandi
 
 const HOUSE_STYLES = [
   { l: '#d9c3a0', r: '#b39d7c', roof: '#b5473a', lip: '#8f372d' },
@@ -375,6 +376,97 @@ function drawWarehouse(c, ax, ay, base, r) {
   ]);
 }
 
+// ---------- Settore del legno ----------
+const LOG = { l: '#8a5a32', r: '#6b4424', t: '#d9b98a' };       // tronchi: corteccia e taglio chiaro
+const PLANK = { l: '#e3c48a', r: '#c4a46c', t: '#f0d9a8' };
+// catasta di tronchi: tre file sfalsate
+function logPile(u0, v0, u1, v1, rows) {
+  const out = [];
+  for (let k = 0; k < rows; k++) out.push({ box: [u0 + k * 0.03, v0 + k * 0.02, u1 - k * 0.03, v1 - k * 0.02], h: 3 + k * 3, col: LOG });
+  return out;
+}
+
+// Azienda forestale 2x2: baita di legno con tetto verde, cataste di tronchi e legna da ardere, piccolo camion
+function drawForestry(c, ax, ay, base, r) {
+  groundRect(c, ax, ay, base, [0.28, 1.2, 0.72, 2.0], r, '#7a5a32');
+  drawParts(c, ax, ay, base, r, [
+    { box: [0.12, 0.15, 1.05, 0.9], h: 11, col: { l: '#a8743f', r: '#86592f', t: '#a8743f' },
+      roof: { rh: 7, back: '#2f5a2a', roof: '#3f7a35', gable: '#86592f' },
+      doors: [{ face: '+v', a: 0.4, b: 0.6, z1: 7, color: '#4a2f1a' }, { face: '+v', a: 0.75, b: 0.92, z0: 4, z1: 8, color: '#9fd3e8' }] },
+    ...logPile(1.2, 0.2, 1.88, 0.62, 3),
+    ...logPile(1.2, 0.78, 1.88, 1.2, 2),
+    { box: [1.0, 1.35, 1.3, 1.85], h: 6, col: { l: '#b07a48', r: '#8a5e36', t: '#c99560' } },   // legna da ardere
+    { box: [1.45, 1.4, 1.85, 1.62], h: 6, col: { l: '#3f7a35', r: '#2f5a2a', t: '#5a9a48' } },   // camion
+    { box: [1.45, 1.62, 1.85, 1.86], h: 4, col: LOG },
+  ]);
+}
+
+// Segheria 2x2: capannone con tetto di lamiera aperto davanti, sega circolare, tronchi e pile di assi
+function drawSawmill(c, ax, ay, base, r) {
+  const P = (u, v, h) => iso(ax, ay, u, v, h);
+  groundRect(c, ax, ay, base, [0.28, 1.3, 0.72, 2.0], r, '#8a7a5a');
+  drawParts(c, ax, ay, base, r, [
+    ...logPile(0.1, 0.15, 0.55, 1.1, 3),
+    { box: [0.7, 0.15, 1.88, 1.25], h: 17, col: { l: '#c9a46a', r: '#a8854f', t: '#8a96a2' },
+      roof: { rh: 6, back: '#6f7a86', roof: '#8a96a2', gable: '#a8854f' },
+      doors: [{ face: '+v', a: 0.85, b: 1.45, z1: 12, color: '#3a2a1a' }, { face: '+u', a: 0.4, b: 0.9, z0: 9, z1: 13, color: '#9fd3e8' }],
+      after(b, top) {   // lama della sega che spunta dal portone
+        const [sx, sy] = P((b[0] + b[2]) / 2, b[3], base + 6 / STEP);
+        c.fillStyle = '#d5dade'; c.beginPath(); c.arc(sx, sy, 3.5, 0, Math.PI * 2); c.fill();
+        c.fillStyle = '#8a8f96'; c.beginPath(); c.arc(sx, sy, 1.2, 0, Math.PI * 2); c.fill();
+      } },
+    { box: [1.0, 1.45, 1.4, 1.85], h: 5, col: PLANK },
+    { box: [1.5, 1.45, 1.88, 1.85], h: 8, col: PLANK },
+  ]);
+}
+
+// Fabbrica di mobili 2x2: edificio di mattoni con tetto a denti di sega e un tavolo esposto fuori
+function drawFurnitureFactory(c, ax, ay, base, r) {
+  const P = (u, v, h) => iso(ax, ay, u, v, h);
+  groundRect(c, ax, ay, base, [0.28, 1.45, 0.72, 2.0], r, '#7b7f86');
+  const brick = { l: '#c27a52', r: '#9c5f3e', t: '#7d8590' };
+  drawParts(c, ax, ay, base, r, [
+    { box: [0.1, 0.2, 1.9, 1.4], h: 16, col: brick,
+      doors: [{ face: '+v', a: 0.3, b: 0.72, z1: 11, color: '#4a4f5a' },
+        { face: '+v', a: 0.95, b: 1.75, z0: 8, z1: 13, color: '#9fd3e8' },
+        { face: '+u', a: 0.35, b: 1.25, z0: 8, z1: 13, color: '#9fd3e8' },
+        { face: '+v', a: 0.95, b: 1.75, z0: 14, z1: 16, color: '#8a5a3a' }],
+      after(b, top) {   // tetto a denti di sega
+        const alongU = b[2] - b[0] >= b[3] - b[1];
+        for (let i = 0; i < 5; i++) {
+          const f0 = i / 5 + 0.02, f1 = i / 5 + 0.17;
+          const q = alongU
+            ? [P(b[0] + (b[2] - b[0]) * f0, b[1], top), P(b[0] + (b[2] - b[0]) * f1, b[1], top + 0.5), P(b[0] + (b[2] - b[0]) * f1, b[3], top + 0.5), P(b[0] + (b[2] - b[0]) * f0, b[3], top)]
+            : [P(b[0], b[1] + (b[3] - b[1]) * f0, top), P(b[0], b[1] + (b[3] - b[1]) * f1, top + 0.5), P(b[2], b[1] + (b[3] - b[1]) * f1, top + 0.5), P(b[2], b[1] + (b[3] - b[1]) * f0, top)];
+          poly(c, q, '#a9b6c2');
+        }
+      } },
+    { box: [1.62, 0.32, 1.84, 0.54], h: 30, col: brick },
+    { box: [1.05, 1.6, 1.45, 1.82], h: 3, col: { l: '#8a5a3a', r: '#6b4424', t: '#b07a48' } },   // tavolo
+    { box: [1.55, 1.6, 1.72, 1.77], h: 2, col: { l: '#8a5a3a', r: '#6b4424', t: '#b07a48' } },   // sedia
+  ]);
+}
+
+// Mercato dell'arredamento 2x2: grande negozio con vetrine, fascia arancione e insegna con un divano
+function drawFurnitureStore(c, ax, ay, base, r) {
+  const P = (u, v, h) => iso(ax, ay, u, v, h);
+  groundRect(c, ax, ay, base, [0.08, 1.4, 1.92, 1.96], r, '#55555e');
+  for (const u of [0.85, 1.2, 1.55]) {
+    const A = rotUV(u, 1.5, r), B = rotUV(u, 1.88, r);
+    line(c, P(A[0], A[1], base), P(B[0], B[1], base), '#e8e8e8');
+  }
+  drawParts(c, ax, ay, base, r, [
+    { box: [0.12, 0.12, 1.88, 1.3], h: 15, col: { l: '#efe6d6', r: '#cbc1ae', t: '#9aa3ad' },
+      doors: [{ face: '+v', a: 0.2, b: 1.8, z0: 11, z1: 14, color: '#e07b39' },
+        { face: '+u', a: 0.12, b: 1.3, z0: 11, z1: 14, color: '#e07b39' },
+        { face: '+v', a: 0.28, b: 0.62, z0: 0, z1: 8, color: '#9fd3e8' },
+        { face: '+v', a: 0.75, b: 1.75, z0: 2, z1: 9, color: '#9fd3e8' },
+        { face: '+u', a: 0.3, b: 1.15, z0: 2, z1: 9, color: '#9fd3e8' }] },
+    { box: [0.7, 0.45, 1.3, 0.7], h: 21, col: { l: '#e07b39', r: '#b8602a', t: '#f09a5a' } },     // insegna
+    { box: [0.8, 0.55, 1.2, 0.7], h: 24, col: { l: '#3f6fd9', r: '#2f55a8', t: '#5a86e8' } },     // divano sull'insegna
+  ]);
+}
+
 // Disegna la parte di edificio di un tile: case subito, edifici grandi sul tile più avanti
 // dell'impronta (così sono già stati disegnati tutti i tile su cui poggiano)
 function drawBuildingOn(c, x, y, b) {
@@ -393,6 +485,10 @@ function drawBuildingOn(c, x, y, b) {
   else if (b.kind === 'supermarket') drawSupermarket(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'dairy') drawDairy(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'slaughterhouse') drawSlaughterhouse(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'forestry') drawForestry(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'sawmill') drawSawmill(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'furnitureFactory') drawFurnitureFactory(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'furnitureStore') drawFurnitureStore(c, b.ax, b.ay, base, b.rot || 0);
   else if (LIVESTOCK[b.kind]) drawLivestock(c, b.ax, b.ay, base, b.rot || 0, b.kind);
 }
 
@@ -685,27 +781,45 @@ function drawPortal(c, x, y, face, floor) {
   line(c, at(0.2, 0.02), at(0.8, 0.02), '#2c2c34');
 }
 
-// Anteprima del tunnel: entrata e uscita evidenziate, percorso tratteggiato sopra la collina
-function drawTunnelPlanTile(c, x, y, plan, i) {
-  const P = surface(x, y), a = 0.1, b = 0.9;
-  const shape = () => { c.beginPath(); c.moveTo(...P(a, a)); c.lineTo(...P(b, a)); c.lineTo(...P(b, b)); c.lineTo(...P(a, b)); c.closePath(); };
-  const head = i === 0 || i === plan.n;
-  if (head) {
-    shape();
-    c.fillStyle = plan.ok ? (i === 0 ? 'rgba(93,255,122,0.35)' : 'rgba(93,200,255,0.45)') : 'rgba(255,93,93,0.35)'; c.fill();
-    c.strokeStyle = plan.ok ? (i === 0 ? '#5dff7a' : '#5dc8ff') : '#ff5d5d'; c.lineWidth = 1.5; c.stroke();
-    if (plan.ok && plan.n > 0) drawPortal(c, ...(i === 0 ? bridgeTile(plan, 1) : bridgeTile(plan, plan.n - 1)), i === 0 ? (plan.d + 2) % 4 : plan.d, plan.e[i === 0 ? 0 : plan.n - 1]);
+// Anteprima del tunnel, disegnata sopra a tutto (così l'uscita si vede anche se è dietro la collina):
+// entrata verde, percorso tratteggiato dentro la collina, uscita azzurra con la scritta
+function drawTunnelPlan(c, plan) {
+  const diamond = (x, y, stroke, fill, dash) => {
+    const P = surface(x, y), a = 0.08, b = 0.92;
+    c.beginPath(); c.moveTo(...P(a, a)); c.lineTo(...P(b, a)); c.lineTo(...P(b, b)); c.lineTo(...P(a, b)); c.closePath();
+    if (fill) { c.fillStyle = fill; c.fill(); }
+    c.setLineDash(dash ? [3, 2] : []); c.strokeStyle = stroke; c.lineWidth = 1.5; c.stroke(); c.setLineDash([]);
+  };
+  const label = (x, y, text, color) => {
+    const [sx, sy] = iso(x, y, 0.5, 0.5, Math.max(...cornerHeights(x, y)) + 2.2);
+    c.font = 'bold 6px monospace'; c.textAlign = 'center';
+    c.lineWidth = 2; c.strokeStyle = '#0e0f1a'; c.strokeText(text, sx, sy);
+    c.fillStyle = color; c.fillText(text, sx, sy);
+  };
+  const t = plan.tiles;
+  if (!plan.ok) {
+    diamond(t[0].x, t[0].y, '#ff5d5d', 'rgba(255,93,93,0.3)');
+    for (let i = 1; i < t.length; i++) diamond(t[i].x, t[i].y, '#ff5d5d', null, true);
     return;
   }
-  c.setLineDash([3, 2]);
-  shape(); c.strokeStyle = plan.ok ? '#ffd966' : '#ff5d5d'; c.lineWidth = 1; c.stroke();
-  c.setLineDash([]);
+  for (let i = 1; i < plan.n; i++) diamond(t[i].x, t[i].y, 'rgba(255,217,102,0.8)', null, true);
+  // il percorso della galleria, alla sua quota, tratteggiato
+  c.setLineDash([4, 3]); c.strokeStyle = 'rgba(93,200,255,0.9)'; c.lineWidth = 2;
+  c.beginPath();
+  for (let i = 0; i <= plan.n; i++) {
+    const p = iso(t[i].x, t[i].y, 0.5, 0.5, i === 0 ? plan.e[0] : i === plan.n ? plan.e[plan.n - 1] : deckHeight(plan, t[i].x + 0.5, t[i].y + 0.5));
+    if (i) c.lineTo(...p); else c.moveTo(...p);
+  }
+  c.stroke(); c.setLineDash([]);
+  diamond(t[0].x, t[0].y, '#5dff7a', 'rgba(93,255,122,0.35)');
+  diamond(t[plan.n].x, t[plan.n].y, '#5dc8ff', 'rgba(93,200,255,0.45)');
+  label(t[0].x, t[0].y, 'ENTRATA', '#5dff7a');
+  label(t[plan.n].x, t[plan.n].y, 'USCITA', '#5dc8ff');
 }
 
 // Anteprima del ponte che si sta trascinando: impalcato trasparente se va bene,
 // contorno rosso sui tile se non si può fare
 function drawBridgePlanTile(c, x, y, plan, i) {
-  if (plan.kind === 'tunnel') { drawTunnelPlanTile(c, x, y, plan, i); return; }
   if (plan.ok && i > 0 && i < plan.n) {
     c.globalAlpha = 0.7;
     drawBridgeSpan(c, x, y, plan, i);
@@ -862,7 +976,7 @@ function drawFrame() {
         withPreview(pv, () => drawTile(ctx, x, y, detail, true));
         ctx.globalAlpha = 1;
       }
-      if (ha && x === ha.x && y === ha.y) drawHover(ctx);
+      if (ha && x === ha.x && y === ha.y && game.tool !== 'tunnel') drawHover(ctx);
       if (selFront && x === selFront[0] && y === selFront[1]) drawSelection(ctx, sel);
       const vs = vmap.get(y * game.size + x);
       if (vs) for (const v of vs) drawVehicle(ctx, v);
@@ -874,12 +988,13 @@ function drawFrame() {
         else if (tb.i === 1) drawPortal(ctx, x, y, (br.d + 2) % 4, br.e[0]);           // bocca verso la prima testa
         if (isTunnel(br) && tb.i === br.n - 1) drawPortal(ctx, x, y, br.d, br.e[br.n - 1]);  // e verso l'altra
       }
-      if (planKeys && planKeys.has(y * game.size + x)) drawBridgePlanTile(ctx, x, y, plan, planKeys.get(y * game.size + x));
+      if (planKeys && plan.kind !== 'tunnel' && planKeys.has(y * game.size + x)) drawBridgePlanTile(ctx, x, y, plan, planKeys.get(y * game.size + x));
       const vb = vmap.get(nodeKey(x, y, 1));
       if (vb) for (const v of vb) drawVehicle(ctx, v);
     }
   }
   if (game.fieldMode) drawFieldArea(ctx);
+  if (plan && plan.kind === 'tunnel') drawTunnelPlan(ctx, plan);
   drawWorkerIcons(ctx);
 }
 

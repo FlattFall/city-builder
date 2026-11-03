@@ -27,6 +27,13 @@ function paintTo(tile) {
   let changed = false, prev = lastTile;
   for (const p of path) {
     if (lastTile && p.x === lastTile.x && p.y === lastTile.y) continue;
+    if (game.tool === 'demolish') {
+      // la ruspa: il primo clic decide cosa si toglie; trascinando si toglie solo quel tipo di cosa
+      game.pickDeck = p.deck !== undefined ? p.deck : game.demolishCat === 'bridge';
+      const what = demolishTarget(p.x, p.y);
+      if (!lastTile) game.demolishCat = what;
+      else if (what !== game.demolishCat || what === 'bridge' || what === 'tunnel') { prev = p; continue; }
+    }
     if (game.tool === 'oneway') {
       // il senso unico va nella direzione in cui si trascina; il primo tile si gira al secondo passo
       if (prev) {
@@ -65,17 +72,19 @@ canvas.addEventListener('mousedown', e => {
     requestDraw();
   } else if (e.button === 0 && game.tool === 'tunnel') {
     // tunnel: un clic ai piedi della collina; l'anteprima mostra già da dove esce
-    const tile = pickTile(e.clientX, e.clientY);
-    const plan = tile && planTunnel(tile, rotationDir());
+    const plan = tunnelPlanAtMouse(e.clientX, e.clientY);
     if (!plan) return;
     const r = buildBridge(plan);
     if (r.ok) { game.dirty = true; updateHud(); toast('Tunnel costruito'); }
     else if (r.msg) toast(r.msg);
-    game.bridgePlan = planTunnel(tile, rotationDir());
+    game.bridgePlan = tunnelPlanAtMouse(e.clientX, e.clientY);
     requestDraw();
   } else if (e.button === 0) {
     painting = true;
     paintedNow.clear();
+    // strade: si trasformano quelle esistenti solo se la passata parte da una strada (es. strada -> autostrada)
+    const t0 = pickTile(e.clientX, e.clientY);
+    game.convertRoads = !!(t0 && PATHS[game.tool] && netOf(pathAt(t0.x, t0.y)) === 'road' && PATHS[game.tool].net === 'road');
     lastTile = null;
     game.levelTarget = null; // Livella: la quota la decide il primo tile
     const tile = pickTile(e.clientX, e.clientY);
@@ -102,6 +111,7 @@ addEventListener('mouseup', e => {
     requestDraw();
   }
   panning = false; painting = false; lastTile = null;
+  game.convertRoads = undefined; game.pickDeck = undefined;
   canvas.style.cursor = game.tool === 'hand' ? 'grab' : 'crosshair';
 });
 
@@ -116,7 +126,8 @@ addEventListener('mousemove', e => {
   game.hover = pickTile(e.clientX, e.clientY);
   if (painting && game.hover) paintTo(game.hover);
   if (bridgeStart && game.hover) game.bridgePlan = planBridge(bridgeStart, game.hover);
-  if (game.tool === 'tunnel') game.bridgePlan = game.hover ? planTunnel(game.hover, rotationDir()) : null;
+  if (game.tool === 'tunnel') game.bridgePlan = tunnelPlanAtMouse(e.clientX, e.clientY);
+  if (game.tool === 'tunnel' || bridgeStart) setPlanMsg(game.bridgePlan);
   updateInfo();
   requestDraw();
 });

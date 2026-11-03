@@ -385,10 +385,11 @@ function checkTool(tool, x, y) {
   const t = game.map[y][x];
   if (PATHS[tool]) {
     // senso unico già fatto: ripassandoci sopra si cambia la direzione
-    if (t.path === tool) return (PATHS[tool].oneway && t.dir !== game.pathDir) ? null : { silent: true };
+    if (t.path === tool) return (PATHS[tool].oneway && t.dir !== game.pathDir && game.convertRoads !== false) ? null : { silent: true };
     if (t.path) {
       // una strada si può trasformare in un'altra (es. strada -> autostrada), ma non in binario
       if (netOf(t.path) !== 'road' || PATHS[tool].net !== 'road') return { msg: "C'è già " + (t.path === 'rail' ? 'un binario' : 'una strada') };
+      if (game.convertRoads === false) return { silent: true };   // si passa sopra senza cambiarle
       if (t.main && (PATHS[tool].oneway || tool === 'dirt')) return { msg: 'La strada principale resta a doppio senso e asfaltata' };
       return null;
     }
@@ -438,14 +439,28 @@ function checkTool(tool, x, y) {
     return null;
   }
   if (tool === 'demolish') {
-    const over = bridgeOver(t);
-    if (over) return over.main ? { msg: 'La strada principale non si può demolire' } : null;   // prima si toglie il ponte
-    if (t.bridge && !t.building && !t.path && !t.field && t.type !== T.FOREST) return null;  // poi il tunnel sotto
+    const what = demolishTarget(x, y);
+    if (what === 'bridge') return bridgeOver(t).main ? { msg: 'La strada principale non si può demolire' } : null;
+    if (what === 'tunnel') return null;
     if (!t.building && t.path && t.main) return { msg: 'La strada principale non si può demolire' };
     if (t.building || t.path || t.field || t.type === T.FOREST) return null;
     return { silent: true };
   }
   return { silent: true };
+}
+
+// Cosa toglierebbe la ruspa su questo tile: 'bridge', 'building', 'path', 'field', 'tree', 'tunnel' o null.
+// game.pickDeck === false = il mouse è sotto il ponte (si toglie quello che c'è a terra)
+function demolishTarget(x, y) {
+  if (!inMap(x, y)) return null;
+  const t = game.map[y][x];
+  if (bridgeOver(t) && game.pickDeck !== false) return 'bridge';
+  if (t.building) return 'building';
+  if (t.path) return 'path';
+  if (t.field) return 'field';
+  if (t.type === T.FOREST) return 'tree';
+  if (t.bridge) return bridgeOver(t) ? 'bridge' : 'tunnel';
+  return null;
 }
 
 // Il tile permette l'azione dello strumento? (anteprima verde/rossa)
@@ -460,7 +475,7 @@ function toolCost(tool, x, y) {
   if (tool === 'level') return COSTS.terrain * Math.abs((game.levelTarget ?? t.elev) - t.elev);
   if (BUILDINGS[tool]) return BUILDINGS[tool].cost;
   if (tool === 'demolish') {
-    if (bridgeOver(t)) return COSTS.demolishPath * (bridgeOver(t).n - 1);
+    if (demolishTarget(x, y) === 'bridge') return COSTS.demolishPath * (bridgeOver(t).n - 1);
     if (t.building) return COSTS.demolishBuilding;
     if (t.path) return COSTS.demolishPath;
     if (t.bridge && t.type !== T.FOREST && !t.field) return COSTS.demolishPath * (bridgeAt(x, y).n - 1);
@@ -514,7 +529,7 @@ function useTool(tool, x, y) {
   } else if (tool === 'demolish') {
     // priorità: ponte > edificio > percorso > campo > alberi > tunnel sotto
     const tun = t.bridge && !bridgeOver(t) ? bridgeAt(x, y) : null;
-    if (bridgeOver(t)) removeBridge(bridgeOver(t));
+    if (demolishTarget(x, y) === 'bridge') removeBridge(bridgeOver(t));
     else if (t.building) removeBuilding(t.building);
     else if (t.path) {
       if (t.path === 'rail') game.rails--; else game.roads--;

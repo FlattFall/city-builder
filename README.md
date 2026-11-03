@@ -35,7 +35,8 @@ Sul tuo PC: `npm install` e poi `npm run dist`; l'.exe compare nella cartella `d
   2. **Strade**: strada, senso unico, autostrada, ponte, tunnel, strada di terra, binari (i campi si mettono dalla fattoria)
   3. **Case**
   4. **Industrie**: fattoria, allevamenti (mucche, polli, maiali, pecore), magazzino alimenti, fabbrica alimentare, caseificio, macello, panificio, supermercato
-  5. **Demolisci**: demolisci, alza terreno, abbassa terreno, livella terreno
+  5. **Legno**: azienda forestale, segheria, fabbrica di mobili, mercato dell'arredamento
+  6. **Demolisci**: demolisci, alza terreno, abbassa terreno, livella terreno
 - **R** (o il pulsante Ruota): ruota l'edificio prima di costruirlo
 - Strade, binari, campi, case e demolizione si trascinano per fare più tile
 - Tasto destro o centrale + trascina, oppure WASD/frecce: muovi la mappa
@@ -81,3 +82,10 @@ La casa è uno sprite in pixel art (tile 64x32) in `assets/sprites/house.png`. S
 - **Ponte**: trascina da una sponda all'altra, oppure clicca su una sponda e poi sull'altra (tasto destro annulla). Dritto e lungo quanto vuoi; sale da solo quanto serve per passare sopra fiumi, valli, strade, binari e case basse. I pilastri non toccano mai le strade.
 - **Tunnel**: clicca ai piedi di una collina o montagna; l'anteprima mostra già dove esce (in azzurro). Sempre dritto; R cambia direzione.
 - Se demolisci una casa, chi ci abitava va in auto in un'altra casa libera o se ne va dalla mappa; le auto in viaggio cambiano strada invece di sparire.
+
+## Settore del legno
+- **Azienda forestale**: mettila accanto a un bosco; produce tronchi e legna da ardere (più bosco = più legno, gli alberi restano).
+- **Segheria**: tronchi → assi di legno, travature, pannelli di legno.
+- **Fabbrica di mobili**: assi e pannelli → tavoli, sedie, armadi, letti, mobili da cucina.
+- **Mercato dell'arredamento**: vende i mobili (e il legname) agli abitanti vicini; tu incassi le tasse.
+- Nei menu, passando il mouse su un edificio, vedi a cosa serve e la sua catena di montaggio.

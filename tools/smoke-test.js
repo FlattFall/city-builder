@@ -134,9 +134,9 @@ function check(cond, msg) {
   await page.waitForTimeout(150);
   await page.screenshot({ path: process.env.SHOTS + '/3-zoom.png' });
 
-  // 8. demolizione (tasto 5): casa e strade
-  await page.keyboard.press('5');
-  await page.keyboard.press('Escape'); // chiude il sottomenu che si apre col tasto 5
+  // 8. demolizione (tasto 6): casa e strade
+  await page.keyboard.press('6');
+  await page.keyboard.press('Escape'); // chiude il sottomenu che si apre col tasto 6
   const roadsBefore = await page.evaluate(() => game.roads);
   const a2 = await screenOf(run.x, run.y), b2 = await screenOf(run.x + 5, run.y);
   await page.mouse.move(a2.x, a2.y);
@@ -916,6 +916,66 @@ function check(cond, msg) {
   });
   check(mr2.bridges > 0 && mr2.wet > 0, `strada principale: ${mr2.bridges} ponti sull'acqua in 40 mappe`);
   check(mr2.ok === mr2.maps, `strada principale percorribile da un bordo all'altro: ${mr2.ok}/${mr2.maps}`);
+
+  // 31. settore del legno, descrizioni, ruspa precisa
+  const wd = await page.evaluate(() => {
+    clearVehicles(); newGame(1, 128);
+    const N = game.size, c = N / 2, r = {};
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, rb: null, bridge: null, elev: 2 });
+    recount(); resetBridges(); game.money = 1e7;
+    for (let x = 0; x < N; x++) { useTool('road', x, c); game.map[c][x].main = true; }
+    game.entries = [{ x: 0, y: c }, { x: N - 1, y: c }];
+    // bosco dietro l'azienda forestale
+    for (let y = c + 4; y < c + 9; y++) for (let x = 8; x < 16; x++) game.map[y][x].type = T.FOREST;
+    game.rotation = 2;
+    const B = {};
+    for (const [k, x] of [['forestry', 10], ['sawmill', 20], ['furnitureFactory', 30], ['furnitureStore', 40], ['forestry', 60]]) {
+      useTool(k, x, c + 1); B[k + x] = [...game.buildings.values()].find(b => b.ax === x);
+    }
+    game.rotation = 0;
+    for (let x = 6; x <= 64; x++) useTool('house', x, c - 1);
+    for (const h of game.buildings.values()) if (h.kind === 'house') h.residents = 4;
+    recount(); updateJobs();
+    const fo = B.forestry10, sw = B.sawmill20, ff = B.furnitureFactory30, fs = B.furnitureStore40, bare = B.forestry60;
+    fo.dests = [sw.id]; sw.dests = [ff.id]; ff.dests = [fs.id];
+    const seen = {};
+    for (let i = 0; i < 4000; i++) {
+      simUpdate(0.1);
+      for (const b of [sw, ff, fs]) for (const g of Object.keys(b.store).concat(Object.keys(b.input || {}))) seen[g] = true;
+    }
+    r.seen = seen; r.sold = fs.sold; r.taxes = fs.taxes; r.trees = fo.trees;
+    r.bare = bare.trees === 0 && buildingStatus(bare) === 'noInput' && !sumOf(bare.store);
+    r.accepts = freeFor(fs, 'tables') > 0 && freeFor(fs, 'cheese') === 0 && freeFor(game.buildings.get([...game.buildings.values()].find(b => b.kind === 'supermarket')?.id) || { kind: 'supermarket', store: {} }, 'planks') === 0;
+    // ruspa: trascinando dalla casa verso la strada si tolgono solo case
+    game.tool = 'demolish'; lastTile = null;
+    paintTo({ x: 6, y: c - 1 }); paintTo({ x: 9, y: c - 1 }); paintTo({ x: 9, y: c });
+    r.dragKind = !buildingAt(7, c - 1) && !buildingAt(9, c - 1) && roadAt(9, c) && roadAt(8, c);
+    // strade: una passata che non parte da una strada non trasforma quelle che incrocia
+    game.tool = 'highway'; lastTile = null; game.convertRoads = false;
+    paintTo({ x: 70, y: c - 3 }); paintTo({ x: 70, y: c + 3 });
+    r.noConvert = game.map[c][70].path === 'road' && game.map[c - 3][70].path === 'highway';
+    game.convertRoads = undefined; game.tool = 'hand';
+    // casa sotto un ponte: cliccando sotto si toglie la casa, il ponte resta
+    useTool('road', 90, c + 3); useTool('road', 90, c + 13); useTool('house', 90, c + 8);
+    buildBridge(planBridge({ x: 90, y: c + 3 }, { x: 90, y: c + 13 }));
+    game.pickDeck = false; useTool('demolish', 90, c + 8); game.pickDeck = undefined;
+    r.underBridge = !buildingAt(90, c + 8) && !!game.map[c + 8][90].bridge;
+    return r;
+  });
+  check(['logs', 'planks', 'beams', 'panels'].every(g => wd.seen[g]) && ['tables', 'chairs', 'wardrobes', 'beds', 'kitchens'].some(g => wd.seen[g]),
+    'filiera del legno: tronchi -> assi/travature/pannelli -> mobili: ' + Object.keys(wd.seen).join(', '));
+  check(wd.sold > 0 && wd.taxes > 0, `mercato dell'arredamento: venduti ${wd.sold}, tasse ${wd.taxes} €`);
+  check(wd.trees > 0 && wd.bare, 'azienda forestale: lavora solo con il bosco vicino');
+  check(wd.accepts, 'ogni negozio prende solo le sue merci');
+  check(wd.dragKind, 'ruspa: trascinando toglie solo il tipo di cosa del primo clic');
+  check(wd.noConvert, 'una strada trascinata non trasforma quelle che incrocia');
+  check(wd.underBridge, 'casa sotto il ponte demolita senza togliere il ponte');
+  await page.keyboard.press('5');
+  const desc1 = await page.textContent('#subdesc');
+  await page.hover('#submenu .sub[data-tool="sawmill"]');
+  const desc2 = await page.textContent('#subdesc');
+  await page.keyboard.press('Escape');
+  check(/Azienda forestale/.test(desc1) && /tronchi/.test(desc1) && /Segheria/.test(desc2) && /assi di legno/.test(desc2), 'descrizione dello strumento nel menu (con la catena di montaggio)');
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();

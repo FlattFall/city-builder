@@ -1,30 +1,34 @@
 // ---------- Interfaccia: barra strumenti, contatori, messaggi ----------
 const TOOL_INFO = {
-  hand:      { label: 'Mano' },
-  road:      { label: 'Strada', cost: PATHS.road.cost },
-  oneway:    { label: 'Senso unico', cost: PATHS.oneway.cost },
-  highway:   { label: 'Autostrada', cost: PATHS.highway.cost },
-  bridge:    { label: 'Ponte (per tile)', cost: BRIDGE.costPerTile },
-  tunnel:    { label: 'Tunnel (per tile)', cost: TUNNEL.costPerTile },
-  dirt:      { label: 'Strada di terra', cost: PATHS.dirt.cost },
-  rail:      { label: 'Binari', cost: PATHS.rail.cost },
-  field:     { label: 'Campo coltivabile', cost: COSTS.field },
-  house:     { label: 'Casa', cost: BUILDINGS.house.cost },
-  farm:      { label: 'Fattoria (2x2)', cost: BUILDINGS.farm.cost },
-  warehouse: { label: 'Magazzino alimenti (2x2)', cost: BUILDINGS.warehouse.cost },
-  factory:   { label: 'Fabbrica alimentare (2x2)', cost: BUILDINGS.factory.cost },
-  bakery:    { label: 'Panificio', cost: BUILDINGS.bakery.cost },
-  supermarket: { label: 'Supermercato (2x2)', cost: BUILDINGS.supermarket.cost },
-  cowFarm:   { label: 'Allevamento di mucche', cost: BUILDINGS.cowFarm.cost },
-  chickenFarm: { label: 'Allevamento di polli', cost: BUILDINGS.chickenFarm.cost },
-  pigFarm:   { label: 'Allevamento di maiali', cost: BUILDINGS.pigFarm.cost },
-  sheepFarm: { label: 'Allevamento di pecore', cost: BUILDINGS.sheepFarm.cost },
-  dairy:     { label: 'Caseificio (2x2)', cost: BUILDINGS.dairy.cost },
-  slaughterhouse: { label: 'Macello e carne (2x2)', cost: BUILDINGS.slaughterhouse.cost },
-  demolish:  { label: 'Demolisci' },
-  raise:     { label: 'Alza terreno', cost: COSTS.terrain },
-  lower:     { label: 'Abbassa terreno', cost: COSTS.terrain },
-  level:     { label: 'Livella terreno', cost: COSTS.terrain },
+  hand:      { label: 'Mano', desc: 'Sposta la mappa. Clic su un edificio per aprire il suo pannello (merce, lavoratori, destinazioni).' },
+  road:      { label: 'Strada', cost: PATHS.road.cost, desc: 'Strada a doppio senso. Quattro strade a quadrato diventano una rotonda.' },
+  oneway:    { label: 'Senso unico', cost: PATHS.oneway.cost, desc: 'Le auto vanno solo nel verso della freccia: trascina nella direzione di marcia (R per un tile solo). Ripassa al contrario per girarla.' },
+  highway:   { label: 'Autostrada', cost: PATHS.highway.cost, desc: 'Le auto vanno più del doppio più veloci. Passaci sopra per trasformare una strada in autostrada.' },
+  bridge:    { label: 'Ponte (per tile)', cost: BRIDGE.costPerTile, desc: "Passa sopra fiumi, valli, strade, binari e case basse. Clicca una sponda e poi l'altra (o trascina): sale da solo quanto serve." },
+  tunnel:    { label: 'Tunnel (per tile)', cost: TUNNEL.costPerTile, desc: "Passa sotto colline e montagne, sempre dritto. Metti il mouse ai piedi della collina: vedi già dove esce (in azzurro)." },
+  dirt:      { label: 'Strada di terra', cost: PATHS.dirt.cost, desc: 'Costa poco, ma le auto vanno più piano.' },
+  rail:      { label: 'Binari', cost: PATHS.rail.cost, desc: 'Binari per i treni (i treni arriveranno più avanti).' },
+  field:     { label: 'Campo coltivabile', cost: COSTS.field, desc: 'Campo della fattoria.' },
+  house:     { label: 'Casa', cost: BUILDINGS.house.cost, desc: 'Ci abitano fino a ' + HOUSE_CAPACITY + ' persone, che arrivano in auto dalla strada principale. Lavorano nelle attività entro ' + JOB_RADIUS + ' tile e comprano nei negozi vicini.' },
+  farm:      { label: 'Fattoria (2x2)', cost: BUILDINGS.farm.cost, desc: 'Coltiva i campi che scegli intorno (grano, carote, patate, mais, pomodori, cavoli). Le verdure si vendono anche fresche al supermercato.' },
+  warehouse: { label: 'Magazzino alimenti (2x2)', cost: BUILDINGS.warehouse.cost, desc: 'Conserva la merce: scegli cosa accetta e dove mandarla (uscita). Fabbriche e negozi vengono a prendere qui quello che gli serve.' },
+  factory:   { label: 'Fabbrica alimentare (2x2)', cost: BUILDINGS.factory.cost, desc: 'Trasforma i raccolti in cibo confezionato.' },
+  bakery:    { label: 'Panificio', cost: BUILDINGS.bakery.cost, desc: 'Fa pane, biscotti e torte con la farina della fabbrica alimentare.' },
+  supermarket: { label: 'Supermercato (2x2)', cost: BUILDINGS.supermarket.cost, desc: 'Vende cibo agli abitanti vicini: per ogni vendita incassi le tasse.' },
+  cowFarm:   { label: 'Allevamento di mucche', cost: BUILDINGS.cowFarm.cost, desc: 'Il latte va al caseificio (o fresco al supermercato), i bovini al macello. Vuole erba.' },
+  chickenFarm: { label: 'Allevamento di polli', cost: BUILDINGS.chickenFarm.cost, desc: 'Le uova vanno al supermercato, i polli al macello. Vuole erba.' },
+  pigFarm:   { label: 'Allevamento di maiali', cost: BUILDINGS.pigFarm.cost, desc: 'I maiali vanno al macello (salsicce e prosciutto). Vuole erba.' },
+  sheepFarm: { label: 'Allevamento di pecore', cost: BUILDINGS.sheepFarm.cost, desc: 'Fa lana (per ora si può solo tenere in magazzino). Si può mettere anche in montagna.' },
+  dairy:     { label: 'Caseificio (2x2)', cost: BUILDINGS.dairy.cost, desc: "Trasforma il latte degli allevamenti di mucche in latticini." },
+  slaughterhouse: { label: 'Macello e carne (2x2)', cost: BUILDINGS.slaughterhouse.cost, desc: 'Trasforma gli animali degli allevamenti in carne.' },
+  forestry:  { label: 'Azienda forestale (2x2)', cost: BUILDINGS.forestry.cost, desc: 'Taglia legna nei boschi vicini: mettila accanto a una foresta (gli alberi restano). Più bosco = più legno.' },
+  sawmill:   { label: 'Segheria (2x2)', cost: BUILDINGS.sawmill.cost, desc: "Trasforma i tronchi dell'azienda forestale in legname." },
+  furnitureFactory: { label: 'Fabbrica di mobili (2x2)', cost: BUILDINGS.furnitureFactory.cost, desc: 'Costruisce mobili con le assi e i pannelli della segheria.' },
+  furnitureStore: { label: "Mercato dell'arredamento (2x2)", cost: BUILDINGS.furnitureStore.cost, desc: 'Vende mobili (e legname) agli abitanti vicini: per ogni vendita incassi le tasse. I mobili si comprano più di rado ma costano di più.' },
+  demolish:  { label: 'Demolisci', desc: 'Toglie edifici, strade, ponti, tunnel, campi e alberi. Trascinando toglie solo cose dello stesso tipo del primo clic.' },
+  raise:     { label: 'Alza terreno', cost: COSTS.terrain, desc: 'Alza il terreno di un livello (solo dove non ci sono strade o edifici).' },
+  lower:     { label: 'Abbassa terreno', cost: COSTS.terrain, desc: "Abbassa il terreno di un livello; a quota 0 diventa acqua." },
+  level:     { label: 'Livella terreno', cost: COSTS.terrain, desc: 'Trascina: porta tutto alla quota del primo tile.' },
 };
 
 // Gruppi della barra: il tasto numerico sceglie il gruppo (premuto di nuovo passa al prossimo)
@@ -34,7 +38,8 @@ const TOOL_GROUPS = [
   { key: '3', id: 'homes',    label: 'Case',      tools: ['house'] },
   { key: '4', id: 'industry', label: 'Industrie', tools: ['farm', 'cowFarm', 'chickenFarm', 'pigFarm', 'sheepFarm',
     'warehouse', 'factory', 'dairy', 'slaughterhouse', 'bakery', 'supermarket'] },
-  { key: '5', id: 'demolish', label: 'Demolisci', tools: ['demolish', 'raise', 'lower', 'level'] },
+  { key: '5', id: 'wood',     label: 'Legno',     tools: ['forestry', 'sawmill', 'furnitureFactory', 'furnitureStore'] },
+  { key: '6', id: 'demolish', label: 'Demolisci', tools: ['demolish', 'raise', 'lower', 'level'] },
 ];
 const groupChoice = {};   // gruppo -> ultimo strumento scelto
 const ICONS = {};         // strumento -> immagine (data URL)
@@ -46,11 +51,36 @@ function drawGoodIcon(c, g) {
   const ell = (x, y, rx, ry, col, rot) => { c.fillStyle = col; c.beginPath(); c.ellipse(x, y, rx, ry, rot || 0, 0, Math.PI * 2); c.fill(); };
   const shape = (pts, col) => { c.fillStyle = col; c.beginPath(); c.moveTo(...pts[0]); for (const p of pts.slice(1)) c.lineTo(...p); c.closePath(); c.fill(); };
   const rect = (x, y, w, h, col) => { c.fillStyle = col; c.fillRect(x, y, w, h); };
+  const line2 = (x0, y0, x1, y1) => { c.strokeStyle = '#5a3a22'; c.lineWidth = 1; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); };
   const sack = (col, mark) => { // sacco di farina con un simbolo
     shape([[6, 6], [18, 6], [20, 21], [4, 21]], col); rect(8, 3, 8, 4, shade(col, -0.15));
     ell(12, 14, 3, 4, mark);
   };
+  const wood = '#b07a48', woodD = '#7a5030', woodL = '#e3c48a';
   switch (g) {
+    case 'logs':
+      for (const [y, x0] of [[15, 3], [9, 6]]) { rect(x0, y - 3, 14, 6, '#8a5a32'); ell(x0 + 14, y, 3, 3, '#d9b98a'); ell(x0 + 14, y, 1.2, 1.2, '#a8854f'); } break;
+    case 'firewood':
+      for (const [x, y] of [[4, 15], [11, 15], [7.5, 9]]) { ell(x + 4, y, 4, 3.5, '#d9b98a'); ell(x + 4, y, 1.5, 1.2, '#a8854f'); }
+      shape([[13, 4], [16, 9], [11, 9]], '#e8a33a'); break;
+    case 'planks':
+      for (const y of [7, 12, 17]) { rect(3, y, 18, 4, woodL); rect(3, y + 3, 18, 1, '#c4a46c'); } break;
+    case 'beams':
+      rect(2, 9, 20, 6, wood); rect(2, 9, 20, 2, woodL); rect(6, 5, 4, 14, woodD); rect(14, 5, 4, 14, woodD); break;
+    case 'panels':
+      shape([[4, 6], [18, 3], [20, 18], [6, 21]], '#d9b98a'); shape([[4, 6], [18, 3], [18, 5], [4, 8]], '#f0d9a8');
+      for (const t of [0.35, 0.65]) shape([[5 + 14 * t, 6 - 3 * t + 1], [6 + 14 * t, 6 - 3 * t + 1], [7 + 14 * t, 20 - 3 * t], [6 + 14 * t, 20 - 3 * t]], '#c4a46c'); break;
+    case 'tables':
+      rect(3, 8, 18, 3, wood); rect(4, 11, 2, 9, woodD); rect(18, 11, 2, 9, woodD); rect(3, 7, 18, 1, woodL); break;
+    case 'chairs':
+      rect(7, 3, 2, 17, woodD); rect(7, 3, 10, 2, wood); rect(7, 11, 11, 3, wood); rect(16, 14, 2, 6, woodD); rect(9, 14, 2, 6, woodD); break;
+    case 'wardrobes':
+      rect(5, 2, 14, 20, wood); rect(5, 2, 14, 2, woodL); line2(12, 4, 12, 22); circle(10.5, 12, 0.9, '#f2d14a'); circle(13.5, 12, 0.9, '#f2d14a'); break;
+    case 'beds':
+      rect(2, 12, 20, 5, wood); rect(2, 8, 3, 12, woodD); rect(19, 11, 3, 9, woodD); rect(5, 9, 6, 3, '#f2f5f8'); rect(5, 11, 14, 2, '#3f6fd9'); break;
+    case 'kitchens':
+      rect(2, 10, 20, 11, '#e8e8e8'); rect(2, 8, 20, 2, '#8a8f96'); rect(4, 12, 7, 8, woodL); rect(13, 12, 7, 8, woodL);
+      rect(5, 3, 6, 5, '#9fd3e8'); circle(16, 5, 2, '#5c5c66'); break;
     case 'wheat':
       rect(11, 8, 2, 14, '#9c7a2a');
       for (const y of [5, 9, 13]) { ell(9, y, 2.2, 3.5, '#e0b84a', -0.5); ell(15, y, 2.2, 3.5, '#e0b84a', 0.5); }
@@ -127,6 +157,30 @@ function drawGoodIcon(c, g) {
   }
 }
 
+// ---------- Descrizioni (nel sottomenu, prima di scegliere) ----------
+// Testo scritto a mano + la catena di montaggio presa dai dati: ricette, cosa produce, cosa vende, dove manda
+function goodList(m) { return Object.entries(m).map(([g, n]) => (n > 1 ? n + ' ' : '') + GOODS[g].name.toLowerCase()).join(' + '); }
+function chainLines(id) {
+  const out = [];
+  if (RECIPES[id]) out.push(...RECIPES[id].map(r => goodList(r.in) + ' → ' + GOODS[r.out].name.toLowerCase()));
+  if (NATURE[id]) out.push('Produce: ' + goodList(NATURE[id].out) + ' (ogni ' + NATURE[id].every + ' s)');
+  if (SHOPS[id]) out.push('Vende: ' + Object.keys(GOODS).filter(g => shopOf(g) === id).map(g => GOODS[g].name.toLowerCase()).join(', '));
+  if (DEST_KINDS[id]) out.push('Manda la merce a: ' + DEST_KINDS[id].map(k => BUILDINGS[k].name.toLowerCase()).join(', '));
+  if (JOBS[id]) out.push('Lavoratori: ' + JOBS[id]);
+  return out;
+}
+function showToolDesc(id) {
+  const box = document.getElementById('subdesc');
+  if (!box) return;
+  box.textContent = '';
+  const t = document.createElement('b');
+  t.textContent = TOOL_INFO[id].label + (TOOL_INFO[id].cost ? ' - ' + TOOL_INFO[id].cost + ' €' : '');
+  const d = document.createElement('div');
+  d.textContent = TOOL_INFO[id].desc || '';
+  box.append(t, d);
+  for (const l of chainLines(id)) { const li = document.createElement('div'); li.className = 'chain'; li.textContent = l; box.appendChild(li); }
+}
+
 // ---------- Icone: disegnate con le stesse funzioni del gioco ----------
 function makeIcon(draw) {
   const cv = document.createElement('canvas');
@@ -198,6 +252,10 @@ function buildIcons() {
   ICONS.dairy = bigIcon(c => drawDairy(c, 0, 0, 0, 0), GROUND.dairy);
   ICONS.slaughterhouse = bigIcon(c => drawSlaughterhouse(c, 0, 0, 0, 0), GROUND.slaughterhouse);
   for (const k of Object.keys(LIVESTOCK)) ICONS[k] = bigIcon(c => drawLivestock(c, 0, 0, 0, 0, k), GROUND[k]);
+  ICONS.forestry = bigIcon(c => drawForestry(c, 0, 0, 0, 0), GROUND.forestry);
+  ICONS.sawmill = bigIcon(c => drawSawmill(c, 0, 0, 0, 0), GROUND.sawmill);
+  ICONS.furnitureFactory = bigIcon(c => drawFurnitureFactory(c, 0, 0, 0, 0), GROUND.furnitureFactory);
+  ICONS.furnitureStore = bigIcon(c => drawFurnitureStore(c, 0, 0, 0, 0), GROUND.furnitureStore);
   ICONS.bakery = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawBakery(c, 0, 0, 0, 0); });
 
   // terreno: blocchetto con freccia su, freccia giù, oppure piano
@@ -289,6 +347,9 @@ function openSubmenu(g) {
   const sm = document.getElementById('submenu');
   sm.textContent = '';
   sm.dataset.group = g.id;
+  const desc = document.createElement('div');
+  desc.id = 'subdesc';
+  sm.appendChild(desc);
   for (const id of g.tools) {
     const b = document.createElement('button');
     b.className = 'sub' + (game.tool === id ? ' active' : '');
@@ -301,8 +362,11 @@ function openSubmenu(g) {
     cost.textContent = TOOL_INFO[id].cost ? TOOL_INFO[id].cost + ' €' : '';
     b.append(img, lbl, cost);
     b.addEventListener('click', () => { setTool(id); closeSubmenu(); });
+    b.addEventListener('mouseenter', () => showToolDesc(id));
     sm.appendChild(b);
   }
+  showToolDesc(g.tools.includes(game.tool) ? game.tool : g.tools[0]);
+  sm.addEventListener('mouseleave', () => showToolDesc(g.tools.includes(game.tool) ? game.tool : g.tools[0]));
   // sopra il pulsante del gruppo
   const gb = document.getElementById('group-' + g.id).getBoundingClientRect();
   sm.hidden = false;
@@ -345,8 +409,10 @@ function setTool(id) {
   if (id === 'oneway') game.pathDir = rotationDir();
   const hint = id === 'oneway' ? '  |  trascina nel senso di marcia, R: gira la freccia'
     : id === 'bridge' ? "  |  trascina (o clicca) da una sponda all'altra"
-    : id === 'tunnel' ? '  |  clicca ai piedi della collina, R: cambia direzione' : rotatable ? '  |  R: ruota' : '';
-  document.getElementById('toolname').textContent = toolLabel(id) + hint;
+    : id === 'tunnel' ? '  |  clicca ai piedi della collina (R: direzione)' : rotatable ? '  |  R: ruota' : '';
+  const tn = document.getElementById('toolname');
+  tn.textContent = toolLabel(id) + hint;
+  const pm = document.createElement('span'); pm.id = 'planmsg'; tn.appendChild(pm);
   document.getElementById('rotate-btn').hidden = !rotatable;
   canvas.style.cursor = id === 'hand' ? 'grab' : 'crosshair';
   requestDraw();
@@ -363,13 +429,20 @@ function updateHud() {
 }
 
 // Ruota i prossimi edifici di 90°
+// Messaggio accanto al nome dello strumento: perché il ponte o il tunnel non si può fare
+function setPlanMsg(plan) {
+  const el = document.getElementById('planmsg');
+  if (el) el.style.color = plan && plan.ok ? '#a7f070' : '#ff9b6b';
+  if (el) el.textContent = plan && !plan.ok && plan.msg ? plan.msg : plan && plan.ok ? 'Costo: ' + plan.cost.toLocaleString('it-IT') + ' €' : '';
+}
+
 // Direzione del senso unico quando si clicca senza trascinare (cambia con R)
 function rotationDir() { return [1, 2, 3, 0][game.rotation & 3]; }
 
 function rotateTool() {
   game.rotation = (game.rotation + 1) % 4;
   game.pathDir = rotationDir();
-  if (game.tool === 'tunnel' && game.hover) game.bridgePlan = planTunnel(game.hover, rotationDir());
+  if (game.tool === 'tunnel') { game.bridgePlan = tunnelPlanAtMouse(mouseX, mouseY); setPlanMsg(game.bridgePlan); }
   requestDraw();
 }
 

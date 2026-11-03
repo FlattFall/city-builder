@@ -187,8 +187,12 @@ function renderPanel() {
     destSection(box, b);
   }
 
-  if (LIVESTOCK[b.kind]) {
-    const L = LIVESTOCK[b.kind];
+  if (NATURE[b.kind]) {
+    const L = NATURE[b.kind];
+    if (L.trees) {
+      box.appendChild(liveText('div', 'prow', () => 'Bosco vicino: ' + (b.trees || 0) + ' tile (a pieno ritmo con ' + L.trees + ', entro ' + L.radius + ' tile)'));
+      box.appendChild(liveText('div', 'pwarn', () => !b.trees ? 'Nessun bosco vicino: mettila accanto a una foresta.' : ''));
+    }
     const prod = el('div', 'prow', 'Produce: ');
     for (const [g, q] of Object.entries(L.out)) { prod.appendChild(goodImg(g)); prod.appendChild(el('span', 'pdim', q + ' ')); }
     prod.appendChild(el('span', 'pdim', 'ogni ' + L.every + ' s'));
@@ -222,16 +226,19 @@ function renderPanel() {
     destSection(box, b);
   }
 
-  if (b.kind === 'supermarket') {
-    box.appendChild(liveText('div', 'prow', () => 'Clienti (abitanti entro ' + SHOP.radius + ' tile): ' + (b.customers || 0)));
+  if (SHOPS[b.kind]) {
+    const S = SHOPS[b.kind], cap = CAPS[b.kind].store;
+    box.appendChild(liveText('div', 'prow', () => 'Clienti (abitanti entro ' + S.radius + ' tile): ' + (b.customers || 0)));
     box.appendChild(liveText('div', 'prow', () => 'Venduti: ' + b.sold + ' - tasse incassate: ' + b.taxes.toLocaleString('it-IT') + ' €'));
-    box.appendChild(liveText('div', 'prow', () => 'Scaffali: ' + sumOf(b.store) + ' / ' + CAPS.supermarket.store));
-    box.appendChild(bar(() => sumOf(b.store), CAPS.supermarket.store));
+    box.appendChild(liveText('div', 'prow', () => 'Scaffali: ' + sumOf(b.store) + ' / ' + cap));
+    box.appendChild(bar(() => sumOf(b.store), cap));
     box.appendChild(goodsList(() => b.store, 'Scaffali vuoti.'));
-    box.appendChild(liveText('div', 'pwarn', () => b.empty ? 'Scaffali vuoti: serve merce da fabbrica, panificio o magazzini.' : ''));
-    box.appendChild(el('div', 'pnote', 'Vende verdure, uova, latte, pane, carne, latticini e prodotti confezionati. ' +
-      'Fattorie, allevamenti, fabbriche, caseifici, macelli e panifici possono mandarli qui; si rifornisce anche dai magazzini. ' +
-      'Tasse: ' + Math.round(TAX_RATE * 100) + '% del prezzo.'));
+    box.appendChild(liveText('div', 'pwarn', () => b.empty ? 'Scaffali vuoti: mandagli merce o mettila in un magazzino.' : ''));
+    const sells = Object.keys(GOODS).filter(g => shopOf(g) === b.kind);
+    const row = el('div', 'prow pwrapicons', 'Vende: ');
+    for (const g of sells) { const im = goodImg(g); im.title = GOODS[g].name; row.appendChild(im); }
+    box.appendChild(row);
+    box.appendChild(el('div', 'pnote', 'Si rifornisce anche dai magazzini. Tasse: ' + Math.round(TAX_RATE * 100) + '% del prezzo.'));
   }
 }
 
