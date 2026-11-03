@@ -32,7 +32,7 @@ const PATHS = {
 
 // ---------- Edifici (w x h = tile occupati) ----------
 const BUILDINGS = {
-  house:     { name: 'Casa', w: 1, h: 1, cost: 100, height: 16, group: 'homes' },
+  house:     { name: 'Casa', w: 1, h: 1, cost: 100, height: 22, group: 'homes' },
   farm:      { name: 'Fattoria', w: 2, h: 2, cost: 500, height: 34, group: 'industry', grass: true },
   cowFarm:   { name: 'Allevamento di mucche', w: 2, h: 2, cost: 700, height: 22, group: 'industry', grass: true },
   chickenFarm: { name: 'Allevamento di polli', w: 2, h: 2, cost: 450, height: 18, group: 'industry', grass: true },

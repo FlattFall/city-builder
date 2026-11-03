@@ -4,7 +4,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 
 ## Struttura
 - `index.html` + `style.css`: pagina e interfaccia (barra in alto, barra strumenti con sottomenu, info tile, toast, menu).
-- `js/`: script classici (niente moduli ES, così funziona anche aprendo il file con doppio clic). L'ordine in `index.html` conta: config, noise, terrain, game, roadgen, camera, render, vehicles, economy, ui, panel, input, save, menu, app.
+- `js/`: script classici (niente moduli ES, così funziona anche aprendo il file con doppio clic). L'ordine in `index.html` conta: config, noise, terrain, game, roadgen, camera, sprite-data, sprites, render, vehicles, economy, ui, panel, input, save, menu, app.
   - `config.js` costanti: grandezze mappa (`MAP_SIZES`: 128, 256, 512, 1024), terreno, `PATHS` (strada, terra, binari), `BUILDINGS` (casa e panificio 1x1, le altre attività 2x2), abitanti, `CROPS`, `FARM`, costi
   - `game.js` stato (`game`) e regole: percorsi, rampe, rotonde, edifici, `checkTool` / `useTool` / `canUseTool`, `recount()`
   - `render.js` disegno (ordine del pittore, solo tile visibili sullo schermo); `requestDraw()` per ridisegnare
@@ -58,6 +58,12 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - `buildingStatus(b)`: icone noRoad/noWorkers/fewWorkers/full/noInput/empty (`drawWorkerIcons`). Casa: noRoad se non ha strada accanto o se `b.unreachable` (`checkHouseLinks` in vehicles.js: BFS dalle entrate della mappa ogni ~3 s).
 - Icone delle merci: `GOOD_ICONS` (`drawGoodIcon` in ui.js), usate nei pannelli.
 
+## Sprite in pixel art (tile 64x32)
+- Gli sprite sono disegnati per tile da 64x32: 2 pixel dello sprite per unità del mondo (che resta a 32x16, `SPRITE_SCALE`). Allo zoom normale (x2) e a x4 i pixel sono netti; rimpiccioliti si sfumano.
+- `assets/sprites/*.png` = fogli (colonne = rotazioni 0..3, righe = varianti). `node tools/sprites/build.js` li incorpora come data URI in `js/sprite-data.js` (generato: non modificare a mano), così niente problemi con file:// e `toDataURL` delle icone.
+- `js/sprites.js`: `drawSprite(c, name, col, row, wx, wy)` con (wx, wy) = angolo in alto del tile; restituisce false finché l'immagine non è caricata (si usa il disegno di riserva). `onSpritesLoaded` (ui.js) rifà le icone.
+- Casa: `tools/sprites/house.py` (Python + Pillow) crea `house.png` da un piccolo modello 3D "fotografato" pixel per pixel con scale di toni (muri a doghe, tetto a tegole, comignolo, finestre con persiane, porta, gradino, vialetto, cespugli). Prima prova approvata dall'utente come direzione: pixel art più dettagliata, un edificio alla volta.
+
 ## Rotonde
 - Rotonde circolari (l'utente ha provato quelle quadrate e la piazzola rialzata: non gli piacevano). Un 2x2 di strade asfaltate diventa rotonda (`t.rb = { ax, ay, slope, low }`), in piano o su un gradino di 1 (2 tile sopra, 2 sotto): i tile bassi sono rampe, senza aggiungere terreno.
 - Le strade che entrano di lato nella parte inclinata "si piegano": in `cornerHeights` gli angoli in comune con un tile basso di rotonda prendono la sua altezza (adattatore), così si collegano.
@@ -87,4 +93,4 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 
 ## Da fare / idee
 - Prestazioni: con zoom molto lontano si disegnano tanti tile ad ogni movimento del mouse; si può mettere in memoria la mappa a blocchi (chunk) e ridisegnare solo l'anteprima.
-- Treni sui binari, prezzi/tasse regolabili, bisogni degli abitanti (cibo, felicità), sprite PNG.
+- Treni sui binari, prezzi/tasse regolabili, bisogni degli abitanti (cibo, felicità), sprite in pixel art anche per gli altri edifici, strade e terreno.

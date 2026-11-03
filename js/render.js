@@ -201,7 +201,10 @@ function drawRoundabout(c, x, y, P) {
 }
 
 // ---------- Edifici ----------
+// La casa è uno sprite in pixel art (assets/sprites/house.png: colonne = rotazioni, righe = colori).
+// Finché l'immagine non è caricata si usa il disegno semplice qui sotto.
 function drawHouse(c, sx, sy, variant, rot) {
+  if (drawSprite(c, 'house', (rot || 0) & 3, variant || 0, sx, sy)) return;
   const s = HOUSE_STYLES[variant % HOUSE_STYLES.length];
   const hw = 12, hh = 6, h = 14;
   const cx = sx, cy = sy + TH / 2;

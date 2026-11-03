@@ -71,3 +71,6 @@ Le partite salvate restano sul PC (versione programma) o nel browser usato (vers
 - Un quadrato **2x2** di strade asfaltate diventa una **rotonda**, anche su un gradino (2 tile sopra e 2 sotto): le strade si collegano da tutti i lati.
 
 Il codice è diviso in file dentro `js/`: vedi `CLAUDE.md` per la struttura.
+
+## Grafica
+La casa è uno sprite in pixel art (tile 64x32) in `assets/sprites/house.png`. Si può ridisegnare con Aseprite/LibreSprite/Piskel mantenendo la stessa griglia (4 rotazioni x 3 colori, celle 64x84) e poi lanciare `node tools/sprites/build.js`.

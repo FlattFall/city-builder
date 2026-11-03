@@ -234,6 +234,14 @@ function toolLabel(id) {
 
 function groupOf(tool) { return TOOL_GROUPS.find(g => g.tools.includes(tool)); }
 
+// Quando uno sprite finisce di caricarsi, rifà l'icona che lo usa
+function onSpritesLoaded(name) {
+  if (name !== 'house' || !ICONS.house) return;
+  ICONS.house = tileIcon((c, P) => { poly(c, [P(0, 0), P(1, 0), P(1, 1), P(0, 1)], COLORS[T.GRASS][0]); drawHouse(c, 0, 0, 0); });
+  const img = document.querySelector('#group-homes img');
+  if (img) img.src = ICONS.house;
+}
+
 function buildToolbar() {
   buildIcons();
   const bar = document.getElementById('toolbar');
