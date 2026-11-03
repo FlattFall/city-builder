@@ -34,7 +34,7 @@ Sul tuo PC: `npm install` e poi `npm run dist`; l'.exe compare nella cartella `d
   1. **Mano**: trascina la mappa
   2. **Strade**: strada, strada di terra, binari, campo coltivabile
   3. **Case**
-  4. **Industrie**: fattoria, magazzino alimenti, fabbrica alimentare, panificio, supermercato
+  4. **Industrie**: fattoria, allevamenti (mucche, polli, maiali, pecore), magazzino alimenti, fabbrica alimentare, caseificio, macello, panificio, supermercato
   5. **Demolisci**: demolisci, alza terreno, abbassa terreno, livella terreno
 - **R** (o il pulsante Ruota): ruota l'edificio prima di costruirlo
 - Strade, binari, campi, case e demolizione si trascinano per fare più tile
@@ -55,9 +55,13 @@ Le partite salvate restano sul PC (versione programma) o nel browser usato (vers
 - Colture: grano, carote, patate, mais, pomodori, cavoli. Il raccolto va a un **magazzino** o alla **fabbrica alimentare**.
 - **Fabbrica alimentare**: grano → farina, patate → patatine confezionate, carote → carote confezionate, pomodori → salsa, mais → farina di mais, grano + pomodori → pasta. Ricette accendibili dal pannello.
 - **Panificio**: farina → pane, biscotti, torte.
+- **Allevamenti**: mucche → latte e carne, polli → uova e carne, maiali → carne, pecore → lana (le pecore si possono mettere anche in montagna).
+- **Caseificio**: latte → formaggio, burro, yogurt.
+- **Macello e industria della carne**: animali → carne fresca, salsicce, prosciutto, carne confezionata.
+- Ogni attività può mandare la merce a più destinazioni (scegline una o più nel pannello).
 - **Magazzino**: scegli con le immagini cosa accetta. Fabbrica, panificio e supermercato si riforniscono dai magazzini.
-- **Supermercato**: vende agli abitanti vicini; incassi il 30% del prezzo come tasse.
-- Icone sopra gli edifici: persona = mancano lavoratori, casse = deposito pieno, cassa vuota = mancano materie prime, scaffale = supermercato vuoto.
+- **Supermercato**: riceve verdure dalle fattorie, pane dai panifici, carne dai macelli, formaggi dal caseificio, prodotti confezionati dalle fabbriche; vende agli abitanti vicini e incassi il 30% del prezzo come tasse.
+- Icone sopra gli edifici: strada sbarrata = casa (o attività) non collegata alla strada, persona = mancano lavoratori, casse = deposito pieno, cassa vuota = mancano materie prime, scaffale = supermercato vuoto.
 
 ## Strade e binari
 

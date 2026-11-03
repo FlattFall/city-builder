@@ -147,3 +147,5 @@ canvas { display: block; }
 }
 #panel .precipe.on { opacity: 1; border-color: #a7f070; }
 .parrow { color: #94b0c2; margin: 0 2px; }
+
+#submenu { flex-wrap: wrap; max-width: 560px; justify-content: center; }

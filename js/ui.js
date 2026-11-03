@@ -11,6 +11,12 @@ const TOOL_INFO = {
   factory:   { label: 'Fabbrica alimentare (2x2)', cost: BUILDINGS.factory.cost },
   bakery:    { label: 'Panificio', cost: BUILDINGS.bakery.cost },
   supermarket: { label: 'Supermercato (2x2)', cost: BUILDINGS.supermarket.cost },
+  cowFarm:   { label: 'Allevamento di mucche', cost: BUILDINGS.cowFarm.cost },
+  chickenFarm: { label: 'Allevamento di polli', cost: BUILDINGS.chickenFarm.cost },
+  pigFarm:   { label: 'Allevamento di maiali', cost: BUILDINGS.pigFarm.cost },
+  sheepFarm: { label: 'Allevamento di pecore', cost: BUILDINGS.sheepFarm.cost },
+  dairy:     { label: 'Caseificio (2x2)', cost: BUILDINGS.dairy.cost },
+  slaughterhouse: { label: 'Macello e carne (2x2)', cost: BUILDINGS.slaughterhouse.cost },
   demolish:  { label: 'Demolisci' },
   raise:     { label: 'Alza terreno', cost: COSTS.terrain },
   lower:     { label: 'Abbassa terreno', cost: COSTS.terrain },
@@ -22,7 +28,8 @@ const TOOL_GROUPS = [
   { key: '1', id: 'hand',     label: 'Mano',      tools: ['hand'] },
   { key: '2', id: 'paths',    label: 'Strade',    tools: ['road', 'dirt', 'rail', 'field'] },
   { key: '3', id: 'homes',    label: 'Case',      tools: ['house'] },
-  { key: '4', id: 'industry', label: 'Industrie', tools: ['farm', 'warehouse', 'factory', 'bakery', 'supermarket'] },
+  { key: '4', id: 'industry', label: 'Industrie', tools: ['farm', 'cowFarm', 'chickenFarm', 'pigFarm', 'sheepFarm',
+    'warehouse', 'factory', 'dairy', 'slaughterhouse', 'bakery', 'supermarket'] },
   { key: '5', id: 'demolish', label: 'Demolisci', tools: ['demolish', 'raise', 'lower', 'level'] },
 ];
 const groupChoice = {};   // gruppo -> ultimo strumento scelto
@@ -77,6 +84,39 @@ function drawGoodIcon(c, g) {
     case 'biscuits':
       circle(9, 13, 6, '#d9a05a'); circle(15, 11, 6, '#e8b874');
       for (const [x, y] of [[13, 9], [16, 12], [17, 9], [8, 12], [10, 15]]) circle(x, y, 0.9, '#7a4a20'); break;
+    case 'milk':
+      rect(9, 3, 6, 3, '#3f6fd9'); shape([[8, 6], [16, 6], [17, 10], [17, 21], [7, 21], [7, 10]], '#f6f6f6');
+      rect(7, 13, 10, 4, '#8fc6e8'); break;
+    case 'eggs':
+      ell(9, 14, 4.5, 6, '#f2e6d0'); ell(15.5, 13, 4.5, 6, '#fbf4e6'); break;
+    case 'wool':
+      circle(12, 13, 8, '#f4f1e8'); c.strokeStyle = '#c9c4b8'; c.lineWidth = 1;
+      for (const r2 of [3, 5.5]) { c.beginPath(); c.arc(12, 13, r2, 0.3, 4.5); c.stroke(); } break;
+    case 'cattle':
+      ell(12, 13, 8, 7, '#f2f2f2'); ell(9, 11, 2.5, 2, '#2b2b33'); ell(15, 16, 2, 1.6, '#2b2b33');
+      ell(12, 18, 4, 2.5, '#f0a0b0'); shape([[4, 7], [7, 5], [7, 9]], '#d9c3a0'); shape([[20, 7], [17, 5], [17, 9]], '#d9c3a0'); break;
+    case 'poultry':
+      ell(12, 14, 7, 6, '#f6f6f2'); circle(16, 8, 3.5, '#f6f6f2'); shape([[18, 5], [20, 7], [17, 6]], '#d94141');
+      shape([[19, 8], [22, 9], [19, 10]], '#e8a33a'); rect(10, 19, 1, 3, '#e8a33a'); rect(14, 19, 1, 3, '#e8a33a'); break;
+    case 'pigs':
+      circle(12, 13, 8, '#f0a0b0'); ell(12, 15, 3.5, 2.5, '#e8899a'); circle(11, 15, 0.8, '#a05060'); circle(13, 15, 0.8, '#a05060');
+      shape([[5, 6], [8, 4], [9, 8]], '#e8899a'); shape([[19, 6], [16, 4], [15, 8]], '#e8899a'); break;
+    case 'cheese':
+      shape([[3, 16], [19, 9], [21, 18], [5, 21]], '#f2d14a'); shape([[3, 16], [19, 9], [17, 7]], '#f8e27a');
+      circle(10, 17, 1.5, '#d9a62a'); circle(16, 16, 1.2, '#d9a62a'); break;
+    case 'butter':
+      rect(4, 9, 16, 10, '#f8e8a0'); rect(4, 9, 16, 3, '#fff4c8'); rect(4, 15, 16, 4, '#3f6fd9'); break;
+    case 'yogurt':
+      shape([[6, 7], [18, 7], [16, 21], [8, 21]], '#f6f6f6'); rect(6, 5, 12, 3, '#e8889a'); rect(8, 12, 8, 4, '#e8889a'); break;
+    case 'freshMeat':
+      ell(12, 13, 9, 6.5, '#c83232', -0.3); ell(12, 13, 6, 4, '#e05050', -0.3); ell(8, 15, 2.5, 2, '#f4e4d4'); break;
+    case 'sausages':
+      for (const [x, y] of [[8, 9], [14, 12], [9, 16]]) { ell(x, y, 5.5, 2.5, '#b05a3a', 0.4); ell(x - 1, y - 1, 3, 1, '#d07a5a', 0.4); } break;
+    case 'ham':
+      shape([[5, 8], [17, 5], [21, 13], [12, 21], [5, 16]], '#e8899a'); shape([[14, 7], [17, 5], [21, 13], [18, 14]], '#f4e4d4');
+      rect(17, 16, 5, 2, '#f4e4d4'); break;
+    case 'packedMeat':
+      rect(3, 8, 18, 12, '#f2f5f8'); rect(5, 10, 14, 8, '#d94141'); ell(12, 14, 4, 2.5, '#e86a6a'); rect(3, 8, 18, 2, '#9fd3e8'); break;
     case 'cakes':
       shape([[4, 12], [20, 12], [20, 20], [4, 20]], '#f5d0d8'); rect(4, 15, 16, 2, '#e8889a');
       shape([[4, 12], [20, 12], [17, 8], [7, 8]], '#fff4f6'); circle(12, 7, 2.2, '#d94141'); break;
@@ -135,6 +175,9 @@ function buildIcons() {
   ICONS.warehouse = bigIcon(c => drawWarehouse(c, 0, 0, 0, 0), GROUND.warehouse);
   ICONS.factory = bigIcon(c => drawFactory(c, 0, 0, 0, 0), GROUND.factory);
   ICONS.supermarket = bigIcon(c => drawSupermarket(c, 0, 0, 0, 0), GROUND.supermarket);
+  ICONS.dairy = bigIcon(c => drawDairy(c, 0, 0, 0, 0), GROUND.dairy);
+  ICONS.slaughterhouse = bigIcon(c => drawSlaughterhouse(c, 0, 0, 0, 0), GROUND.slaughterhouse);
+  for (const k of Object.keys(LIVESTOCK)) ICONS[k] = bigIcon(c => drawLivestock(c, 0, 0, 0, 0, k), GROUND[k]);
   ICONS.bakery = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawBakery(c, 0, 0, 0, 0); });
 
   // terreno: blocchetto con freccia su, freccia giù, oppure piano

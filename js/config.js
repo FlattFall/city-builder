@@ -33,10 +33,16 @@ const PATHS = {
 // ---------- Edifici (w x h = tile occupati) ----------
 const BUILDINGS = {
   house:     { name: 'Casa', w: 1, h: 1, cost: 100, height: 16, group: 'homes' },
-  farm:      { name: 'Fattoria', w: 2, h: 2, cost: 500, height: 34, group: 'industry' },
+  farm:      { name: 'Fattoria', w: 2, h: 2, cost: 500, height: 34, group: 'industry', grass: true },
+  cowFarm:   { name: 'Allevamento di mucche', w: 2, h: 2, cost: 700, height: 22, group: 'industry', grass: true },
+  chickenFarm: { name: 'Allevamento di polli', w: 2, h: 2, cost: 450, height: 18, group: 'industry', grass: true },
+  pigFarm:   { name: 'Allevamento di maiali', w: 2, h: 2, cost: 550, height: 18, group: 'industry', grass: true },
+  sheepFarm: { name: 'Allevamento di pecore', w: 2, h: 2, cost: 500, height: 18, group: 'industry' },
   warehouse: { name: 'Magazzino alimenti', w: 2, h: 2, cost: 400, height: 20, group: 'industry' },
   factory:   { name: 'Fabbrica alimentare', w: 2, h: 2, cost: 1500, height: 40, group: 'industry' },
   bakery:    { name: 'Panificio', w: 1, h: 1, cost: 400, height: 18, group: 'industry' },
+  dairy:     { name: 'Caseificio', w: 2, h: 2, cost: 1200, height: 26, group: 'industry' },
+  slaughterhouse: { name: 'Macello e industria della carne', w: 2, h: 2, cost: 1400, height: 24, group: 'industry' },
   supermarket: { name: 'Supermercato', w: 2, h: 2, cost: 1200, height: 20, group: 'industry' },
 };
 
@@ -71,11 +77,17 @@ const WAREHOUSE_CAPACITY = 1000;
 // price = prezzo al supermercato (le merci senza prezzo non si vendono lì)
 const GOODS = {
   wheat:      { name: 'Grano', cat: 'raw' },
-  carrot:     { name: 'Carote', cat: 'raw' },
-  potato:     { name: 'Patate', cat: 'raw' },
-  corn:       { name: 'Mais', cat: 'raw' },
-  tomato:     { name: 'Pomodori', cat: 'raw' },
-  cabbage:    { name: 'Cavoli', cat: 'raw', price: 3 },        // si vendono freschi
+  carrot:     { name: 'Carote', cat: 'raw', price: 2 },        // le verdure si vendono anche fresche
+  potato:     { name: 'Patate', cat: 'raw', price: 2 },
+  corn:       { name: 'Mais', cat: 'raw', price: 2 },
+  tomato:     { name: 'Pomodori', cat: 'raw', price: 3 },
+  cabbage:    { name: 'Cavoli', cat: 'raw', price: 3 },
+  milk:       { name: 'Latte', cat: 'animal', price: 3 },
+  eggs:       { name: 'Uova', cat: 'animal', price: 3 },
+  wool:       { name: 'Lana', cat: 'animal' },
+  cattle:     { name: 'Bovini', cat: 'animal' },              // animali per il macello
+  poultry:    { name: 'Polli', cat: 'animal' },
+  pigs:       { name: 'Maiali', cat: 'animal' },
   flour:      { name: 'Farina', cat: 'food', price: 4 },
   chips:      { name: 'Patatine confezionate', cat: 'food', price: 6 },
   carrotPack: { name: 'Carote confezionate', cat: 'food', price: 5 },
@@ -85,6 +97,13 @@ const GOODS = {
   bread:      { name: 'Pane', cat: 'bakery', price: 5 },
   biscuits:   { name: 'Biscotti', cat: 'bakery', price: 7 },
   cakes:      { name: 'Torte', cat: 'bakery', price: 12 },
+  cheese:     { name: 'Formaggio', cat: 'dairy', price: 9 },
+  butter:     { name: 'Burro', cat: 'dairy', price: 7 },
+  yogurt:     { name: 'Yogurt', cat: 'dairy', price: 5 },
+  freshMeat:  { name: 'Carne fresca', cat: 'meat', price: 10 },
+  sausages:   { name: 'Salsicce', cat: 'meat', price: 8 },
+  ham:        { name: 'Prosciutto', cat: 'meat', price: 12 },
+  packedMeat: { name: 'Carne confezionata', cat: 'meat', price: 9 },
 };
 
 // Ricette: in = materie prime consumate, out = prodotto (1 unità per ciclo)
@@ -102,8 +121,27 @@ const RECIPES = {
     { in: { flour: 1 }, out: 'biscuits' },
     { in: { flour: 2 }, out: 'cakes' },
   ],
+  dairy: [
+    { in: { milk: 2 }, out: 'cheese' },
+    { in: { milk: 2 }, out: 'butter' },
+    { in: { milk: 1 }, out: 'yogurt' },
+  ],
+  slaughterhouse: [
+    { in: { cattle: 1 }, out: 'freshMeat' },
+    { in: { pigs: 1 }, out: 'sausages' },
+    { in: { pigs: 1 }, out: 'ham' },
+    { in: { poultry: 1 }, out: 'packedMeat' },
+  ],
 };
-const PRODUCE_TICK = { factory: 4, bakery: 5 };   // secondi per ciclo con tutto il personale
+const PRODUCE_TICK = { factory: 4, bakery: 5, dairy: 5, slaughterhouse: 6 };   // secondi per ciclo con tutto il personale
+
+// Allevamenti: ogni "every" secondi (con tutto il personale) producono queste merci
+const LIVESTOCK = {
+  cowFarm:     { animal: 'Mucche', every: 40, out: { milk: 6, cattle: 2 } },
+  chickenFarm: { animal: 'Polli', every: 30, out: { eggs: 8, poultry: 3 } },
+  pigFarm:     { animal: 'Maiali', every: 40, out: { pigs: 4 } },
+  sheepFarm:   { animal: 'Pecore', every: 45, out: { wool: 6 } },
+};
 
 // Capienze: input = materie prime in attesa, store = merce pronta (o in deposito)
 const CAPS = {
@@ -111,13 +149,21 @@ const CAPS = {
   warehouse: { store: WAREHOUSE_CAPACITY },
   factory: { input: 100, store: 60 },
   bakery: { input: 40, store: 40 },
+  dairy: { input: 80, store: 50 },
+  slaughterhouse: { input: 60, store: 50 },
+  cowFarm: { store: 80 }, chickenFarm: { store: 80 }, pigFarm: { store: 80 }, sheepFarm: { store: 80 },
   supermarket: { store: 200 },
 };
-// Dove può mandare la merce ogni attività
+// Dove può mandare la merce ogni attività (se ne possono scegliere più di una:
+// ogni merce va alla prima destinazione che la accetta)
+const ANIMAL_DESTS = ['warehouse', 'dairy', 'slaughterhouse', 'supermarket'];
 const DEST_KINDS = {
-  farm: ['warehouse', 'factory'],
+  farm: ['warehouse', 'factory', 'supermarket'],
   factory: ['warehouse', 'supermarket', 'bakery'],
   bakery: ['warehouse', 'supermarket'],
+  dairy: ['warehouse', 'supermarket'],
+  slaughterhouse: ['warehouse', 'supermarket'],
+  cowFarm: ANIMAL_DESTS, chickenFarm: ANIMAL_DESTS, pigFarm: ANIMAL_DESTS, sheepFarm: ANIMAL_DESTS,
 };
 
 // ---------- Supermercato e tasse ----------
@@ -127,7 +173,8 @@ const TAX_RATE = 0.3;                                 // tasse sulle vendite che
 // ---------- Lavoro ----------
 // Persone che servono per far funzionare un'attività; lavorano lì gli abitanti delle case
 // entro JOB_RADIUS tile
-const JOBS = { farm: 4, warehouse: 2, factory: 6, bakery: 2, supermarket: 3 };
+const JOBS = { farm: 4, warehouse: 2, factory: 6, bakery: 2, supermarket: 3,
+  cowFarm: 3, chickenFarm: 2, pigFarm: 2, sheepFarm: 2, dairy: 5, slaughterhouse: 5 };
 const JOB_RADIUS = 12;
 
 // ---------- Modellare il terreno ----------

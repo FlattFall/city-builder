@@ -1,8 +1,9 @@
 // ---------- Economia: merci, produzione, trasporti, vendite ----------
 // Ogni attività ha un deposito di merce pronta (store) e, se trasforma qualcosa, un deposito
 // di materie prime (input).
-//  - Fattoria, fabbrica e panificio MANDANO la loro merce alla destinazione scelta (storage).
-//  - Fabbrica, panificio e supermercato si RIFORNISCONO anche dai magazzini, se lì c'è quello che serve.
+//  - Fattorie, allevamenti e trasformatori (fabbrica, panificio, caseificio, macello) MANDANO la
+//    loro merce alle destinazioni scelte (dests): ogni merce va alla prima che la accetta.
+//  - I trasformatori e il supermercato si RIFORNISCONO anche dai magazzini, se lì c'è quello che serve.
 //  - Il supermercato vende agli abitanti vicini e il giocatore incassa le tasse.
 // I trasporti si fanno con i furgoni, su strada, partendo e arrivando alle entrate.
 
@@ -27,10 +28,15 @@ function initEconomy(b) {
   if (b.kind === 'warehouse') b.accept = b.accept || {};    // accept[g] === false: non accetta g
   if (RECIPES[b.kind]) b.recipes = b.recipes || {};         // recipes[out] === false: ricetta spenta
   if (b.kind === 'supermarket') { b.sold = b.sold || 0; b.taxes = b.taxes || 0; }
-  if (!('storage' in b)) b.storage = null;
+  // destinazioni: lista di id (prima era una sola, "storage")
+  if (!Array.isArray(b.dests)) b.dests = b.storage ? [b.storage] : [];
+  delete b.storage;
   b.work = b.work || 0;
   return b;
 }
+
+// Trasformatori: edifici con ricette (fabbrica, panificio, caseificio, macello)
+function isProcessor(b) { return !!RECIPES[b.kind]; }
 
 function addTo(map, g, q) { map[g] = (map[g] || 0) + q; if (map[g] <= 0) delete map[g]; }
 
@@ -44,7 +50,7 @@ function freeFor(b, g) {
   const caps = CAPS[b.kind];
   if (!caps) return 0;
   if (b.kind === 'warehouse') return b.accept[g] === false ? 0 : caps.store - sumOf(b.store);
-  if (b.kind === 'factory' || b.kind === 'bakery') return usesInput(b, g) ? caps.input - sumOf(b.input) : 0;
+  if (isProcessor(b)) return usesInput(b, g) ? caps.input - sumOf(b.input) : 0;
   if (b.kind === 'supermarket') return GOODS[g].price ? caps.store - sumOf(b.store) : 0;
   return 0;
 }
@@ -56,13 +62,14 @@ function roomFor(b, g) {
 }
 
 function receive(b, g, q) {
-  if (b.kind === 'factory' || b.kind === 'bakery') addTo(b.input, g, q);
+  if (isProcessor(b)) addTo(b.input, g, q);
   else addTo(b.store, g, q);
 }
 
 function buildingLabel(b) { return BUILDINGS[b.kind].name.toLowerCase() + ' #' + b.id; }
 
-const VAN_STRIPES = { farm: '#3fa34d', warehouse: '#3f6fd9', factory: '#e07b39', bakery: '#8a5a3a' };
+const VAN_STRIPES = { farm: '#3fa34d', warehouse: '#3f6fd9', factory: '#e07b39', bakery: '#8a5a3a',
+  dairy: '#8fc6e8', slaughterhouse: '#c83232', cowFarm: '#2b2b33', chickenFarm: '#e8c23a', pigFarm: '#e8899a', sheepFarm: '#c9c4b8' };
 
 // Il furgone di "from" porta q unità di g a "to" e poi torna indietro
 function sendGoods(from, to, g, q) {
@@ -97,27 +104,31 @@ function sendGoods(from, to, g, q) {
   return true;
 }
 
-// Manda la merce pronta alla destinazione scelta (la più abbondante tra quelle che accetta)
+// Manda la merce pronta: prova le destinazioni scelte, in ordine, e manda la merce più
+// abbondante che la destinazione accetta (con personale e posto libero)
 function pushGoods(b) {
-  if (b.van || !b.storage || b.retry > 0) return;
-  const to = game.buildings.get(b.storage);
-  if (!to) { b.storage = null; return; }
-  let best = null, bq = 0;
-  for (const [g, q] of Object.entries(b.store)) if (q > bq && roomFor(to, g) > 0) { best = g; bq = q; }
-  if (!best) {
-    b.status = sumOf(b.store) ? 'La destinazione non accetta questa merce o è piena' : '';
-    return;
-  }
+  b.dests = b.dests.filter(id => game.buildings.has(id));
+  if (b.van || !b.dests.length || b.retry > 0) return;
   if (sumOf(b.store) < VAN_MIN_LOAD) return;   // aspetta di avere un carico
-  if (!to.workers) { b.status = 'La destinazione non ha personale'; b.retry = 3; return; }
-  sendGoods(b, to, best, Math.min(bq, VAN_CAPACITY, roomFor(to, best)));
+  let why = '';
+  for (const id of b.dests) {
+    const to = game.buildings.get(id);
+    let best = null, bq = 0;
+    for (const [g, q] of Object.entries(b.store)) if (q > bq && roomFor(to, g) > 0) { best = g; bq = q; }
+    if (!best) { why = why || 'Le destinazioni non accettano questa merce o sono piene'; continue; }
+    if (!to.workers) { why = buildingLabel(to) + ' non ha personale'; continue; }
+    if (sendGoods(b, to, best, Math.min(bq, VAN_CAPACITY, roomFor(to, best)))) return;
+    why = b.status;
+  }
+  b.status = why;
+  if (why) b.retry = 3;
 }
 
 // Merci che servono a un edificio: materie prime delle ricette attive o merce da vendere
 function wantedGoods(b) {
   // il supermercato lascia la precedenza a chi la merce la trasforma (es. la farina al panificio)
   if (b.kind === 'supermarket') return Object.keys(GOODS).filter(g => GOODS[g].price &&
-    ![...game.buildings.values()].some(p => (p.kind === 'factory' || p.kind === 'bakery') && p.workers && roomFor(p, g) >= VAN_MIN_LOAD));
+    ![...game.buildings.values()].some(p => isProcessor(p) && p.workers && roomFor(p, g) >= VAN_MIN_LOAD));
   return Object.keys(GOODS).filter(g => usesInput(b, g));
 }
 
@@ -153,7 +164,22 @@ function updateFarm(f, dt) {
   pushGoods(f);
 }
 
-// Fabbrica e panificio: a ogni ciclo ogni ricetta attiva con le materie prime fa 1 prodotto
+// Allevamenti: con il personale, ogni tanto producono latte, uova, lana e animali per il macello
+function updateLivestock(b, dt) {
+  const L = LIVESTOCK[b.kind], cap = CAPS[b.kind].store;
+  const staff = (b.workers || 0) / JOBS[b.kind];
+  b.full = sumOf(b.store) >= cap;
+  if (staff > 0 && !b.full) {
+    b.growth = (b.growth || 0) + dt / L.every * staff;
+    if (b.growth >= 1) {
+      b.growth = 0;
+      for (const [g, q] of Object.entries(L.out)) addTo(b.store, g, Math.min(q, cap - sumOf(b.store)));
+    }
+  }
+  pushGoods(b);
+}
+
+// Trasformatori: a ogni ciclo ogni ricetta attiva con le materie prime fa 1 prodotto
 function updateProducer(b, dt) {
   const staff = (b.workers || 0) / JOBS[b.kind];
   const cap = CAPS[b.kind].store;
@@ -210,7 +236,8 @@ function economyUpdate(dt) {
     if (b.retry > 0) b.retry -= dt;
     if (b.pullTimer > 0) b.pullTimer -= dt;
     if (b.kind === 'farm') updateFarm(b, dt);
-    else if (b.kind === 'factory' || b.kind === 'bakery') updateProducer(b, dt);
+    else if (LIVESTOCK[b.kind]) updateLivestock(b, dt);
+    else if (isProcessor(b)) updateProducer(b, dt);
     else if (b.kind === 'supermarket') updateShop(b, dt);
     else if (b.kind === 'warehouse') b.full = sumOf(b.store) >= CAPS.warehouse.store;
   }
@@ -218,8 +245,11 @@ function economyUpdate(dt) {
 
 // Stato da mostrare con un'icona sopra l'edificio (null = tutto bene)
 function buildingStatus(b) {
+  // casa senza strada accanto o non raggiungibile dalla strada principale
+  if (b.kind === 'house') return (!accessTiles(b).length || b.unreachable) ? 'noRoad' : null;
   const need = JOBS[b.kind];
   if (need && (b.workers || 0) < need) return b.workers ? 'fewWorkers' : 'noWorkers';
+  if (!accessTiles(b).length) return 'noRoad';
   if (b.full) return 'full';
   if (b.noInput) return 'noInput';
   if (b.empty) return 'empty';

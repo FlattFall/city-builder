@@ -102,9 +102,29 @@ function spawnVehicle(v) {
 }
 
 // ---------- Abitanti ----------
+// Ricalcola quali case sono raggiungibili dalla strada principale (per il simbolo "non collegata"):
+// una sola ricerca da tutte le entrate segna i tile di strada raggiungibili
+let linkCheckTimer = 0;
+function checkHouseLinks() {
+  if ((linkCheckTimer -= MOVE_IN_EVERY) > 0) return;
+  linkCheckTimer = 3;
+  const N = game.size, seen = new Set();
+  const queue = entryTiles().map(([x, y]) => y * N + x);
+  for (const k of queue) seen.add(k);
+  for (let qi = 0; qi < queue.length; qi++) {
+    const k = queue[qi];
+    for (const [nx, ny] of driveNeighbors(k % N, (k / N) | 0)) {
+      const nk = ny * N + nx;
+      if (!seen.has(nk)) { seen.add(nk); queue.push(nk); }
+    }
+  }
+  for (const b of game.buildings.values())
+    if (b.kind === 'house') b.unreachable = !accessTiles(b).some(([x, y]) => seen.has(y * N + x));
+}
 // Ogni tanto un'auto parte da un'entrata della strada principale verso una casa con posti liberi
 function spawnResident() {
   if (vehicles.length >= MAX_CARS) return;
+  checkHouseLinks();
   const houses = [...game.buildings.values()].filter(b => b.kind === 'house' && b.residents + b.incoming < HOUSE_CAPACITY);
   if (!houses.length) return;
   const entries = entryTiles();

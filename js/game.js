@@ -406,8 +406,8 @@ function checkTool(tool, x, y) {
       if (q.building || q.path || q.field || !isBuildable(q))
         return { msg: b.w > 1 ? 'Serve uno spazio libero ' + b.w + 'x' + b.h : 'Qui non si può costruire' };
       if (q.elev !== t.elev) return { msg: 'Serve un terreno piano ' + b.w + 'x' + b.h };
-      if (tool === 'farm' && isMountain(q)) return { msg: 'In montagna fa troppo freddo e non c\'è erba per la fattoria' };
-      if (tool === 'farm' && q.type === T.SAND) return { msg: 'La fattoria ha bisogno di erba, non di sabbia' };
+      if (b.grass && isMountain(q)) return { msg: 'In montagna fa troppo freddo e non c\'è erba' };
+      if (b.grass && q.type === T.SAND) return { msg: 'Serve erba, non sabbia' };
     }
     return null;
   }
@@ -506,7 +506,7 @@ function removeBuilding(b) {
     if (game.fieldMode === b.id) game.fieldMode = null;
   }
   // chi mandava merce qui non ha più destinazione
-  for (const f of game.buildings.values()) if (f.storage === b.id) f.storage = null;
+  for (const f of game.buildings.values()) if (f.dests) f.dests = f.dests.filter(id => id !== b.id);
   if (typeof removeVehiclesFor === 'function') removeVehiclesFor(b.id);
   if (typeof onBuildingRemoved === 'function') onBuildingRemoved(b);
 }

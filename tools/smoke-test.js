@@ -462,11 +462,11 @@ function check(cond, msg) {
   const del = await page.evaluate(() => {
     const farm = [...game.buildings.values()].find(b => b.kind === 'farm');
     const wh = [...game.buildings.values()].find(b => b.kind === 'warehouse');
-    const r = { crop: farm.crop, storage: farm.storage === wh.id };
+    const r = { crop: farm.crop, storage: farm.dests.includes(wh.id) };
     for (let i = 0; i < 200 * 20; i++) simUpdate(0.05);
     r.stock = wh.store.potato || 0; r.inv = sumOf(farm.store); r.workers = [farm.workers, wh.workers];
     // senza magazzino l'inventario si riempie fino al limite e poi si ferma
-    farm.storage = null;
+    farm.dests = [];
     for (let i = 0; i < 400 * 10; i++) simUpdate(0.1);
     r.capped = sumOf(farm.store) === CAPS.farm.store;
     return r;
@@ -479,7 +479,7 @@ function check(cond, msg) {
   // 22. salva e ricarica tutto (abitanti, fattoria, magazzino, strada principale) in poco spazio
   const sv = await page.evaluate(() => {
     const snap = () => JSON.stringify([game.population, game.roads, game.fields,
-      [...game.buildings.values()].sort((a, b) => a.id - b.id).map(b => [b.id, b.kind, b.residents, b.crop, b.storage, JSON.stringify(b.store || {}), JSON.stringify(b.accept || {})]),
+      [...game.buildings.values()].sort((a, b) => a.id - b.id).map(b => [b.id, b.kind, b.residents, b.crop, JSON.stringify(b.dests || []), JSON.stringify(b.store || {}), JSON.stringify(b.accept || {})]),
       game.entries, [...game.pathKeys].filter(k => game.map[(k / game.size) | 0][k % game.size].main).length]);
     const before = snap();
     game.saveId = null; saveGame(); const id = game.saveId;
@@ -622,7 +622,7 @@ function check(cond, msg) {
     const farm = B('farm'), fac = B('factory'), wh = B('warehouse'), sm = B('supermarket'), bk = B('bakery');
     r.crops = Object.keys(CROPS).join(',');
     farm.crop = 'wheat'; farm.store = { wheat: 60 };
-    farm.storage = fac.id; fac.storage = wh.id; bk.storage = sm.id;
+    farm.dests = [fac.id]; fac.dests = [wh.id]; bk.dests = [sm.id];
     wh.store = { tomato: 40, cabbage: 30 };
     wh.accept.chips = false;
     r.refuses = freeFor(wh, 'chips') === 0 && freeFor(wh, 'flour') > 0;
@@ -637,7 +637,7 @@ function check(cond, msg) {
     r.bakery = sumOf(bk.store) + (sm.sold || 0) > 0 && Object.keys(bk.store).some(g => GOODS[g].cat === 'bakery');
     r.sold = sm.sold; r.taxes = sm.taxes; r.income = game.money - money0;
     // fabbrica senza materie prime: stato "mancano materie prime"; deposito pieno: stato "pieno"
-    fac.input = {}; fac.noInput = false; fac.storage = null;
+    fac.input = {}; fac.noInput = false; fac.dests = [];
     for (let i = 0; i < 100; i++) simUpdate(0.1);
     r.noInput = buildingStatus(fac) === 'noInput';
     fac.input = { wheat: 100 }; fac.store = { flour: CAPS.factory.store };
@@ -658,6 +658,61 @@ function check(cond, msg) {
   check(ch.sold > 0 && ch.taxes > 0 && ch.income >= ch.taxes, `supermercato: ${ch.sold} venduti, ${ch.taxes} € di tasse`);
   check(ch.noInput && ch.full, 'icone di stato: mancano materie prime / deposito pieno');
   check(ch.saved, 'salva/carica conserva ricette, merci, scelte del magazzino e tasse');
+
+  // 27. allevamenti -> caseificio e macello -> supermercato; verdure dirette dalla fattoria
+  const an = await page.evaluate(() => {
+    clearVehicles(); newGame(1, 128);
+    const N = game.size, c = N / 2, r = {};
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, rb: null, elev: 2 });
+    recount(); game.money = 1e6;
+    for (let x = 0; x < N; x++) { useTool('road', x, c); game.map[c][x].main = true; }
+    game.entries = [{ x: 0, y: c }, { x: N - 1, y: c }];
+    game.rotation = 2;
+    for (const [k, x] of [['cowFarm', -12], ['chickenFarm', -9], ['pigFarm', -6], ['sheepFarm', -3], ['dairy', 0], ['slaughterhouse', 3], ['supermarket', 6], ['farm', 9]]) {
+      useTool(k, c + x, c + 1);
+      if (k === 'farm') exitFieldMode();
+    }
+    game.rotation = 0;
+    for (let x = c - 13; x <= c + 10; x++) useTool('house', x, c - 1);
+    const B = k => [...game.buildings.values()].find(b => b.kind === k);
+    const cow = B('cowFarm'), chk = B('chickenFarm'), pig = B('pigFarm'), sh = B('sheepFarm'), da = B('dairy'), sl = B('slaughterhouse'), sm = B('supermarket'), fa = B('farm');
+    // le mucche mandano il latte al caseificio e i bovini al macello: due destinazioni
+    cow.dests = [da.id, sl.id]; chk.dests = [sl.id, sm.id]; pig.dests = [sl.id];
+    da.dests = [sm.id]; sl.dests = [sm.id];
+    fa.crop = 'tomato'; fa.store = { tomato: 30 }; fa.dests = [sm.id];
+    let seen = {};
+    for (let i = 0; i < 300 * 10; i++) {
+      simUpdate(0.1);
+      for (const b of [da, sl, sm]) for (const g of Object.keys(b.store)) seen[g] = true;
+      for (const g of Object.keys(da.input || {})) seen['in:' + g] = true;
+      for (const g of Object.keys(sl.input || {})) seen['in:' + g] = true;
+    }
+    r.seen = seen; r.wool = sh.store.wool || 0; r.sold = sm.sold; r.taxes = sm.taxes;
+    r.sheepMountain = (() => { for (let y = c + 20; y < c + 22; y++) for (let x = c; x < c + 2; x++) game.map[y][x].type = T.ROCK;
+      return useTool('sheepFarm', c, c + 20).ok && !useTool('cowFarm', c, c + 20).ok; })();
+    // casa senza strada: simbolo "non collegata"; casa collegata: nessun simbolo
+    useTool('house', c + 30, c + 15);
+    const lonely = [...game.buildings.values()].find(b => b.kind === 'house' && b.ax === c + 30);
+    const linked = [...game.buildings.values()].find(b => b.kind === 'house' && b.ax === c - 13);
+    r.noRoad = buildingStatus(lonely) === 'noRoad' && buildingStatus(linked) === null;
+    // strada vicina ma non collegata alla principale: dopo un po' il simbolo resta
+    for (let y = c + 10; y <= c + 15; y++) useTool('road', c + 31, y);
+    for (let i = 0; i < 100; i++) simUpdate(0.1);
+    r.island = buildingStatus(lonely) === 'noRoad';
+    // vecchio salvataggio con una sola destinazione ("storage")
+    const old = initEconomy({ id: 99, kind: 'farm', crop: 'wheat', storage: 5, inventory: 7 });
+    r.migrate = old.dests.join() === '5' && old.store.wheat === 7 && !('storage' in old);
+    return r;
+  });
+  const S = an.seen;
+  check(S['in:milk'] && S.cheese && S.butter && S.yogurt, 'caseificio: latte -> formaggio, burro, yogurt');
+  check(S['in:cattle'] && S['in:pigs'] && S['in:poultry'] && S.freshMeat && S.sausages && S.ham && S.packedMeat,
+    'macello: bovini, maiali, polli -> carne fresca, salsicce, prosciutto, carne confezionata');
+  check(an.wool > 0, `le pecore fanno la lana: ${an.wool}`);
+  check(S.tomato && an.sold > 0 && an.taxes > 0, `supermercato con verdure dalla fattoria, carne e latticini: ${an.sold} venduti, ${an.taxes} € di tasse`);
+  check(an.sheepMountain, 'pecore anche in montagna, mucche no');
+  check(an.noRoad && an.island, 'simbolo "non collegata" sulle case senza strada o scollegate');
+  check(an.migrate, 'vecchi salvataggi: destinazione singola convertita');
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();

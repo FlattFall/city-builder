@@ -11,7 +11,8 @@ const DIRT_COLORS = ['#a07c4c', '#ad8a59', '#8c6a3d'];  // piano, rampa chiara, 
 const DIRT_EDGE = '#7d5f38';
 const BALLAST = '#8d8273', SLEEPER = '#5e4128', STEEL = '#d5dade';
 const SOIL = '#8b5e34';
-const GROUND = { farm: '#b89a5e', warehouse: '#9a9a92', factory: '#8f8f88', supermarket: '#9a9a92' };   // terreno sotto gli edifici grandi
+const GROUND = { farm: '#b89a5e', warehouse: '#9a9a92', factory: '#8f8f88', supermarket: '#9a9a92',
+  cowFarm: '#7cbf5a', chickenFarm: '#c9b07a', pigFarm: '#9a7a52', sheepFarm: '#8fc96a', dairy: '#9a9a92', slaughterhouse: '#8f8f88' };   // terreno sotto gli edifici grandi
 
 const HOUSE_STYLES = [
   { l: '#d9c3a0', r: '#b39d7c', roof: '#b5473a', lip: '#8f372d' },
@@ -357,6 +358,88 @@ function drawBuildingOn(c, x, y, b) {
   else if (b.kind === 'warehouse') drawWarehouse(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'factory') drawFactory(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'supermarket') drawSupermarket(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'dairy') drawDairy(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'slaughterhouse') drawSlaughterhouse(c, b.ax, b.ay, base, b.rot || 0);
+  else if (LIVESTOCK[b.kind]) drawLivestock(c, b.ax, b.ay, base, b.rot || 0, b.kind);
+}
+
+// ---------- Allevamenti ----------
+// Recinto di legno sui bordi (con un varco all'entrata), un ricovero sul fondo e gli animali
+const ANIMALS = {
+  cowFarm: { col: { l: '#f2f2f2', r: '#cfcfcf', t: '#ffffff' }, head: '#2b2b33', len: 0.2, wid: 0.1, h: 6, spots: '#2b2b33',
+    at: [[0.55, 1.15], [1.25, 1.0], [1.4, 1.55], [0.85, 1.6]] },
+  chickenFarm: { col: { l: '#f6f6f2', r: '#d8d8d0', t: '#ffffff' }, head: '#d94141', len: 0.06, wid: 0.06, h: 3,
+    at: [[0.5, 1.1], [0.7, 1.35], [1.1, 1.05], [1.3, 1.4], [0.95, 1.65], [1.55, 1.2], [1.6, 1.65], [0.4, 1.6]] },
+  pigFarm: { col: { l: '#f0a0b0', r: '#d0808f', t: '#f8b8c4' }, head: '#e8899a', len: 0.15, wid: 0.09, h: 4,
+    at: [[0.6, 1.2], [1.15, 1.05], [1.4, 1.5], [0.85, 1.6], [1.6, 1.1]] },
+  sheepFarm: { col: { l: '#f4f1e8', r: '#d6d2c6', t: '#fbf9f2' }, head: '#3a3a40', len: 0.14, wid: 0.1, h: 5,
+    at: [[0.5, 1.1], [1.0, 1.0], [1.45, 1.25], [0.75, 1.55], [1.25, 1.65], [1.65, 1.6]] },
+};
+const SHEDS = {
+  cowFarm: { box: [0.1, 0.1, 1.0, 0.7], h: 12, col: { l: '#b5473a', r: '#8f372d', t: '#b5473a' }, roof: { rh: 6, back: '#5a4036', roof: '#6b4a3a', gable: '#8f372d' } },
+  chickenFarm: { box: [0.1, 0.1, 0.85, 0.6], h: 9, col: { l: '#f2f2ee', r: '#cfcfc8', t: '#f2f2ee' }, roof: { rh: 5, back: '#8a2a22', roof: '#b5473a', gable: '#cfcfc8' } },
+  pigFarm: { box: [0.1, 0.1, 1.0, 0.6], h: 8, col: { l: '#b08a5a', r: '#8a6a42', t: '#b08a5a' }, roof: { rh: 4, back: '#5a4036', roof: '#7a5a3a', gable: '#8a6a42' } },
+  sheepFarm: { box: [0.1, 0.1, 0.85, 0.6], h: 9, col: { l: '#a07c4c', r: '#7d5f38', t: '#a07c4c' }, roof: { rh: 5, back: '#4a3a2a', roof: '#6b5a42', gable: '#7d5f38' } },
+};
+function drawLivestock(c, ax, ay, base, r, kind) {
+  const P = (u, v, h) => iso(ax, ay, u, v, h);
+  const A = ANIMALS[kind];
+  // recinto: lati (senza rotazione) con il varco dell'entrata su v = 2, u da 0 a 1
+  const fence = [[[0, 0], [2, 0]], [[0, 0], [0, 2]], [[2, 0], [2, 2]], [[1, 2], [2, 2]]].map(([a, b]) => [rotUV(...a, r), rotUV(...b, r)]);
+  const isFront = ([a, b]) => (a[0] === 2 && b[0] === 2) || (a[1] === 2 && b[1] === 2);
+  const drawFence = seg => {
+    const [a, b] = seg;
+    for (const z of [2, 4]) line(c, P(a[0], a[1], base + z / STEP), P(b[0], b[1], base + z / STEP), '#7a5230');
+    const n = Math.round(Math.hypot(b[0] - a[0], b[1] - a[1]) * 3);
+    for (let i = 0; i <= n; i++) {
+      const u = a[0] + (b[0] - a[0]) * i / n, v = a[1] + (b[1] - a[1]) * i / n;
+      line(c, P(u, v, base), P(u, v, base + 5 / STEP), '#5e3c20');
+    }
+  };
+  fence.filter(f => !isFront(f)).forEach(drawFence);
+  groundRect(c, ax, ay, base, [0.3, 1.7, 0.7, 2.0], r, '#a07c4c');      // passaggio dell'entrata
+  const parts = [Object.assign({}, SHEDS[kind])];
+  for (const [u, v] of A.at) {
+    parts.push({ box: [u - A.len, v - A.wid, u + A.len, v + A.wid], h: A.h, col: A.col,
+      after(b, top) {
+        // testa sul lato +u (dopo la rotazione su uno dei lati del corpo) e macchie per le mucche
+        const hu = b[2] - b[0] >= b[3] - b[1];
+        const hb = hu ? [b[2], (b[1] + b[3]) / 2 - A.wid * 0.6, b[2] + A.wid * 0.9, (b[1] + b[3]) / 2 + A.wid * 0.6]
+                      : [(b[0] + b[2]) / 2 - A.wid * 0.6, b[3], (b[0] + b[2]) / 2 + A.wid * 0.6, b[3] + A.wid * 0.9];
+        box(c, ax, ay, base + A.h * 0.3 / STEP, ...hb, A.h * 0.6, { l: A.head, r: shade(A.head, -0.2), t: A.head });
+        if (A.spots) poly(c, [P(b[0] + 0.05, b[1] + 0.03, top), P(b[0] + 0.15, b[1] + 0.03, top), P(b[0] + 0.15, b[1] + 0.09, top), P(b[0] + 0.05, b[1] + 0.09, top)], A.spots);
+      } });
+  }
+  drawParts(c, ax, ay, base, r, parts);
+  fence.filter(isFront).forEach(drawFence);
+}
+
+// Caseificio 2x2: edificio bianco con tetto azzurro e due grandi cisterne del latte
+function drawDairy(c, ax, ay, base, r) {
+  groundRect(c, ax, ay, base, [0.28, 1.45, 0.72, 2.0], r, '#7b7f86');
+  const tank = { l: '#d5dade', r: '#aab2ba', t: '#eef2f5' };
+  drawParts(c, ax, ay, base, r, [
+    { box: [0.12, 0.25, 1.35, 1.45], h: 16, col: { l: '#f2f2ee', r: '#cfcfc8', t: '#f2f2ee' },
+      roof: { rh: 7, back: '#2f55b0', roof: '#3f6fd9', gable: '#cfcfc8' },
+      doors: [{ face: '+v', a: 0.3, b: 0.7, z1: 11, color: '#4a4f5a' }, { face: '+v', a: 0.85, b: 1.2, z0: 7, z1: 12, color: '#9fd3e8' }] },
+    { box: [1.5, 0.2, 1.82, 0.52], h: 28, col: tank },
+    { box: [1.5, 0.68, 1.82, 1.0], h: 28, col: tank },
+    { box: [1.45, 1.3, 1.85, 1.8], h: 8, col: { l: '#e6d9c2', r: '#c0b399', t: '#b0a48c' } },
+  ]);
+}
+
+// Macello e industria della carne 2x2: capannone con fascia rossa e cella frigorifera bianca
+function drawSlaughterhouse(c, ax, ay, base, r) {
+  groundRect(c, ax, ay, base, [0.28, 1.45, 0.72, 2.0], r, '#7b7f86');
+  drawParts(c, ax, ay, base, r, [
+    { box: [0.12, 0.2, 1.3, 1.45], h: 17, col: { l: '#c9c4b8', r: '#a59f91', t: '#7d8590' },
+      doors: [{ face: '+v', a: 0.3, b: 0.72, z1: 11, color: '#4a4f5a' },
+        { face: '+v', a: 0.12, b: 1.3, z0: 13, z1: 16, color: '#c83232' },
+        { face: '+u', a: 0.2, b: 1.45, z0: 13, z1: 16, color: '#c83232' }] },
+    { box: [1.42, 0.25, 1.88, 1.15], h: 14, col: { l: '#e8eef3', r: '#c4ccd4', t: '#f2f5f8' },
+      doors: [{ face: '+v', a: 1.52, b: 1.78, z1: 9, color: '#9fb0c0' }] },
+    { box: [0.95, 0.35, 1.1, 0.5], h: 26, col: { l: '#8a8f96', r: '#6b7077', t: '#5b5f66' } },
+  ]);
 }
 
 // Fabbrica alimentare 2x2: capannone in mattoni con tetto a shed, ciminiera che fuma, cisterna e uffici
@@ -668,7 +751,7 @@ function drawSelection(c, b) {
 // Icone di stato sopra le attività:
 //  persona rossa/arancione = mancano lavoratori, scatola arancione = deposito pieno,
 //  cassa vuota blu = mancano materie prime, scaffale viola = supermercato senza merce
-const STATUS_COLORS = { noWorkers: '#d94141', fewWorkers: '#e8a33a', full: '#e07b39', noInput: '#3f6fd9', empty: '#8e5bd1' };
+const STATUS_COLORS = { noWorkers: '#d94141', fewWorkers: '#e8a33a', full: '#e07b39', noInput: '#3f6fd9', empty: '#8e5bd1', noRoad: '#5b5b66' };
 function drawWorkerIcons(c) {
   for (const b of game.buildings.values()) {
     const st = buildingStatus(b);
@@ -689,6 +772,11 @@ function drawWorkerIcons(c) {
     } else if (st === 'noInput') {
       c.lineWidth = 1; c.strokeRect(x - 3, y - 2, 6, 5);                 // cassa vuota
       c.fillRect(x - 0.5, y - 4.5, 1, 1.5);
+    } else if (st === 'noRoad') {                                     // strada sbarrata
+      c.fillRect(x - 3.5, y - 3, 1, 6); c.fillRect(x + 2.5, y - 3, 1, 6);
+      c.fillRect(x - 0.5, y - 3, 1, 1.5); c.fillRect(x - 0.5, y + 0.5, 1, 1.5);
+      c.strokeStyle = '#ff5d5d'; c.lineWidth = 1.6;
+      c.beginPath(); c.moveTo(x - 4, y + 4); c.lineTo(x + 4, y - 4); c.stroke();
     } else if (st === 'empty') {
       for (const dy of [-3, 0, 3]) c.fillRect(x - 3.5, y + dy, 7, 1);    // scaffale vuoto
     }

@@ -5,7 +5,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 ## Struttura
 - `index.html` + `style.css`: pagina e interfaccia (barra in alto, barra strumenti con sottomenu, info tile, toast, menu).
 - `js/`: script classici (niente moduli ES, così funziona anche aprendo il file con doppio clic). L'ordine in `index.html` conta: config, noise, terrain, game, roadgen, camera, render, vehicles, economy, ui, panel, input, save, menu, app.
-  - `config.js` costanti: grandezze mappa (`MAP_SIZES`: 128, 256, 512, 1024), terreno, `PATHS` (strada, terra, binari), `BUILDINGS` (casa 1x1, fattoria e magazzino 2x2), abitanti, `CROPS`, `FARM`, costi
+  - `config.js` costanti: grandezze mappa (`MAP_SIZES`: 128, 256, 512, 1024), terreno, `PATHS` (strada, terra, binari), `BUILDINGS` (casa e panificio 1x1, le altre attività 2x2), abitanti, `CROPS`, `FARM`, costi
   - `game.js` stato (`game`) e regole: percorsi, rampe, rotonde, edifici, `checkTool` / `useTool` / `canUseTool`, `recount()`
   - `render.js` disegno (ordine del pittore, solo tile visibili sullo schermo); `requestDraw()` per ridisegnare
   - `camera.js` camera, zoom, `pickTile` (tiene conto delle quote)
@@ -33,7 +33,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 
 ## Abitanti, veicoli, fattorie
 - Le case (capienza `HOUSE_CAPACITY`) vengono riempite da auto che partono dalle entrate e arrivano su una strada accanto alla casa (`findRoute`: BFS sulle strade collegate; nelle rotonde si gira solo in senso antiorario, `RB_NEXT`). Corsia di destra, distanza di sicurezza (`blockedAhead`). `game.population` = abitanti arrivati.
-- Fattoria: dopo averla piazzata si entra in modalità campi (`game.fieldMode`), i campi entro `FARM.fieldRadius` vengono assegnati (`t.farm`). Coltura, crescita (`growth` 0..1, raccolto a 1), inventario limitato (`FARM.inventoryCap`), magazzino di destinazione (`storage`); il furgone parte con almeno `vanMinLoad` e torna indietro.
+- Fattoria: dopo averla piazzata si entra in modalità campi (`game.fieldMode`), i campi entro `FARM.fieldRadius` vengono assegnati (`t.farm`). Coltura, crescita (`growth` 0..1, raccolto a 1), inventario limitato (`FARM.inventoryCap`), destinazioni (`dests`, anche più di una); il furgone parte con almeno `vanMinLoad` e torna indietro.
 - Pannello: costruito una volta; numeri e barre si aggiornano sul posto (`panelLive`), si ricostruisce solo se cambia la forma (`panelShapeOf`), altrimenti i clic si perderebbero.
 
 ## Terreno, rotazione, entrate, lavoro
@@ -48,13 +48,14 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - `pickTile` conta l'altezza degli edifici solo con Mano e Demolisci, così con gli altri strumenti si costruisce dietro gli edifici.
 
 ## Economia (economy.js)
-- `GOODS` (6 colture, 6 prodotti della fabbrica, 3 del panificio; `price` = vendibile al supermercato), `RECIPES` (fabbrica, panificio), `CAPS` (store/input per tipo), `DEST_KINDS`.
+- `GOODS` (colture, prodotti animali, fabbrica, panificio, caseificio, carne; `price` = vendibile al supermercato), `RECIPES` (fabbrica, panificio, caseificio, macello: `isProcessor(b)` = ha ricette), `LIVESTOCK` (allevamenti: mucche latte+bovini, polli uova+polli, maiali, pecore lana; `updateLivestock`), `CAPS` (store/input per tipo), `DEST_KINDS`.
+- `grass: true` in `BUILDINGS` = vuole erba (fattoria, mucche, polli, maiali; le pecore vanno anche in montagna).
 - Ogni attività ha `store` (merce pronta) e, se trasforma, `input`. `initEconomy(b)` prepara i dati e converte i vecchi salvataggi (`inventory`, `stock`).
-- Spinta: fattoria/fabbrica/panificio mandano la merce alla destinazione `storage` (`pushGoods`, almeno `VAN_MIN_LOAD` in totale). Rifornimento: fabbrica/panificio/supermercato chiedono ai magazzini (`pullGoods`); il supermercato lascia la precedenza ai produttori per le merci che trasformano (es. farina). `expect` = merce già in viaggio verso un edificio (riserva lo spazio).
+- Spinta: chi produce manda la merce alle destinazioni `b.dests` (`pushGoods`: per ogni destinazione la merce più abbondante che accetta; almeno `VAN_MIN_LOAD` in totale). I vecchi salvataggi con `storage` vengono convertiti in `dests`. Rifornimento: fabbrica/panificio/supermercato chiedono ai magazzini (`pullGoods`); il supermercato lascia la precedenza ai produttori per le merci che trasformano (es. farina). `expect` = merce già in viaggio verso un edificio (riserva lo spazio).
 - `sendGoods`: furgone dall'entrata alla destinazione e ritorno; un furgone per edificio (`b.van`).
 - Magazzino: `accept[g] === false` = rifiuta. Ricette: `recipes[out] === false` = spenta.
 - Supermercato: clienti = abitanti entro `SHOP.radius`; ogni `SHOP.tick` compra `buyRate` dei clienti; tasse `TAX_RATE` del prezzo a `game.money`.
-- `buildingStatus(b)`: icone noWorkers/fewWorkers/full/noInput/empty (`drawWorkerIcons`).
+- `buildingStatus(b)`: icone noRoad/noWorkers/fewWorkers/full/noInput/empty (`drawWorkerIcons`). Casa: noRoad se non ha strada accanto o se `b.unreachable` (`checkHouseLinks` in vehicles.js: BFS dalle entrate della mappa ogni ~3 s).
 - Icone delle merci: `GOOD_ICONS` (`drawGoodIcon` in ui.js), usate nei pannelli.
 
 ## Rotonde
@@ -66,7 +67,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - Impronta da (ax, ay) verso +x e +y; tutti i tile puntano allo stesso oggetto `{ kind, variant, ax, ay }`. Serve terreno piano e libero. Gli edifici grandi si disegnano sul tile più avanti dell'impronta (`drawBuildingOn`), con `box` e `gableRoof`.
 
 ## Barra strumenti
-- `TOOL_GROUPS` in `ui.js`: 1 Mano, 2 Strade (strada, terra, binari, campo), 3 Case, 4 Industrie (fattoria, magazzino alimenti), 5 Demolisci. Il tasto numerico ripetuto passa al prossimo strumento del gruppo. Le icone sono disegnate con le funzioni di `render.js` (`buildIcons`).
+- `TOOL_GROUPS` in `ui.js`: 1 Mano, 2 Strade (strada, terra, binari, campo), 3 Case, 4 Industrie (fattoria, allevamenti di mucche/polli/maiali/pecore, magazzino, fabbrica alimentare, caseificio, macello, panificio, supermercato), 5 Demolisci. Il tasto numerico ripetuto passa al prossimo strumento del gruppo. Le icone sono disegnate con le funzioni di `render.js` (`buildIcons`).
 
 ## Menu e salvataggi
 - `menu.js`: menu principale/pausa (Riprendi e Salva solo se `game.started`), Nuova mappa (scelta grandezza), Carica, Opzioni ("ci stiamo lavorando"), Esci (`window.close()` in Electron). Esc apre/chiude il menu (prima chiude il sottomenu).
