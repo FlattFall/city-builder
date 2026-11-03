@@ -10,15 +10,19 @@ const TOOL_INFO = {
   rail:      { label: 'Binari', cost: PATHS.rail.cost, desc: 'Binari per i treni (i treni arriveranno più avanti).' },
   field:     { label: 'Campo coltivabile', cost: COSTS.field, desc: 'Campo della fattoria.' },
   house:     { label: 'Casa', cost: BUILDINGS.house.cost, desc: 'Ci abitano fino a ' + HOUSE_CAPACITY + ' persone, che arrivano in auto dalla strada principale. Lavorano nelle attività entro ' + JOB_RADIUS + ' tile e comprano nei negozi vicini.' },
-  farm:      { label: 'Fattoria (2x2)', cost: BUILDINGS.farm.cost, desc: 'Coltiva i campi che scegli intorno (grano, carote, patate, mais, pomodori, cavoli). Le verdure si vendono anche fresche al supermercato.' },
-  warehouse: { label: 'Magazzino alimenti (2x2)', cost: BUILDINGS.warehouse.cost, desc: 'Conserva la merce: scegli cosa accetta e dove mandarla (uscita). Fabbriche e negozi vengono a prendere qui quello che gli serve.' },
+  farm:      { label: 'Fattoria (2x2)', cost: BUILDINGS.farm.cost, desc: 'Coltiva i campi che scegli intorno (grano, carote, patate, mais, pomodori, cavoli, cotone). Le verdure si vendono anche fresche al supermercato; il cotone va alla fabbrica tessile.' },
+  warehouse: { label: 'Magazzino alimenti (2x2)', cost: BUILDINGS.warehouse.cost, desc: 'Conserva cibo e animali: scegli cosa accetta e dove mandarlo (uscita). Fabbriche alimentari e supermercati vengono a prendere qui quello che gli serve.' },
+  goodsWarehouse: { label: 'Magazzino merci (2x2)', cost: BUILDINGS.goodsWarehouse.cost, desc: 'Conserva tutto quello che non è cibo: legno, mobili, cotone, lana, tessuti e vestiti. Scegli cosa accetta e dove mandarlo; segheria, fabbriche e negozi vengono a prendere qui quello che gli serve.' },
+  textileMill: { label: 'Fabbrica tessile (2x2)', cost: BUILDINGS.textileMill.cost, desc: 'Trasforma il cotone delle fattorie in filati e tessuto. Con cotone e lana delle pecore fa le stoffe lavorate, che servono per giacche, scarpe e cappotti.' },
+  clothingFactory: { label: 'Fabbrica di abbigliamento (2x2)', cost: BUILDINGS.clothingFactory.cost, desc: 'Cuce i vestiti con i filati, il tessuto e le stoffe lavorate della fabbrica tessile.' },
+  clothingStore: { label: 'Negozio di abbigliamento (2x2)', cost: BUILDINGS.clothingStore.cost, desc: 'Vende vestiti e scarpe agli abitanti vicini: per ogni vendita incassi le tasse.' },
   factory:   { label: 'Fabbrica alimentare (2x2)', cost: BUILDINGS.factory.cost, desc: 'Trasforma i raccolti in cibo confezionato.' },
   bakery:    { label: 'Panificio', cost: BUILDINGS.bakery.cost, desc: 'Fa pane, biscotti e torte con la farina della fabbrica alimentare.' },
   supermarket: { label: 'Supermercato (2x2)', cost: BUILDINGS.supermarket.cost, desc: 'Vende cibo agli abitanti vicini: per ogni vendita incassi le tasse.' },
   cowFarm:   { label: 'Allevamento di mucche', cost: BUILDINGS.cowFarm.cost, desc: 'Il latte va al caseificio (o fresco al supermercato), i bovini al macello. Vuole erba.' },
   chickenFarm: { label: 'Allevamento di polli', cost: BUILDINGS.chickenFarm.cost, desc: 'Le uova vanno al supermercato, i polli al macello. Vuole erba.' },
   pigFarm:   { label: 'Allevamento di maiali', cost: BUILDINGS.pigFarm.cost, desc: 'I maiali vanno al macello (salsicce e prosciutto). Vuole erba.' },
-  sheepFarm: { label: 'Allevamento di pecore', cost: BUILDINGS.sheepFarm.cost, desc: 'Fa lana (per ora si può solo tenere in magazzino). Si può mettere anche in montagna.' },
+  sheepFarm: { label: 'Allevamento di pecore', cost: BUILDINGS.sheepFarm.cost, desc: 'Fa lana per la fabbrica tessile (stoffe lavorate per giacche, scarpe e cappotti). Si può mettere anche in montagna.' },
   dairy:     { label: 'Caseificio (2x2)', cost: BUILDINGS.dairy.cost, desc: "Trasforma il latte degli allevamenti di mucche in latticini." },
   slaughterhouse: { label: 'Macello e carne (2x2)', cost: BUILDINGS.slaughterhouse.cost, desc: 'Trasforma gli animali degli allevamenti in carne.' },
   forestry:  { label: 'Azienda forestale (2x2)', cost: BUILDINGS.forestry.cost, desc: 'Taglia legna nei boschi vicini: mettila accanto a una foresta (gli alberi restano). Più bosco = più legno.' },
@@ -36,10 +40,11 @@ const TOOL_GROUPS = [
   { key: '1', id: 'hand',     label: 'Mano',      tools: ['hand'] },
   { key: '2', id: 'paths',    label: 'Strade',    tools: ['road', 'oneway', 'highway', 'bridge', 'tunnel', 'dirt', 'rail'] },
   { key: '3', id: 'homes',    label: 'Case',      tools: ['house'] },
-  { key: '4', id: 'industry', label: 'Industrie', tools: ['farm', 'cowFarm', 'chickenFarm', 'pigFarm', 'sheepFarm',
+  { key: '4', id: 'industry', label: 'Agroalimentare', tools: ['farm', 'cowFarm', 'chickenFarm', 'pigFarm', 'sheepFarm',
     'warehouse', 'factory', 'dairy', 'slaughterhouse', 'bakery', 'supermarket'] },
-  { key: '5', id: 'wood',     label: 'Legno',     tools: ['forestry', 'sawmill', 'furnitureFactory', 'furnitureStore'] },
-  { key: '6', id: 'demolish', label: 'Demolisci', tools: ['demolish', 'raise', 'lower', 'level'] },
+  { key: '5', id: 'wood',     label: 'Legno',     tools: ['forestry', 'sawmill', 'furnitureFactory', 'furnitureStore', 'goodsWarehouse'] },
+  { key: '6', id: 'textile',  label: 'Tessile',   tools: ['textileMill', 'clothingFactory', 'clothingStore', 'goodsWarehouse'] },
+  { key: '7', id: 'demolish', label: 'Demolisci', tools: ['demolish', 'raise', 'lower', 'level'] },
 ];
 const groupChoice = {};   // gruppo -> ultimo strumento scelto
 const ICONS = {};         // strumento -> immagine (data URL)
@@ -57,7 +62,33 @@ function drawGoodIcon(c, g) {
     ell(12, 14, 3, 4, mark);
   };
   const wood = '#b07a48', woodD = '#7a5030', woodL = '#e3c48a';
+  const cloth = (col, dark) => [col, dark || shade(col, -0.25)];
   switch (g) {
+    case 'cotton':
+      rect(11, 12, 2, 10, '#6b8f3a'); for (const [x, y] of [[8, 9], [16, 9], [12, 5]]) { circle(x, y, 4, '#f4f2ea'); circle(x - 1, y - 1, 1.5, '#ffffff'); }
+      shape([[9, 13], [12, 11], [15, 13], [12, 15]], '#5a7a2a'); break;
+    case 'yarn':
+      circle(8, 14, 6, '#d94f8a'); circle(16, 12, 6, '#3f6fd9');
+      for (const [x, y, col] of [[8, 14, '#b03a6c'], [16, 12, '#2f55a8']]) { c.strokeStyle = col; c.lineWidth = 1; c.beginPath(); c.arc(x, y, 3.5, 0, Math.PI * 1.5); c.stroke(); } break;
+    case 'fabric':
+      shape([[3, 7], [19, 4], [21, 17], [5, 20]], '#e8e2d4'); shape([[5, 20], [21, 17], [21, 20], [6, 22]], '#c9c0ae');
+      for (let i = 0; i < 4; i++) { const t = i / 4 + 0.12; line2(3 + 2 * t, 7 + 13 * t, 19 + 2 * t, 4 + 13 * t); } break;
+    case 'cloth':
+      for (const [y, col] of [[15, '#8a6a4a'], [10, '#5a6f8a'], [5, '#a04a4a']]) { rect(3, y, 18, 5, col); rect(3, y, 18, 1, shade(col, 0.3)); } break;
+    case 'shirts': {
+      const [a, d] = cloth('#3fa34d');
+      shape([[7, 4], [10, 4], [12, 6], [14, 4], [17, 4], [22, 9], [19, 12], [17, 10], [17, 21], [7, 21], [7, 10], [5, 12], [2, 9]], a);
+      rect(7, 19, 10, 2, d); break; }
+    case 'trousers':
+      shape([[6, 3], [18, 3], [19, 22], [14, 22], [12, 9], [10, 22], [5, 22]], '#3f5fa8'); rect(6, 3, 12, 2, '#2f4a85'); break;
+    case 'jackets':
+      shape([[7, 3], [17, 3], [21, 8], [20, 22], [4, 22], [3, 8]], '#8a5a3a'); shape([[10, 3], [14, 3], [12, 12]], '#f2f5f8');
+      rect(11.5, 12, 1, 10, '#5a3a22'); break;
+    case 'shoes':
+      shape([[3, 14], [10, 13], [14, 16], [21, 17], [21, 20], [3, 20]], '#6b4424'); rect(3, 19, 18, 2, '#2b2b33'); rect(5, 11, 5, 3, '#6b4424'); break;
+    case 'coats':
+      shape([[7, 2], [17, 2], [21, 7], [21, 23], [3, 23], [3, 7]], '#5a5a6b'); shape([[10, 2], [14, 2], [12, 9]], '#d9d2c2');
+      for (const y of [11, 15, 19]) circle(13.5, y, 1, '#c9a46a'); break;
     case 'logs':
       for (const [y, x0] of [[15, 3], [9, 6]]) { rect(x0, y - 3, 14, 6, '#8a5a32'); ell(x0 + 14, y, 3, 3, '#d9b98a'); ell(x0 + 14, y, 1.2, 1.2, '#a8854f'); } break;
     case 'firewood':
@@ -269,6 +300,10 @@ function buildIcons() {
   ICONS.sawmill = bigIcon(c => drawSawmill(c, 0, 0, 0, 0), GROUND.sawmill);
   ICONS.furnitureFactory = bigIcon(c => drawFurnitureFactory(c, 0, 0, 0, 0), GROUND.furnitureFactory);
   ICONS.furnitureStore = bigIcon(c => drawFurnitureStore(c, 0, 0, 0, 0), GROUND.furnitureStore);
+  ICONS.goodsWarehouse = bigIcon(c => drawWarehouse(c, 0, 0, 0, 0, true), GROUND.goodsWarehouse);
+  ICONS.textileMill = bigIcon(c => drawTextileMill(c, 0, 0, 0, 0), GROUND.textileMill);
+  ICONS.clothingFactory = bigIcon(c => drawClothingFactory(c, 0, 0, 0, 0), GROUND.clothingFactory);
+  ICONS.clothingStore = bigIcon(c => drawClothingStore(c, 0, 0, 0, 0), GROUND.clothingStore);
   ICONS.bakery = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawBakery(c, 0, 0, 0, 0); });
 
   // terreno: blocchetto con freccia su, freccia giù, oppure piano
@@ -323,7 +358,10 @@ function toolLabel(id) {
   return i.cost ? i.label + ' - ' + i.cost + ' €' : i.label;
 }
 
-function groupOf(tool) { return TOOL_GROUPS.find(g => g.tools.includes(tool)); }
+function groupOf(tool, prefer) {
+  const g = prefer && TOOL_GROUPS.find(gr => gr.id === prefer);
+  return g && g.tools.includes(tool) ? g : TOOL_GROUPS.find(gr => gr.tools.includes(tool));
+}
 
 // Quando uno sprite finisce di caricarsi, rifà l'icona che lo usa
 function onSpritesLoaded(name) {
@@ -342,7 +380,7 @@ function buildToolbar() {
     b.className = 'tool';
     b.id = 'group-' + g.id;
     b.title = g.tools.map(toolLabel).join('\n');
-    b.innerHTML = '<span class="num">' + g.key + '</span><img alt=""><span class="lbl">' + g.label + '</span>' +
+    b.innerHTML = '<span class="num">' + g.key + '</span><img alt=""><span class="lbl' + (g.label.length > 10 ? ' long' : '') + '">' + g.label + '</span>' +
       (g.tools.length > 1 ? '<span class="more">▲</span>' : '');
     b.querySelector('img').src = ICONS[g.tools[0]];
     b.addEventListener('click', () => {
@@ -374,7 +412,7 @@ function openSubmenu(g) {
     const cost = document.createElement('small');
     cost.textContent = TOOL_INFO[id].cost ? TOOL_INFO[id].cost + ' €' : '';
     b.append(img, lbl, cost);
-    b.addEventListener('click', () => { setTool(id); closeSubmenu(); });
+    b.addEventListener('click', () => { setTool(id, g.id); closeSubmenu(); });
     b.addEventListener('mouseenter', () => showToolDesc(id));
     sm.appendChild(b);
   }
@@ -404,10 +442,10 @@ function selectGroupByKey(key) {
   return true;
 }
 
-function setTool(id) {
+function setTool(id, groupId) {
   if (id !== 'field' && game.fieldMode && typeof exitFieldMode === 'function') exitFieldMode(true);
   game.tool = id;
-  const g = groupOf(id);   // il campo non è in nessun gruppo: si usa solo dalla fattoria
+  const g = groupOf(id, groupId);   // il campo non è in nessun gruppo: si usa solo dalla fattoria
   if (g) groupChoice[g.id] = id;
   for (const gr of TOOL_GROUPS) {
     const b = document.getElementById('group-' + gr.id);
@@ -471,7 +509,7 @@ function updateInfo() {
   if (t.field) s += ' - Campo' + (t.farm ? ' della fattoria' : ' (senza fattoria)');
   if (t.building) {
     const b = t.building;
-    s += ' - ' + BUILDINGS[b.kind].name;
+    s += ' - ' + buildingName(b);
     if (b.kind === 'house') s += ' (' + b.residents + '/' + HOUSE_CAPACITY + ' abitanti)';
   }
   el.textContent = s;

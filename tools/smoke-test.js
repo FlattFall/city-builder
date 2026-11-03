@@ -134,9 +134,9 @@ function check(cond, msg) {
   await page.waitForTimeout(150);
   await page.screenshot({ path: process.env.SHOTS + '/3-zoom.png' });
 
-  // 8. demolizione (tasto 6): casa e strade
-  await page.keyboard.press('6');
-  await page.keyboard.press('Escape'); // chiude il sottomenu che si apre col tasto 6
+  // 8. demolizione (tasto 7): casa e strade
+  await page.keyboard.press('7');
+  await page.keyboard.press('Escape'); // chiude il sottomenu che si apre col tasto 7
   const roadsBefore = await page.evaluate(() => game.roads);
   const a2 = await screenOf(run.x, run.y), b2 = await screenOf(run.x + 5, run.y);
   await page.mouse.move(a2.x, a2.y);
@@ -459,7 +459,7 @@ function check(cond, msg) {
   check(fm.fieldMode, 'dopo la fattoria si scelgono i campi');
   check(fm.fields === 12 && fm.far, `campi assegnati alla fattoria: ${fm.fields}, lontano rifiutato`);
   await page.click('#panel .pchoice:has-text("Patate")');
-  await page.click('#panel .pchoice:text("Magazzino #")');
+  await page.click('#panel .pchoice:text("Magazzino alimenti #")');
   const del = await page.evaluate(() => {
     const farm = [...game.buildings.values()].find(b => b.kind === 'farm');
     const wh = [...game.buildings.values()].find(b => b.kind === 'warehouse');
@@ -653,7 +653,7 @@ function check(cond, msg) {
     r.saved = JSON.stringify([f2.recipes, f2.store, w2.accept, s2.taxes]) === before;
     return r;
   });
-  check(ch.crops === 'wheat,carrot,potato,corn,tomato,cabbage', 'colture: grano, carote, patate, mais, pomodori, cavoli');
+  check(ch.crops === 'wheat,carrot,potato,corn,tomato,cabbage,cotton', 'colture: grano, carote, patate, mais, pomodori, cavoli, cotone');
   check(ch.refuses, 'il magazzino rifiuta quello che non accetta');
   check(ch.flour && ch.pasta, 'la fabbrica fa farina e pasta (grano + pomodori)');
   check(ch.bakery, 'il panificio usa la farina per pane, biscotti e torte');
@@ -1011,6 +1011,61 @@ function check(cond, msg) {
   });
   check(px.found && px.roadGone, 'ruspa: si demolisce la strada che si vede dietro un edificio, l\'edificio resta');
   check(px.houseHit, 'ruspa: cliccando sulla casa si prende la casa');
+
+  // 33. settore tessile, due magazzini, nomi degli edifici
+  const tx = await page.evaluate(() => {
+    clearVehicles(); newGame(1, 128);
+    const N = game.size, c = N / 2, r = {};
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, rb: null, bridge: null, elev: 2 });
+    recount(); resetBridges(); game.money = 1e7; game.started = true;
+    for (let x = 0; x < N; x++) { useTool('road', x, c); game.map[c][x].main = true; }
+    game.entries = [{ x: 0, y: c }, { x: N - 1, y: c }];
+    game.rotation = 2;
+    const B = {};
+    for (const [k, x] of [['farm', 8], ['sheepFarm', 14], ['textileMill', 20], ['clothingFactory', 26], ['clothingStore', 32], ['warehouse', 40], ['goodsWarehouse', 46]]) {
+      useTool(k, x, c + 1); if (k === 'farm') exitFieldMode(); B[k] = [...game.buildings.values()].find(b => b.ax === x);
+    }
+    game.rotation = 0;
+    for (let x = 6; x <= 50; x++) useTool('house', x, c - 1);
+    for (const h of game.buildings.values()) if (h.kind === 'house') h.residents = 4;
+    recount(); updateJobs();
+    const { farm, sheepFarm, textileMill, clothingFactory, clothingStore, warehouse, goodsWarehouse } = B;
+    r.split = freeFor(warehouse, 'cheese') > 0 && freeFor(warehouse, 'cotton') === 0 && freeFor(warehouse, 'planks') === 0
+      && freeFor(goodsWarehouse, 'cotton') > 0 && freeFor(goodsWarehouse, 'wool') > 0 && freeFor(goodsWarehouse, 'cheese') === 0;
+    farm.crop = 'cotton'; farm.store = { cotton: 60 }; farm.dests = [textileMill.id];
+    sheepFarm.dests = [textileMill.id]; textileMill.dests = [clothingFactory.id]; clothingFactory.dests = [clothingStore.id];
+    const seen = {};
+    for (let i = 0; i < 5000; i++) {
+      if (i % 100 === 0) addTo(farm.store, 'cotton', 10);
+      simUpdate(0.1);
+      for (const b of [textileMill, clothingFactory, clothingStore]) for (const g of Object.keys(b.store).concat(Object.keys(b.input || {}))) seen[g] = true;
+    }
+    r.seen = Object.keys(seen).join(', '); r.sold = clothingStore.sold;
+    r.wool = !!seen.wool && !!seen.cloth;
+    // nome scelto dal giocatore: nei pulsanti delle destinazioni e nel salvataggio
+    goodsWarehouse.name = 'Deposito Nord';
+    saveGame(); const sid = game.saveId; loadGame(sid); deleteSave(sid);
+    const gw = [...game.buildings.values()].find(b => b.kind === 'goodsWarehouse');
+    r.nameSaved = gw.name === 'Deposito Nord';
+    return r;
+  });
+  check(tx.split, 'magazzino alimenti solo cibo, magazzino merci solo merci');
+  check(/yarn/.test(tx.seen) && /fabric/.test(tx.seen) && /cloth/.test(tx.seen) && /(shirts|trousers|jackets|shoes|coats)/.test(tx.seen), 'filiera tessile: ' + tx.seen);
+  check(tx.wool, 'la lana serve per le stoffe lavorate');
+  check(tx.sold > 0, `negozio di abbigliamento: venduti ${tx.sold}`);
+  check(tx.nameSaved, 'nome dell\'edificio salvato');
+  // cambiare nome dal pannello (con la tastiera, senza far partire i tasti del gioco)
+  await page.evaluate(() => openBuildingPanel([...game.buildings.values()].find(b => b.kind === 'textileMill')));
+  await page.click('#panel .prename');
+  await page.keyboard.press('Control+A');
+  await page.keyboard.type('Filanda 1');
+  await page.keyboard.press('Enter');
+  const rn = await page.evaluate(() => ({ name: [...game.buildings.values()].find(b => b.kind === 'textileMill').name,
+    title: document.querySelector('#panel .pname').textContent, tool: game.tool }));
+  check(rn.name === 'Filanda 1' && rn.title === 'Filanda 1' && rn.tool === 'hand', 'cambio nome dal pannello: ' + JSON.stringify(rn));
+  await page.evaluate(() => closePanel());
+  const bar = await page.evaluate(() => [...document.querySelectorAll('#toolbar .lbl')].map(e => e.textContent).join(','));
+  check(bar === 'Mano,Strade,Case,Agroalimentare,Legno,Tessile,Demolisci', 'barra: ' + bar);
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();

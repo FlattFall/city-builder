@@ -34,9 +34,10 @@ Sul tuo PC: `npm install` e poi `npm run dist`; l'.exe compare nella cartella `d
   1. **Mano**: trascina la mappa
   2. **Strade**: strada, senso unico, autostrada, ponte, tunnel, strada di terra, binari (i campi si mettono dalla fattoria)
   3. **Case**
-  4. **Industrie**: fattoria, allevamenti (mucche, polli, maiali, pecore), magazzino alimenti, fabbrica alimentare, caseificio, macello, panificio, supermercato
-  5. **Legno**: azienda forestale, segheria, fabbrica di mobili, mercato dell'arredamento
-  6. **Demolisci**: demolisci, alza terreno, abbassa terreno, livella terreno
+  4. **Agroalimentare**: fattoria, allevamenti (mucche, polli, maiali, pecore), magazzino alimenti, fabbrica alimentare, caseificio, macello, panificio, supermercato
+  5. **Legno**: azienda forestale, segheria, fabbrica di mobili, mercato dell'arredamento, magazzino merci
+  6. **Tessile**: fabbrica tessile, fabbrica di abbigliamento, negozio di abbigliamento, magazzino merci
+  7. **Demolisci**: demolisci, alza terreno, abbassa terreno, livella terreno
 - **R** (o il pulsante Ruota): ruota l'edificio prima di costruirlo
 - Strade, binari, campi, case e demolizione si trascinano per fare più tile
 - Tasto destro o centrale + trascina, oppure WASD/frecce: muovi la mappa
@@ -89,3 +90,11 @@ La casa è uno sprite in pixel art (tile 64x32) in `assets/sprites/house.png`. S
 - **Fabbrica di mobili**: assi e pannelli → tavoli, sedie, armadi, letti, mobili da cucina.
 - **Mercato dell'arredamento**: vende i mobili (e il legname) agli abitanti vicini; tu incassi le tasse.
 - Nei menu, passando il mouse su un edificio, vedi a cosa serve e la sua catena di montaggio.
+
+## Settore tessile
+- **Cotone**: nuova coltura della fattoria.
+- **Fabbrica tessile**: cotone → filati, tessuto; cotone + lana delle pecore → stoffe lavorate.
+- **Fabbrica di abbigliamento**: magliette, pantaloni, giacche, scarpe, cappotti (giacche, scarpe e cappotti usano le stoffe lavorate, quindi la lana).
+- **Negozio di abbigliamento**: vende i vestiti agli abitanti vicini.
+- **Magazzino merci**: per tutto quello che non è cibo; il magazzino alimenti tiene solo cibo e animali.
+- Ogni edificio si può rinominare: clic sul nome nel pannello (o sulla matita).

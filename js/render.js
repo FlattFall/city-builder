@@ -16,7 +16,8 @@ const BALLAST = '#8d8273', SLEEPER = '#5e4128', STEEL = '#d5dade';
 const SOIL = '#8b5e34';
 const GROUND = { farm: '#b89a5e', warehouse: '#9a9a92', factory: '#8f8f88', supermarket: '#9a9a92',
   cowFarm: '#7cbf5a', chickenFarm: '#c9b07a', pigFarm: '#9a7a52', sheepFarm: '#8fc96a', dairy: '#9a9a92', slaughterhouse: '#8f8f88',
-  forestry: '#8a6a40', sawmill: '#a08a64', furnitureFactory: '#8f8f88', furnitureStore: '#9a9a92' };   // terreno sotto gli edifici grandi
+  forestry: '#8a6a40', sawmill: '#a08a64', furnitureFactory: '#8f8f88', furnitureStore: '#9a9a92',
+  goodsWarehouse: '#9a9a92', textileMill: '#8f8f88', clothingFactory: '#8f8f88', clothingStore: '#9a9a92' };   // terreno sotto gli edifici grandi
 
 const HOUSE_STYLES = [
   { l: '#d9c3a0', r: '#b39d7c', roof: '#b5473a', lip: '#8f372d' },
@@ -355,15 +356,16 @@ function drawFarm(c, ax, ay, base, r) {
 
 // Magazzino alimenti 2x2: capannone con i portoni di carico verso l'entrata, vialetto di cemento,
 // insegna verde e casse
-function drawWarehouse(c, ax, ay, base, r) {
+// goods = magazzino merci: muri azzurrini, insegna arancione, bancali di scatoloni invece delle casse
+function drawWarehouse(c, ax, ay, base, r, goods) {
   const P = (u, v, h) => iso(ax, ay, u, v, h);
   groundRect(c, ax, ay, base, [0.28, 1.45, 0.72, 2.0], r, '#7b7f86');
-  const door = a => ({ face: '+v', a, b: a + 0.35, z1: 11, color: '#4a4f5a' });
-  const crate = { l: '#a0703f', r: '#7f5630', t: '#c08a52' };
+  const door = a => ({ face: '+v', a, b: a + 0.35, z1: 11, color: goods ? '#5a4a3a' : '#4a4f5a' });
+  const crate = goods ? { l: '#c9a46a', r: '#a8854f', t: '#dcbf8a' } : { l: '#a0703f', r: '#7f5630', t: '#c08a52' };
   drawParts(c, ax, ay, base, r, [
-    { box: [0.15, 0.3, 1.85, 1.45], h: 18, col: { l: '#d2ccbe', r: '#aaa497', t: '#7d8a96' },
+    { box: [0.15, 0.3, 1.85, 1.45], h: 18, col: goods ? { l: '#c3cbd6', r: '#9da6b2', t: '#6f7a86' } : { l: '#d2ccbe', r: '#aaa497', t: '#7d8a96' },
       doors: [door(0.32), door(0.82), door(1.32),
-        { face: '+u', a: 0.5, b: 1.25, z0: 12, z1: 16, color: '#3fa34d' }],
+        { face: '+u', a: 0.5, b: 1.25, z0: 12, z1: 16, color: goods ? '#e07b39' : '#3fa34d' }],
       after(b, top) { // lamiere del tetto
         const alongU = b[2] - b[0] > b[3] - b[1];
         for (const f of [0.2, 0.4, 0.6, 0.8]) {
@@ -467,6 +469,79 @@ function drawFurnitureStore(c, ax, ay, base, r) {
   ]);
 }
 
+// ---------- Settore tessile ----------
+// Fabbrica tessile 2x2: vecchio opificio di mattoni con file di finestre, torre dell'acqua e balle di cotone
+function drawTextileMill(c, ax, ay, base, r) {
+  groundRect(c, ax, ay, base, [0.28, 1.45, 0.72, 2.0], r, '#7b7f86');
+  const brick = { l: '#b5563f', r: '#8f4230', t: '#6f5a50' };
+  const win = (face, a, z0) => ({ face, a, b: a + 0.14, z0, z1: z0 + 4, color: '#9fd3e8' });
+  const wins = [];
+  for (const z0 of [4, 12]) {
+    for (const a of [0.2, 0.45, 0.95, 1.2]) wins.push(win('+v', a, z0));
+    for (const a of [0.4, 0.65, 0.9]) wins.push(win('+u', a, z0));
+  }
+  drawParts(c, ax, ay, base, r, [
+    { box: [0.12, 0.2, 1.5, 1.4], h: 20, col: brick, roof: { rh: 5, back: '#4a3a34', roof: '#5a4a42', gable: '#8f4230' },
+      doors: [{ face: '+v', a: 0.66, b: 0.9, z1: 9, color: '#4a3020' }, ...wins] },
+    { box: [1.6, 0.25, 1.86, 0.51], h: 34, col: { l: '#9a958b', r: '#7a756b', t: '#5a564e' } },   // torre dell'acqua
+    { box: [1.6, 0.65, 1.86, 0.91], h: 5, col: { l: '#f4f2ea', r: '#d6d3c8', t: '#ffffff' } },     // balle di cotone
+    { box: [1.6, 1.0, 1.86, 1.26], h: 5, col: { l: '#f4f2ea', r: '#d6d3c8', t: '#ffffff' } },
+    { box: [1.1, 1.58, 1.34, 1.82], h: 4, col: { l: '#d9d2c2', r: '#b8b0a0', t: '#eee8da' } },     // balla di lana
+    { box: [1.45, 1.58, 1.62, 1.75], h: 6, col: { l: '#d94f8a', r: '#b03a6c', t: '#e87aa8' } },     // rocchetti di filo
+    { box: [1.66, 1.58, 1.83, 1.75], h: 6, col: { l: '#3f6fd9', r: '#2f55a8', t: '#5a86e8' } },
+  ]);
+}
+
+// Fabbrica di abbigliamento 2x2: edificio moderno lilla con grandi vetrate e tetto a shed
+function drawClothingFactory(c, ax, ay, base, r) {
+  const P = (u, v, h) => iso(ax, ay, u, v, h);
+  groundRect(c, ax, ay, base, [0.28, 1.45, 0.72, 2.0], r, '#7b7f86');
+  drawParts(c, ax, ay, base, r, [
+    { box: [0.12, 0.2, 1.88, 1.4], h: 15, col: { l: '#c8b6e2', r: '#a592c4', t: '#7d8590' },
+      doors: [{ face: '+v', a: 0.3, b: 0.72, z1: 10, color: '#4a4f5a' },
+        { face: '+v', a: 0.9, b: 1.78, z0: 5, z1: 12, color: '#9fd3e8' },
+        { face: '+u', a: 0.3, b: 1.3, z0: 5, z1: 12, color: '#9fd3e8' },
+        { face: '+v', a: 0.9, b: 1.78, z0: 13, z1: 15, color: '#d94f8a' }],
+      after(b, top) {   // tetto a shed
+        const alongU = b[2] - b[0] >= b[3] - b[1];
+        for (let i = 0; i < 4; i++) {
+          const f0 = i / 4 + 0.03, f1 = i / 4 + 0.18;
+          const q = alongU
+            ? [P(b[0] + (b[2] - b[0]) * f0, b[1], top), P(b[0] + (b[2] - b[0]) * f1, b[1], top + 0.45), P(b[0] + (b[2] - b[0]) * f1, b[3], top + 0.45), P(b[0] + (b[2] - b[0]) * f0, b[3], top)]
+            : [P(b[0], b[1] + (b[3] - b[1]) * f0, top), P(b[0], b[1] + (b[3] - b[1]) * f1, top + 0.45), P(b[2], b[1] + (b[3] - b[1]) * f1, top + 0.45), P(b[2], b[1] + (b[3] - b[1]) * f0, top)];
+          poly(c, q, '#e8eef3');
+        }
+      } },
+    { box: [1.05, 1.58, 1.45, 1.84], h: 5, col: { l: '#c9a46a', r: '#a8854f', t: '#dcbf8a' } },   // scatoloni pronti
+    { box: [1.55, 1.58, 1.85, 1.84], h: 3, col: { l: '#c9a46a', r: '#a8854f', t: '#dcbf8a' } },
+  ]);
+}
+
+// Negozio di abbigliamento 2x2: boutique bianca con tenda a strisce rosa e una maglietta gigante sul tetto
+function drawClothingStore(c, ax, ay, base, r) {
+  const P = (u, v, h) => iso(ax, ay, u, v, h);
+  groundRect(c, ax, ay, base, [0.08, 1.4, 1.92, 1.96], r, '#c9b89a');
+  drawParts(c, ax, ay, base, r, [
+    { box: [0.15, 0.15, 1.85, 1.3], h: 14, col: { l: '#f6f2ec', r: '#d6d0c6', t: '#b7aeb8' },
+      doors: [{ face: '+v', a: 0.25, b: 0.6, z0: 0, z1: 8, color: '#9fd3e8' },
+        { face: '+v', a: 0.75, b: 1.75, z0: 2, z1: 8, color: '#9fd3e8' },
+        { face: '+u', a: 0.3, b: 1.15, z0: 2, z1: 8, color: '#9fd3e8' },
+        { face: '+v', a: 0.2, b: 1.8, z0: 11, z1: 13, color: '#d94f8a' }],
+      after(b) {   // tenda a strisce sopra le vetrine (sul lato davanti, quello verso l'entrata)
+        const F = rotUV(0, 1.3, r);
+        const n = rotVec(0, 1, r);
+        if (!((n[0] === 0 && n[1] === 1) || (n[0] === 1 && n[1] === 0))) return;
+        for (let i = 0; i < 8; i++) {
+          const a0 = 0.2 + i * 0.2, a1 = a0 + 0.2;
+          const A = rotUV(a0, 1.3, r), B = rotUV(a1, 1.3, r), A2 = rotUV(a0, 1.45, r), B2 = rotUV(a1, 1.45, r);
+          poly(c, [P(A[0], A[1], base + 10 / STEP), P(B[0], B[1], base + 10 / STEP), P(B2[0], B2[1], base + 8 / STEP), P(A2[0], A2[1], base + 8 / STEP)], i % 2 ? '#ffffff' : '#e87aa8');
+        }
+      } },
+    { box: [0.75, 0.5, 1.25, 0.66], h: 22, col: { l: '#3fa34d', r: '#2f7f3b', t: '#5abf68' } },    // maglietta sul tetto
+    { box: [0.62, 0.5, 1.38, 0.66], h: 19, col: { l: '#3fa34d', r: '#2f7f3b', t: '#5abf68' } },    // maniche
+  ]);
+}
+
 // Disegna la parte di edificio di un tile: case subito, edifici grandi sul tile più avanti
 // dell'impronta (così sono già stati disegnati tutti i tile su cui poggiano)
 function drawBuildingOn(c, x, y, b) {
@@ -481,6 +556,10 @@ function drawBuildingOn(c, x, y, b) {
   const base = game.map[b.ay][b.ax].elev;
   if (b.kind === 'farm') drawFarm(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'warehouse') drawWarehouse(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'goodsWarehouse') drawWarehouse(c, b.ax, b.ay, base, b.rot || 0, true);
+  else if (b.kind === 'textileMill') drawTextileMill(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'clothingFactory') drawClothingFactory(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'clothingStore') drawClothingStore(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'factory') drawFactory(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'supermarket') drawSupermarket(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'dairy') drawDairy(c, b.ax, b.ay, base, b.rot || 0);

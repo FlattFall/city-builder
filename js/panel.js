@@ -87,13 +87,13 @@ function destChoices(b) {
 // Destinazioni: se ne possono accendere più di una (clic per accendere/spegnere);
 // ogni merce va alla prima destinazione accesa che la accetta
 function destSection(box, b) {
-  box.appendChild(el('div', 'plabel', (b.kind === 'farm' ? 'Dove portare il raccolto' : b.kind === 'warehouse' ? 'Uscita: dove mandare le scorte' : 'Dove mandare la merce') + ' (anche più di una)'));
+  box.appendChild(el('div', 'plabel', (b.kind === 'farm' ? 'Dove portare il raccolto' : isWarehouse(b) ? 'Uscita: dove mandare le scorte' : 'Dove mandare la merce') + ' (anche più di una)'));
   const list = el('div', 'plist');
   const choices = destChoices(b);
   for (const { w, ok } of choices) {
     const on = b.dests.includes(w.id);
-    const name = w.kind === 'warehouse' ? 'Magazzino' : BUILDINGS[w.kind].name;
-    const btn = el('button', 'pchoice' + (on ? ' active' : ''), (on ? '✔ ' : '') + name + ' #' + w.id + (ok ? '' : ' - nessuna strada'));
+    const name = w.name || BUILDINGS[w.kind].name + ' #' + w.id;
+    const btn = el('button', 'pchoice' + (on ? ' active' : ''), (on ? '✔ ' : '') + name + (ok ? '' : ' - nessuna strada'));
     if (!ok) btn.classList.add('bad');
     btn.addEventListener('click', () => {
       b.dests = on ? b.dests.filter(id => id !== w.id) : b.dests.concat(w.id);
@@ -114,7 +114,28 @@ function renderPanel() {
   panelLive = [];
   panelShape = panelShapeOf(b);
   const head = el('div', 'phead');
-  head.append(el('b', null, BUILDINGS[b.kind].name), el('span', 'pdim', ' #' + b.id));
+  const title = el('b', 'pname', buildingName(b));
+  title.title = 'Clic per cambiare il nome';
+  const pen = el('button', 'prename', '✎');
+  pen.title = 'Cambia nome';
+  const startRename = () => {
+    const inp = el('input', 'pnameinput');
+    inp.value = buildingName(b); inp.maxLength = 28;
+    let done = false;
+    const finish = save => {
+      if (done) return; done = true;
+      const v = inp.value.trim();
+      if (save) { if (v && v !== BUILDINGS[b.kind].name) b.name = v; else delete b.name; game.dirty = true; }
+      renderPanel(); requestDraw();
+    };
+    inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') finish(true); if (e.key === 'Escape') finish(false); });
+    inp.addEventListener('blur', () => finish(true));
+    title.replaceWith(inp); pen.remove();
+    inp.focus(); inp.select();
+  };
+  title.addEventListener('click', startRename);
+  pen.addEventListener('click', startRename);
+  head.append(title, el('span', 'pdim', ' #' + b.id), pen);
   const x = el('button', 'pclose', '✕');
   x.addEventListener('click', closePanel);
   head.appendChild(x);
@@ -138,13 +159,13 @@ function renderPanel() {
     if (!accessTiles(b).length) box.appendChild(el('div', 'pwarn', "L'entrata non è collegata a una strada."));
   }
 
-  if (b.kind === 'warehouse') {
-    box.appendChild(liveText('div', 'prow', () => 'Scorte: ' + sumOf(b.store) + ' / ' + CAPS.warehouse.store));
-    box.appendChild(bar(() => sumOf(b.store), CAPS.warehouse.store));
+  if (isWarehouse(b)) {
+    box.appendChild(liveText('div', 'prow', () => 'Scorte: ' + sumOf(b.store) + ' / ' + CAPS[b.kind].store));
+    box.appendChild(bar(() => sumOf(b.store), CAPS[b.kind].store));
     box.appendChild(goodsList(() => b.store, 'Vuoto.'));
     box.appendChild(el('div', 'plabel', 'Cosa accetta (clic per cambiare)'));
     const grid = el('div', 'pgrid');
-    for (const g of Object.keys(GOODS)) {
+    for (const g of Object.keys(GOODS).filter(g => warehouseTakes(b.kind, g))) {
       const on = b.accept[g] !== false;
       const btn = el('button', 'gtoggle' + (on ? ' on' : ''));
       btn.title = GOODS[g].name + (on ? ': accettato' : ': rifiutato');
@@ -153,7 +174,8 @@ function renderPanel() {
       grid.appendChild(btn);
     }
     box.appendChild(grid);
-    box.appendChild(el('div', 'pnote', 'Fabbrica, panificio, caseificio, macello e supermercato prendono da qui quello che gli serve.'));
+    box.appendChild(el('div', 'pnote', b.kind === 'warehouse' ? 'Solo cibo e animali. Fabbrica, panificio, caseificio, macello e supermercato prendono da qui quello che gli serve.'
+      : 'Solo merci (legno, mobili, cotone, lana, tessuti, vestiti). Segheria, fabbriche e negozi prendono da qui quello che gli serve.'));
     destSection(box, b);   // uscita: dove mandare le scorte
   }
 
@@ -250,7 +272,8 @@ function panelUpdate(dt) {
   panelTimer = 0.25;
   const b = game.selected && game.buildings.get(game.selected);
   if (!b) { closePanel(); return; }
-  if (panelShapeOf(b) !== panelShape) renderPanel();   // è cambiato qualcosa di importante
+  const typing = document.activeElement && document.activeElement.classList.contains('pnameinput');
+  if (panelShapeOf(b) !== panelShape && !typing) renderPanel();   // è cambiato qualcosa di importante (non mentre si scrive il nome)
   else for (const f of panelLive) f();                  // solo numeri e barre
 }
 
@@ -262,7 +285,7 @@ function enterFieldMode(farm) {
   const fb = document.getElementById('fieldbar');
   fb.hidden = false;
   document.getElementById('fieldbar-text').textContent =
-    'Fattoria #' + farm.id + ': trascina sul terreno per mettere i campi (dentro il riquadro tratteggiato).';
+    buildingName(farm) + ' #' + farm.id + ': trascina sul terreno per mettere i campi (dentro il riquadro tratteggiato).';
   requestDraw();
 }
 

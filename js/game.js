@@ -223,6 +223,9 @@ function sameRoundabout(x, y, nx, ny) {
 // Tutti i tile occupati puntano allo stesso oggetto { kind, variant, ax, ay }.
 function houseVariant(x, y) { return Math.floor(hash(x, y, 3) * 3); }
 
+// Nome dell'edificio: quello scelto dal giocatore o quello del tipo
+function buildingName(b) { return b.name || BUILDINGS[b.kind].name; }
+
 function buildingAt(x, y) { return inMap(x, y) ? game.map[y][x].building : null; }
 
 // distanza (in tile) di un punto dall'impronta di un edificio

@@ -149,6 +149,7 @@ const PAN_SPEED = 900; // pixel dello schermo al secondo
 const keysHeld = new Set();
 
 addEventListener('keydown', e => {
+  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;   // si sta scrivendo un nome
   if (menuIsOpen()) return; // con il menu aperto la tastiera non comanda il gioco
   const k = e.key.toLowerCase();
   if (PAN_KEYS[k]) { keysHeld.add(k); e.preventDefault(); return; }

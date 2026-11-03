@@ -20,6 +20,7 @@ canvas { display: block; }
   display: flex; flex-direction: column; align-items: center; padding: 4px 6px 5px;
 }
 #toolbar .tool { width: 82px; }
+#toolbar .tool .lbl.long { font-size: 10px; letter-spacing: -0.4px; white-space: nowrap; }
 #toolbar .tool:hover, #submenu .sub:hover { background: #3a3e5e; }
 #toolbar .tool.active, #submenu .sub.active { border-color: #ffd966; background: #4a4f78; }
 #toolbar img, #submenu img { width: 64px; height: 48px; image-rendering: pixelated; display: block; }
@@ -158,3 +159,9 @@ canvas { display: block; }
 #planmsg { color: #ff9b6b; display: block; text-align: center; }
 #planmsg:empty { display: none; }
 #toolname { white-space: nowrap; text-align: center; }
+
+/* nome dell'edificio modificabile */
+.pname { cursor: text; }
+.pname:hover { text-decoration: underline dotted; }
+#panel .prename { padding: 0 5px; font-size: 12px; margin-left: 4px; }
+.pnameinput { font: inherit; font-size: 14px; width: 170px; padding: 1px 4px; color: #1a1c2c; background: #f4f4f4; border: 2px solid #ffd966; border-radius: 3px; }

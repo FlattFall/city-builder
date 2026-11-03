@@ -25,7 +25,7 @@ function initEconomy(b) {
     for (const [g, q] of Object.entries(b.stock)) if (q) b.store[g] = (b.store[g] || 0) + q;
     delete b.stock;
   }
-  if (b.kind === 'warehouse') b.accept = b.accept || {};    // accept[g] === false: non accetta g
+  if (isWarehouse(b)) b.accept = b.accept || {};    // accept[g] === false: non accetta g
   if (RECIPES[b.kind]) b.recipes = b.recipes || {};         // recipes[out] === false: ricetta spenta
   if (SHOPS[b.kind]) { b.sold = b.sold || 0; b.taxes = b.taxes || 0; }
   // destinazioni: lista di id (prima era una sola, "storage")
@@ -38,6 +38,10 @@ function initEconomy(b) {
 // Trasformatori: edifici con ricette (fabbrica, panificio, caseificio, macello)
 function isProcessor(b) { return !!RECIPES[b.kind]; }
 
+// Magazzini: alimenti e merci, ognuno con le sue categorie (WAREHOUSE_CATS)
+function isWarehouse(b) { return !!WAREHOUSE_CATS[b.kind]; }
+function warehouseTakes(kind, g) { return WAREHOUSE_CATS[kind].includes(GOODS[g].cat); }
+
 function addTo(map, g, q) { map[g] = (map[g] || 0) + q; if (map[g] <= 0) delete map[g]; }
 
 // Ricette attive che usano la merce g
@@ -49,7 +53,7 @@ function usesInput(b, g) {
 function freeFor(b, g) {
   const caps = CAPS[b.kind];
   if (!caps) return 0;
-  if (b.kind === 'warehouse') return b.accept[g] === false ? 0 : caps.store - sumOf(b.store);
+  if (isWarehouse(b)) return (!warehouseTakes(b.kind, g) || b.accept[g] === false) ? 0 : caps.store - sumOf(b.store);
   if (isProcessor(b)) return usesInput(b, g) ? caps.input - sumOf(b.input) : 0;
   if (SHOPS[b.kind]) return shopOf(g) === b.kind ? caps.store - sumOf(b.store) : 0;   // ogni negozio vende le sue merci
   return 0;
@@ -66,9 +70,9 @@ function receive(b, g, q) {
   else addTo(b.store, g, q);
 }
 
-function buildingLabel(b) { return BUILDINGS[b.kind].name.toLowerCase() + ' #' + b.id; }
+function buildingLabel(b) { return b.name ? '"' + b.name + '"' : BUILDINGS[b.kind].name.toLowerCase() + ' #' + b.id; }
 
-const VAN_STRIPES = { farm: '#3fa34d', warehouse: '#3f6fd9', factory: '#e07b39', bakery: '#8a5a3a',
+const VAN_STRIPES = { farm: '#3fa34d', warehouse: '#3f6fd9', goodsWarehouse: '#e07b39', textileMill: '#d94f8a', clothingFactory: '#8e5bd1', factory: '#e07b39', bakery: '#8a5a3a',
   dairy: '#8fc6e8', slaughterhouse: '#c83232', forestry: '#2f6b2a', sawmill: '#c9a25a', furnitureFactory: '#8a5a3a', cowFarm: '#2b2b33', chickenFarm: '#e8c23a', pigFarm: '#e8899a', sheepFarm: '#c9c4b8' };
 
 // Il furgone di "from" porta q unità di g a "to" e poi torna indietro
@@ -114,7 +118,7 @@ function pushGoods(b) {
   for (const id of b.dests) {
     const to = game.buildings.get(id);
     // due magazzini che si mandano la merce a vicenda la farebbero girare all'infinito
-    if (b.kind === 'warehouse' && to.kind === 'warehouse' && to.dests.includes(b.id)) {
+    if (isWarehouse(b) && isWarehouse(to) && to.dests.includes(b.id)) {
       why = why || 'Due magazzini non possono mandarsi la merce a vicenda'; continue;
     }
     let best = null, bq = 0;
@@ -144,7 +148,7 @@ function pullGoods(b) {
     .sort((x, y) => ((b.input || b.store)[x] || 0) - ((b.input || b.store)[y] || 0)); // prima quello che manca di più
   if (!wanted.length) return;
   for (const w of game.buildings.values()) {
-    if (w.kind !== 'warehouse' || w.van || !w.workers) continue;
+    if (!isWarehouse(w) || w.van || !w.workers) continue;
     const g = wanted.find(x => (w.store[x] || 0) > 0);
     if (!g) continue;
     if (sendGoods(w, b, g, Math.min(w.store[g], VAN_CAPACITY, roomFor(b, g)))) return;
@@ -260,8 +264,8 @@ function economyUpdate(dt) {
     else if (NATURE[b.kind]) updateLivestock(b, dt);
     else if (isProcessor(b)) updateProducer(b, dt);
     else if (SHOPS[b.kind]) updateShop(b, dt);
-    else if (b.kind === 'warehouse') {
-      b.full = sumOf(b.store) >= CAPS.warehouse.store;
+    else if (isWarehouse(b)) {
+      b.full = sumOf(b.store) >= CAPS[b.kind].store;
       if (b.workers) pushGoods(b);   // uscita: manda le scorte alle destinazioni scelte
     }
   }
