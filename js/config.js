@@ -158,6 +158,7 @@ const CAPS = {
 // ogni merce va alla prima destinazione che la accetta)
 const ANIMAL_DESTS = ['warehouse', 'dairy', 'slaughterhouse', 'supermarket'];
 const DEST_KINDS = {
+  warehouse: ['warehouse', 'factory', 'bakery', 'dairy', 'slaughterhouse', 'supermarket'],
   farm: ['warehouse', 'factory', 'supermarket'],
   factory: ['warehouse', 'supermarket', 'bakery'],
   bakery: ['warehouse', 'supermarket'],

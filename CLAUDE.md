@@ -53,7 +53,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - Ogni attività ha `store` (merce pronta) e, se trasforma, `input`. `initEconomy(b)` prepara i dati e converte i vecchi salvataggi (`inventory`, `stock`).
 - Spinta: chi produce manda la merce alle destinazioni `b.dests` (`pushGoods`: per ogni destinazione la merce più abbondante che accetta; almeno `VAN_MIN_LOAD` in totale). I vecchi salvataggi con `storage` vengono convertiti in `dests`. Rifornimento: fabbrica/panificio/supermercato chiedono ai magazzini (`pullGoods`); il supermercato lascia la precedenza ai produttori per le merci che trasformano (es. farina). `expect` = merce già in viaggio verso un edificio (riserva lo spazio).
 - `sendGoods`: furgone dall'entrata alla destinazione e ritorno; un furgone per edificio (`b.van`).
-- Magazzino: `accept[g] === false` = rifiuta. Ricette: `recipes[out] === false` = spenta.
+- Magazzino: `accept[g] === false` = rifiuta. Ha anche un'uscita: `dests` (DEST_KINDS.warehouse: altri magazzini, fabbrica, panificio, caseificio, macello, supermercato), spinta con `pushGoods` se ha personale; due magazzini che si puntano a vicenda vengono saltati. Ricette: `recipes[out] === false` = spenta.
 - Supermercato: clienti = abitanti entro `SHOP.radius`; ogni `SHOP.tick` compra `buyRate` dei clienti; tasse `TAX_RATE` del prezzo a `game.money`.
 - `buildingStatus(b)`: icone noRoad/noWorkers/fewWorkers/full/noInput/empty (`drawWorkerIcons`). Casa: noRoad se non ha strada accanto o se `b.unreachable` (`checkHouseLinks` in vehicles.js: BFS dalle entrate della mappa ogni ~3 s).
 - Icone delle merci: `GOOD_ICONS` (`drawGoodIcon` in ui.js), usate nei pannelli.
@@ -73,7 +73,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - Impronta da (ax, ay) verso +x e +y; tutti i tile puntano allo stesso oggetto `{ kind, variant, ax, ay }`. Serve terreno piano e libero. Gli edifici grandi si disegnano sul tile più avanti dell'impronta (`drawBuildingOn`), con `box` e `gableRoof`.
 
 ## Barra strumenti
-- `TOOL_GROUPS` in `ui.js`: 1 Mano, 2 Strade (strada, terra, binari, campo), 3 Case, 4 Industrie (fattoria, allevamenti di mucche/polli/maiali/pecore, magazzino, fabbrica alimentare, caseificio, macello, panificio, supermercato), 5 Demolisci. Il tasto numerico ripetuto passa al prossimo strumento del gruppo. Le icone sono disegnate con le funzioni di `render.js` (`buildIcons`).
+- `TOOL_GROUPS` in `ui.js`: 1 Mano, 2 Strade (strada, terra, binari; il campo non è nella barra: si usa solo in modalità campi della fattoria, `checkTool` lo rifiuta senza `game.fieldMode`, `setTool` accetta strumenti senza gruppo), 3 Case, 4 Industrie (fattoria, allevamenti di mucche/polli/maiali/pecore, magazzino, fabbrica alimentare, caseificio, macello, panificio, supermercato), 5 Demolisci. Il tasto numerico ripetuto passa al prossimo strumento del gruppo. Le icone sono disegnate con le funzioni di `render.js` (`buildIcons`).
 
 ## Menu e salvataggi
 - `menu.js`: menu principale/pausa (Riprendi e Salva solo se `game.started`), Nuova mappa (scelta grandezza), Carica, Opzioni ("ci stiamo lavorando"), Esci (`window.close()` in Electron). Esc apre/chiude il menu (prima chiude il sottomenu).

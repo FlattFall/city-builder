@@ -390,6 +390,8 @@ function checkTool(tool, x, y) {
     return null;
   }
   if (tool === 'field') {
+    // i campi si mettono solo dalla fattoria (modalità campi)
+    if (!game.fieldMode) return { msg: 'I campi si mettono dalla fattoria' };
     // un campo già fatto ma senza fattoria si può assegnare a una fattoria vicina
     if (t.field) return (!t.farm && farmForField(x, y)) ? null : { silent: true };
     if (game.fieldMode && !farmForField(x, y)) return { msg: 'Troppo lontano dalla fattoria (max ' + FARM.fieldRadius + ' tile)' };

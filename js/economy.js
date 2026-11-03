@@ -113,6 +113,10 @@ function pushGoods(b) {
   let why = '';
   for (const id of b.dests) {
     const to = game.buildings.get(id);
+    // due magazzini che si mandano la merce a vicenda la farebbero girare all'infinito
+    if (b.kind === 'warehouse' && to.kind === 'warehouse' && to.dests.includes(b.id)) {
+      why = why || 'Due magazzini non possono mandarsi la merce a vicenda'; continue;
+    }
     let best = null, bq = 0;
     for (const [g, q] of Object.entries(b.store)) if (q > bq && roomFor(to, g) > 0) { best = g; bq = q; }
     if (!best) { why = why || 'Le destinazioni non accettano questa merce o sono piene'; continue; }
@@ -239,7 +243,10 @@ function economyUpdate(dt) {
     else if (LIVESTOCK[b.kind]) updateLivestock(b, dt);
     else if (isProcessor(b)) updateProducer(b, dt);
     else if (b.kind === 'supermarket') updateShop(b, dt);
-    else if (b.kind === 'warehouse') b.full = sumOf(b.store) >= CAPS.warehouse.store;
+    else if (b.kind === 'warehouse') {
+      b.full = sumOf(b.store) >= CAPS.warehouse.store;
+      if (b.workers) pushGoods(b);   // uscita: manda le scorte alle destinazioni scelte
+    }
   }
 }
 

@@ -80,14 +80,14 @@ function onBuildingRemoved(b) { if (game.selected === b.id) closePanel(); }
 // Destinazioni possibili per la merce di un edificio, con raggiungibilità su strada
 function destChoices(b) {
   const from = accessTiles(b);
-  return [...game.buildings.values()].filter(w => (DEST_KINDS[b.kind] || []).includes(w.kind))
+  return [...game.buildings.values()].filter(w => w !== b && (DEST_KINDS[b.kind] || []).includes(w.kind))
     .map(w => ({ w, ok: !!findRoute(from, accessTiles(w)) }));
 }
 
 // Destinazioni: se ne possono accendere più di una (clic per accendere/spegnere);
 // ogni merce va alla prima destinazione accesa che la accetta
 function destSection(box, b) {
-  box.appendChild(el('div', 'plabel', (b.kind === 'farm' ? 'Dove portare il raccolto' : 'Dove mandare la merce') + ' (anche più di una)'));
+  box.appendChild(el('div', 'plabel', (b.kind === 'farm' ? 'Dove portare il raccolto' : b.kind === 'warehouse' ? 'Uscita: dove mandare le scorte' : 'Dove mandare la merce') + ' (anche più di una)'));
   const list = el('div', 'plist');
   const choices = destChoices(b);
   for (const { w, ok } of choices) {
@@ -153,7 +153,8 @@ function renderPanel() {
       grid.appendChild(btn);
     }
     box.appendChild(grid);
-    box.appendChild(el('div', 'pnote', 'Fabbrica, panificio e supermercato prendono da qui quello che gli serve.'));
+    box.appendChild(el('div', 'pnote', 'Fabbrica, panificio, caseificio, macello e supermercato prendono da qui quello che gli serve.'));
+    destSection(box, b);   // uscita: dove mandare le scorte
   }
 
   if (b.kind === 'farm') {

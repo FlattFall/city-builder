@@ -26,7 +26,7 @@ const TOOL_INFO = {
 // Gruppi della barra: il tasto numerico sceglie il gruppo (premuto di nuovo passa al prossimo)
 const TOOL_GROUPS = [
   { key: '1', id: 'hand',     label: 'Mano',      tools: ['hand'] },
-  { key: '2', id: 'paths',    label: 'Strade',    tools: ['road', 'dirt', 'rail', 'field'] },
+  { key: '2', id: 'paths',    label: 'Strade',    tools: ['road', 'dirt', 'rail'] },
   { key: '3', id: 'homes',    label: 'Case',      tools: ['house'] },
   { key: '4', id: 'industry', label: 'Industrie', tools: ['farm', 'cowFarm', 'chickenFarm', 'pigFarm', 'sheepFarm',
     'warehouse', 'factory', 'dairy', 'slaughterhouse', 'bakery', 'supermarket'] },
@@ -310,12 +310,12 @@ function selectGroupByKey(key) {
 function setTool(id) {
   if (id !== 'field' && game.fieldMode && typeof exitFieldMode === 'function') exitFieldMode(true);
   game.tool = id;
-  const g = groupOf(id);
-  groupChoice[g.id] = id;
+  const g = groupOf(id);   // il campo non è in nessun gruppo: si usa solo dalla fattoria
+  if (g) groupChoice[g.id] = id;
   for (const gr of TOOL_GROUPS) {
     const b = document.getElementById('group-' + gr.id);
     if (!b) continue;
-    b.classList.toggle('active', gr.id === g.id);
+    b.classList.toggle('active', !!g && gr.id === g.id);
     b.querySelector('img').src = ICONS[groupChoice[gr.id]];
   }
   for (const b of document.querySelectorAll('#submenu .sub')) b.classList.toggle('active', b.dataset.tool === id);

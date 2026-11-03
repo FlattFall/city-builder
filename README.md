@@ -32,7 +32,7 @@ Sul tuo PC: `npm install` e poi `npm run dist`; l'.exe compare nella cartella `d
 - Esc o il pulsante **Menu**: Riprendi, Salva partita, Nuova mappa (4 grandezze: 128, 256, 512, 1024), Carica mappa, Opzioni, Esci
 - Barra in basso (tasti 1-5; premendo di nuovo lo stesso numero passi alla scelta successiva del gruppo):
   1. **Mano**: trascina la mappa
-  2. **Strade**: strada, strada di terra, binari, campo coltivabile
+  2. **Strade**: strada, strada di terra, binari (i campi si mettono dalla fattoria)
   3. **Case**
   4. **Industrie**: fattoria, allevamenti (mucche, polli, maiali, pecore), magazzino alimenti, fabbrica alimentare, caseificio, macello, panificio, supermercato
   5. **Demolisci**: demolisci, alza terreno, abbassa terreno, livella terreno
@@ -59,7 +59,7 @@ Le partite salvate restano sul PC (versione programma) o nel browser usato (vers
 - **Caseificio**: latte → formaggio, burro, yogurt.
 - **Macello e industria della carne**: animali → carne fresca, salsicce, prosciutto, carne confezionata.
 - Ogni attività può mandare la merce a più destinazioni (scegline una o più nel pannello).
-- **Magazzino**: scegli con le immagini cosa accetta. Fabbrica, panificio e supermercato si riforniscono dai magazzini.
+- **Magazzino**: scegli con le immagini cosa accetta e, nella sezione Uscita, dove mandare le scorte. Fabbrica, panificio e supermercato si riforniscono dai magazzini.
 - **Supermercato**: riceve verdure dalle fattorie, pane dai panifici, carne dai macelli, formaggi dal caseificio, prodotti confezionati dalle fabbriche; vende agli abitanti vicini e incassi il 30% del prezzo come tasse.
 - Icone sopra gli edifici: strada sbarrata = casa (o attività) non collegata alla strada, persona = mancano lavoratori, casse = deposito pieno, cassa vuota = mancano materie prime, scaffale = supermercato vuoto.
 

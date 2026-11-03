@@ -334,11 +334,12 @@ function check(cond, msg) {
     useTool('dirt', c - 18, c + 2);
     r.dirtToRoad = roadLinked(c - 19, c + 2, 1);
     r.rails = game.rails;
-    // campi
-    useTool('field', c - 10, c + 10); useTool('field', c - 9, c + 10);
-    r.fields = game.fields === 2 && !useTool('road', c - 10, c + 10).ok;
+    // campi: senza fattoria non si possono mettere
+    r.noLoose = !useTool('field', c - 10, c + 10).ok && game.fields === 0;
     // fattoria 2x2: occupa 4 tile, non si sovrappone, la ruspa la toglie tutta
     r.farm = useTool('farm', c - 6, c + 10).ok && game.map[c + 11][c - 5].building === game.map[c + 10][c - 6].building;
+    useTool('field', c - 9, c + 10); useTool('field', c - 8, c + 10); exitFieldMode();
+    r.fields = r.noLoose && game.fields === 2 && !useTool('road', c - 9, c + 10).ok;
     r.overlap = !useTool('warehouse', c - 5, c + 11).ok;
     r.wh = useTool('warehouse', c - 2, c + 10).ok && game.industries === 2;
     demolish(c - 5, c + 11);
@@ -348,7 +349,7 @@ function check(cond, msg) {
   check(more.railRamp, 'binari: rampa sul gradino, collegati sopra e sotto');
   check(more.railNotRoad, 'binari e strade sono reti separate');
   check(more.dirtToRoad, 'strada di terra collegata alla strada asfaltata');
-  check(more.fields, 'campi coltivabili (e niente strada sopra un campo)');
+  check(more.fields, 'campi solo dalla fattoria (e niente strada sopra un campo)');
   check(more.farm && more.overlap, 'fattoria 2x2 su 4 tile, senza sovrapposizioni');
   check(more.wh, 'magazzino alimenti costruito');
   check(more.farmGone, 'la ruspa demolisce tutta la fattoria');
@@ -525,9 +526,10 @@ function check(cond, msg) {
     r.house = useTool('house', c + 12, c + 12).ok;
     // fattoria lontana dalle case: niente lavoratori, niente crescita
     game.rotation = 0;
-    useTool('farm', c + 40, c + 3); exitFieldMode();
+    useTool('farm', c + 40, c + 3);
     const farm = [...game.buildings.values()].find(b => b.kind === 'farm');
     for (let x = c + 39; x <= c + 43; x++) useTool('field', x, c + 6);
+    exitFieldMode();
     farm.fields = farmFieldCount(farm);
     // entrata con rotazione 0: davanti a sinistra (tile ax, ay+1 -> strada su ay+2)
     const ent = entranceOf(farm);
@@ -713,6 +715,34 @@ function check(cond, msg) {
   check(an.sheepMountain, 'pecore anche in montagna, mucche no');
   check(an.noRoad && an.island, 'simbolo "non collegata" sulle case senza strada o scollegate');
   check(an.migrate, 'vecchi salvataggi: destinazione singola convertita');
+
+  // 28. magazzino con uscita: manda le scorte alle destinazioni scelte; niente giro tra due magazzini
+  const wo = await page.evaluate(() => {
+    clearVehicles(); newGame(1, 128);
+    const N = game.size, c = N / 2, r = {};
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, rb: null, elev: 2 });
+    recount(); game.money = 1e6;
+    for (let x = 0; x < N; x++) { useTool('road', x, c); game.map[c][x].main = true; }
+    game.entries = [{ x: 0, y: c }, { x: N - 1, y: c }];
+    game.rotation = 2;
+    for (const [k, x] of [['warehouse', -6], ['warehouse', -3], ['supermarket', 0]]) useTool(k, c + x, c + 1);
+    game.rotation = 0;
+    for (let x = c - 7; x <= c + 2; x++) useTool('house', x, c - 1);
+    const ws = [...game.buildings.values()].filter(b => b.kind === 'warehouse'), sm = [...game.buildings.values()].find(b => b.kind === 'supermarket');
+    const [w1, w2] = ws;
+    r.noSelf = !destChoices(w1).some(d => d.w === w1) && destChoices(w1).some(d => d.w === sm);
+    w1.store = { cheese: 40, wheat: 40 };
+    w1.dests = [sm.id];
+    for (let i = 0; i < 600; i++) simUpdate(0.1);
+    r.toShop = (sm.store.cheese || 0) + sm.sold > 0 && (w1.store.wheat || 0) === 40;   // il grano il supermercato non lo vende
+    clearVehicles();
+    w1.store = { wheat: 30 }; w2.store = {}; w1.dests = [w2.id]; w2.dests = [w1.id]; w1.van = w2.van = null; w1.retry = w2.retry = 0;
+    for (let i = 0; i < 100; i++) simUpdate(0.1);
+    r.noLoop = !w1.van && !w2.van && /vicenda/.test(w1.status);
+    return r;
+  });
+  check(wo.noSelf && wo.toShop, 'magazzino: uscita verso il supermercato (solo merce che accetta)');
+  check(wo.noLoop, 'due magazzini non si mandano la merce a vicenda');
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();
