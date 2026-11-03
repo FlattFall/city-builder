@@ -85,7 +85,7 @@ function sendGoods(from, to, g, q) {
     arrive() {
       const t = game.buildings.get(tid), f = game.buildings.get(fid);
       if (t) { addTo(t.expect, g, -q); receive(t, g, Math.min(q, Math.max(0, freeFor(t, g)))); }
-      if (!f) return;
+      if (!f) { if (t) leaveMap({ kind: 'van', stripe }, accessTiles(t)); return; }   // casa del furgone demolita: se ne va
       const back = t && findRoute(accessTiles(t), accessTiles(f));
       if (!back) { f.van = null; f.status = ''; return; }
       f.status = 'Furgone di ritorno';

@@ -35,7 +35,9 @@ const PATHS = {
 // Ponti: si trascinano da una sponda all'altra (dritti, lunghi quanto si vuole).
 // Salgono di un livello per tile dalle teste del ponte; sotto devono restare almeno
 // clear livelli liberi (clearPath se sotto c'è una strada o un binario).
-const BRIDGE = { costPerTile: 40, clear: 1, clearPath: 2, speed: 1 };
+const BRIDGE = { costPerTile: 40, clearPath: 2, speed: 1 };
+// Tunnel: dritti, dentro colline e montagne; l'uscita si vede in anteprima prima di costruire
+const TUNNEL = { costPerTile: 80 };
 
 // ---------- Edifici (w x h = tile occupati) ----------
 const BUILDINGS = {

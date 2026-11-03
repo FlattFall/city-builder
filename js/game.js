@@ -170,7 +170,8 @@ function roadLinked(x, y, d) {
 function topHeightPx(x, y, withBuildings) {
   const t = game.map[y][x];
   const b = withBuildings && t.building ? BUILDINGS[t.building.kind].height : 0;
-  const deck = withBuildings && t.bridge ? Math.max(...game.bridges.get(t.bridge.id).e) * STEP + 3 : 0;
+  const over = withBuildings && bridgeOver(t);
+  const deck = over ? Math.max(...over.e) * STEP + 3 : 0;
   return Math.max(Math.max(...cornerHeights(x, y)) * STEP + b, deck);
 }
 
@@ -391,7 +392,7 @@ function checkTool(tool, x, y) {
       if (t.main && (PATHS[tool].oneway || tool === 'dirt')) return { msg: 'La strada principale resta a doppio senso e asfaltata' };
       return null;
     }
-    if (t.bridge && deckMin(game.bridges.get(t.bridge.id), t.bridge.i) < t.elev + BRIDGE.clearPath)
+    if (bridgeOver(t) && deckMin(bridgeOver(t), t.bridge.i) < t.elev + BRIDGE.clearPath)
       return { msg: "Sotto il ponte non c'è abbastanza spazio" };
     if (t.building) return { msg: "C'è già un edificio" };
     if (t.field) return { msg: "C'è un campo: demolisci prima" };
@@ -400,7 +401,7 @@ function checkTool(tool, x, y) {
   }
   if (tool === 'raise' || tool === 'lower' || tool === 'level') {
     if (t.building || t.path) return { msg: 'Libera il terreno prima di modellarlo' };
-    if (t.bridge) return { msg: "Sopra c'è un ponte" };
+    if (t.bridge) return { msg: isTunnel(bridgeAt(x, y)) ? "Sotto c'è un tunnel" : "Sopra c'è un ponte" };
     if (tool === 'raise' && t.elev >= MAX_ELEV) return { msg: 'Più in alto non si può' };
     if (tool === 'lower' && t.type === T.WATER) return { msg: 'Più in basso non si può' };
     if (tool === 'level' && game.levelTarget != null && t.elev === game.levelTarget) return { silent: true };
@@ -422,7 +423,8 @@ function checkTool(tool, x, y) {
     for (const p of footprint(tool, x, y)) {
       if (!inMap(p.x, p.y)) return { msg: 'Fuori dalla mappa' };
       const q = game.map[p.y][p.x];
-      if (q.bridge) return { msg: 'Sotto il ponte non si può costruire' };
+      const over = bridgeOver(q);   // sotto un ponte ci stanno solo le case basse (1x1)
+      if (over && (b.w > 1 || deckMin(over, q.bridge.i) < q.elev + buildingClear(tool))) return { msg: 'Sotto il ponte non c\'è abbastanza spazio' };
       if (q.building || q.path || q.field || !isBuildable(q))
         return { msg: b.w > 1 ? 'Serve uno spazio libero ' + b.w + 'x' + b.h : 'Qui non si può costruire' };
       if (q.elev !== t.elev) return { msg: 'Serve un terreno piano ' + b.w + 'x' + b.h };
@@ -431,12 +433,14 @@ function checkTool(tool, x, y) {
     }
     return null;
   }
-  if (tool === 'bridge') {
-    if (t.building || t.bridge || t.field || !isBuildable(t) || (t.path && netOf(t.path) !== 'road')) return { msg: 'Qui non può partire un ponte' };
+  if (tool === 'bridge' || tool === 'tunnel') {
+    if (t.building || t.bridge || !isBuildable(t) || (t.path && netOf(t.path) !== 'road')) return { msg: 'Qui non può partire un ' + (tool === 'bridge' ? 'ponte' : 'tunnel') };
     return null;
   }
   if (tool === 'demolish') {
-    if (t.bridge) return null;   // prima si toglie il ponte
+    const over = bridgeOver(t);
+    if (over) return over.main ? { msg: 'La strada principale non si può demolire' } : null;   // prima si toglie il ponte
+    if (t.bridge && !t.building && !t.path && !t.field && t.type !== T.FOREST) return null;  // poi il tunnel sotto
     if (!t.building && t.path && t.main) return { msg: 'La strada principale non si può demolire' };
     if (t.building || t.path || t.field || t.type === T.FOREST) return null;
     return { silent: true };
@@ -456,9 +460,10 @@ function toolCost(tool, x, y) {
   if (tool === 'level') return COSTS.terrain * Math.abs((game.levelTarget ?? t.elev) - t.elev);
   if (BUILDINGS[tool]) return BUILDINGS[tool].cost;
   if (tool === 'demolish') {
-    if (t.bridge) return COSTS.demolishPath * (game.bridges.get(t.bridge.id).n - 1);
+    if (bridgeOver(t)) return COSTS.demolishPath * (bridgeOver(t).n - 1);
     if (t.building) return COSTS.demolishBuilding;
     if (t.path) return COSTS.demolishPath;
+    if (t.bridge && t.type !== T.FOREST && !t.field) return COSTS.demolishPath * (bridgeAt(x, y).n - 1);
     if (t.field) return COSTS.demolishField;
     return COSTS.clearForest;
   }
@@ -507,8 +512,9 @@ function useTool(tool, x, y) {
     const target = tool === 'raise' ? t.elev + 1 : tool === 'lower' ? t.elev - 1 : game.levelTarget;
     setElevation(x, y, target);
   } else if (tool === 'demolish') {
-    // priorità: ponte > edificio > percorso > campo > alberi
-    if (t.bridge) removeBridge(game.bridges.get(t.bridge.id));
+    // priorità: ponte > edificio > percorso > campo > alberi > tunnel sotto
+    const tun = t.bridge && !bridgeOver(t) ? bridgeAt(x, y) : null;
+    if (bridgeOver(t)) removeBridge(bridgeOver(t));
     else if (t.building) removeBuilding(t.building);
     else if (t.path) {
       if (t.path === 'rail') game.rails--; else game.roads--;
@@ -519,9 +525,9 @@ function useTool(tool, x, y) {
       t.field = false; t.farm = null;
       game.fields--;
       if (farm) farm.fields = farmFieldCount(farm);
-    } else {
-      t.type = T.GRASS;
-    }
+    } else if (t.type === T.FOREST || !tun) {
+      t.type = t.type === T.FOREST ? T.GRASS : t.type;
+    } else removeBridge(tun);
   }
   return { ok: true };
 }
@@ -540,7 +546,7 @@ function removeBuilding(b) {
   }
   // chi mandava merce qui non ha più destinazione
   for (const f of game.buildings.values()) if (f.dests) f.dests = f.dests.filter(id => id !== b.id);
-  if (typeof removeVehiclesFor === 'function') removeVehiclesFor(b.id);
+  if (typeof removeVehiclesFor === 'function') removeVehiclesFor(b.id, b);
   if (typeof onBuildingRemoved === 'function') onBuildingRemoved(b);
 }
 

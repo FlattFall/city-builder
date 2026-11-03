@@ -823,6 +823,100 @@ function check(cond, msg) {
   check(rd.saved, 'salvataggio con ponti, sensi unici e autostrade');
   check(rd.demolish && rd.headGone, 'demolizione del ponte (anche togliendo la testa)');
 
+  // 30. traslochi quando si demolisce una casa, ponti della strada principale, tunnel
+  const mv = await page.evaluate(() => {
+    clearVehicles(); newGame(1, 128);
+    const N = game.size, c = N / 2, r = {};
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, rb: null, bridge: null, elev: 2 });
+    recount(); resetBridges(); game.money = 1e7;
+    for (let x = 0; x < N; x++) { useTool('road', x, c); game.map[c][x].main = true; }
+    game.entries = [{ x: 0, y: c }, { x: N - 1, y: c }];
+    useTool('house', 20, c - 1); useTool('house', 40, c - 1);
+    const [h1, h2] = [...game.buildings.values()];
+    h1.residents = 3; recount();
+    const pop0 = game.population;
+    // chi abita nella casa demolita prende l'auto e va nell'altra casa
+    useTool('demolish', 20, c - 1);
+    r.carOut = vehicles.some(v => v.target === h2.id && v.people === 3) && h2.incoming === 3;
+    for (let i = 0; i < 400 && h2.residents < 3; i++) simUpdate(0.1);
+    r.moved = h2.residents === 3 && game.population === pop0;
+    // un'auto diretta a una casa demolita non sparisce: se non c'è posto esce dalla mappa
+    clearVehicles(); h2.residents = 4; h2.incoming = 0;
+    useTool('house', 60, c - 1);
+    const h3 = [...game.buildings.values()].find(b => b.ax === 60);
+    const route = findRoute(entryTiles(), accessTiles(h3));
+    h3.incoming = 2;
+    spawnVehicle({ kind: 'car', target: h3.id, people: 2, tiles: route, pts: routePoints(route, true), ptOff: 1, speed: CAR_SPEED, color: '#d94141', arrive() {}, cancel() {} });
+    for (let i = 0; i < 20; i++) simUpdate(0.1);
+    const car = vehicles[0];
+    useTool('demolish', 60, c - 1);
+    r.redirected = vehicles.includes(car) && car.target === null;
+    for (let i = 0; i < 600 && vehicles.includes(car); i++) simUpdate(0.1);
+    const last = car.pts[car.pts.length - 1];
+    r.leftMap = !vehicles.includes(car) && (last[0] < 0 || last[0] > N);
+    // furgone diretto a un edificio demolito: torna indietro con la merce
+    clearVehicles();
+    game.rotation = 2;
+    useTool('warehouse', 80, c + 1); useTool('supermarket', 90, c + 1);
+    for (let x = 78; x <= 92; x++) useTool('house', x, c - 1);
+    updateJobs();
+    const wh = [...game.buildings.values()].find(b => b.kind === 'warehouse'), sm = [...game.buildings.values()].find(b => b.kind === 'supermarket');
+    wh.store = { cheese: 30 };
+    sendGoods(wh, sm, 'cheese', 20);
+    for (let i = 0; i < 10; i++) simUpdate(0.1);
+    const van = wh.van;
+    useTool('demolish', 90, c + 1);
+    r.vanBack = vehicles.includes(van) && van.to === null;
+    for (let i = 0; i < 600 && wh.van; i++) simUpdate(0.1);
+    r.goodsBack = !wh.van && (wh.store.cheese || 0) >= 30;
+    // tunnel: collina alta da x 100 a 106, entrata a x 99
+    for (let y = c + 5; y < c + 15; y++) for (let x = 100; x <= 106; x++) game.map[y][x].elev = x === 100 || x === 106 ? 4 : 6;
+    for (let y = c + 1; y <= c + 9; y++) useTool('road', 98, y);
+    useTool('road', 99, c + 9);
+    const tp = planTunnel({ x: 99, y: c + 9 }, 1);
+    r.tunnelPlan = tp.ok && tp.n === 8 && tp.tiles[8].x === 107;
+    r.tunnel = buildBridge(tp).ok;
+    useTool('road', 108, c + 9); useTool('house', 108, c + 10);
+    const th = [...game.buildings.values()].find(b => b.kind === 'house' && b.ax === 108);
+    const tr = findRoute(entryTiles(), accessTiles(th));
+    r.throughTunnel = !!tr && tr.some(([x, , L]) => x === 103 && L === 1);
+    r.onTop = useTool('road', 103, c + 9).ok && !useTool('lower', 102, c + 9).ok;
+    r.noHill = !planTunnel({ x: 50, y: c + 20 }, 1).ok;
+    saveGame(); const sid = game.saveId; loadGame(sid); deleteSave(sid);
+    r.tunnelSaved = [...game.bridges.values()].some(b => b.kind === 'tunnel');
+    useTool('demolish', 99, c + 9);
+    r.tunnelGone = ![...game.bridges.values()].some(b => b.kind === 'tunnel');
+    // casa sotto un ponte alto: ci sta
+    useTool('road', 30, c + 19); useTool('road', 30, c + 29);
+    r.houseFirst = useTool('house', 30, c + 24).ok;
+    const hb = planBridge({ x: 30, y: c + 19 }, { x: 30, y: c + 29 });
+    r.houseUnder = r.houseFirst && hb.ok && buildBridge(hb).ok && !useTool('warehouse', 30, c + 22).ok && !useTool('house', 30, c + 21).ok;   // dove il ponte è basso no
+    return r;
+  });
+  check(mv.carOut && mv.moved, 'casa demolita: gli abitanti vanno in auto in un\'altra casa');
+  check(mv.redirected && mv.leftMap, 'auto diretta a una casa demolita: non sparisce, esce dalla mappa');
+  check(mv.vanBack && mv.goodsBack, 'furgone verso un edificio demolito: torna indietro con la merce');
+  check(mv.tunnelPlan && mv.tunnel && mv.throughTunnel, 'tunnel dritto sotto la collina, le auto ci passano');
+  check(mv.onTop && mv.noHill, 'strade sopra il tunnel sì, terreno modellato no; senza collina niente tunnel');
+  check(mv.tunnelSaved && mv.tunnelGone, 'tunnel salvato e demolito togliendo la testa');
+  check(mv.houseUnder, 'case basse sotto un ponte alto (edifici grandi no)');
+  // strada principale: sull'acqua ponti con i pilastri invece della sabbia
+  const mr2 = await page.evaluate(() => {
+    let bridges = 0, wet = 0, ok = 0, maps = 0;
+    for (let s = 1; s <= 40; s++) {
+      clearVehicles(); newGame(s, 128); maps++;
+      for (const b of game.bridges.values()) if (b.main) {
+        bridges++;
+        for (let i = 1; i < b.n; i++) { const [x, y] = bridgeTile(b, i); if (game.map[y][x].type === T.WATER) wet++; }
+      }
+      const [a, b] = game.entries;
+      if (a && b && findRoute([[a.x, a.y]], [[b.x, b.y]])) ok++;
+    }
+    return { bridges, wet, ok, maps };
+  });
+  check(mr2.bridges > 0 && mr2.wet > 0, `strada principale: ${mr2.bridges} ponti sull'acqua in 40 mappe`);
+  check(mr2.ok === mr2.maps, `strada principale percorribile da un bordo all'altro: ${mr2.ok}/${mr2.maps}`);
+
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();
 })();

@@ -1,18 +1,22 @@
-// ---------- Ponti ----------
-// Un ponte va dritto da una testa all'altra (si trascina, lungo quanto si vuole).
-// game.bridges: id -> { id, x0, y0, d, n, e }
+// ---------- Ponti e tunnel ----------
+// Un ponte (o un tunnel) va dritto da una testa all'altra.
+// game.bridges: id -> { id, kind ('bridge' | 'tunnel'), x0, y0, d, n, e, main? }
 //   (x0, y0) = prima testa, d = direzione verso l'altra testa, n = distanza tra le teste,
-//   e[k] = quota (in livelli) del bordo tra il tile k e il tile k+1 lungo il ponte (k = 0..n-1).
-// Le teste (tile 0 e n) sono strade normali a terra; i tile in mezzo hanno t.bridge = { id, i }
-// e sotto possono avere terreno, acqua, strade o binari (le auto ci passano sotto).
-// Il ponte sale di un livello per tile dalle teste, solo quanto serve per passare sopra
-// a quello che c'è sotto.
+//   e[k] = quota (in livelli) della strada sul bordo tra il tile k e il tile k+1 (k = 0..n-1).
+// Le teste (tile 0 e n) sono strade normali a terra; i tile in mezzo hanno t.bridge = { id, i }.
+// Ponte: passa sopra a terreno, acqua, strade, binari (e case basse); sale di un livello per
+//   tile dalle teste, solo quanto serve.
+// Tunnel: passa dentro una collina o una montagna, dritto; l'uscita è il primo tile
+//   dall'altra parte che non è più alto dell'entrata.
 
 function bridgeTile(b, i) { return [b.x0 + DIRS[b.d].dx * i, b.y0 + DIRS[b.d].dy * i]; }
 function bridgeAt(x, y) {
   const t = inMap(x, y) && game.map[y][x].bridge;
   return t ? game.bridges.get(t.id) : null;
 }
+function isTunnel(b) { return b && b.kind === 'tunnel'; }
+// sopra il tile c'è un ponte vero (non un tunnel sotto terra)
+function bridgeOver(t) { const b = t.bridge && game.bridges.get(t.bridge.id); return b && !isTunnel(b) ? b : null; }
 
 // Indice delle teste: tile -> [{ d, b }] (d = direzione in cui parte il ponte da quella testa)
 function rebuildBridgeIndex() {
@@ -29,13 +33,13 @@ function rebuildBridgeIndex() {
   }
 }
 function bridgesAtHead(x, y) { return (game.bridgeHeads && game.bridgeHeads.get(y * game.size + x)) || []; }
-// Ponte che parte dalla testa (x, y) verso la direzione d (o null)
+// Ponte o tunnel che parte dalla testa (x, y) verso la direzione d (o null)
 function bridgeFromHead(x, y, d) {
   const h = bridgesAtHead(x, y).find(o => o.d === d);
   return h ? h.b : null;
 }
 
-// Quota più bassa dell'impalcato sopra il tile i
+// Quota più bassa della strada sopra il tile i
 function deckMin(b, i) { return Math.min(b.e[i - 1], b.e[i]); }
 
 // Quota della strada del ponte nel punto (mx, my) della mappa
@@ -56,67 +60,127 @@ function deckCorners(b, i) {
   });
 }
 
-// Prova a progettare un ponte da a a b (allineati sulla stessa fila o colonna).
+// Livelli liberi che servono sotto un ponte per un edificio (le case basse ci stanno)
+function buildingClear(kind) { return Math.ceil((BUILDINGS[kind].height + 3) / STEP); }
+
+// Problemi di una testa (null se va bene). d = direzione verso il ponte/tunnel.
+// Restituisce anche la quota del bordo verso il ponte (deve essere in piano).
+function headInfo(p, d) {
+  const t = game.map[p.y][p.x];
+  if (t.building) return { msg: "Sulla testa c'è un edificio" };
+  if (t.bridge) return { msg: "La testa è sopra un altro ponte o tunnel" };
+  if (!isBuildable(t)) return { msg: "Le teste vanno sulla terraferma, non nell'acqua" };
+  if (t.path && netOf(t.path) !== 'road') return { msg: 'Le teste vanno su una strada, non sui binari' };
+  if (t.rb) return { msg: 'Le teste non possono stare su una rotonda' };
+  const h = cornerHeights(p.x, p.y), [k1, k2] = EDGES[d];
+  if (t.path && h[k1] !== h[k2]) return { msg: 'La strada della testa è inclinata di lato' };
+  return { e: t.path ? h[k1] : t.elev };
+}
+
+function linePlan(kind, a, d, n) {
+  const plan = { ok: false, kind, d, n, x0: a.x, y0: a.y, tiles: [] };
+  for (let i = 0; i <= n; i++) plan.tiles.push({ x: a.x + DIRS[d].dx * i, y: a.y + DIRS[d].dy * i });
+  return plan;
+}
+function planCost(plan, perTile) {
+  const heads = [plan.tiles[0], plan.tiles[plan.n]];
+  return (plan.n - 1) * perTile + heads.filter(p => !game.map[p.y][p.x].path).length * PATHS.road.cost;
+}
+
+// Prova a progettare un ponte da a a b (sulla stessa fila o colonna: si raddrizza da solo).
 // Restituisce { ok, msg, tiles, x0, y0, d, n, e, cost }
 function planBridge(a, b) {
-  const plan = { ok: false, tiles: [a], msg: "Trascina fino all'altra sponda" };
-  if (!b || (a.x === b.x && a.y === b.y)) return plan;
+  if (!b || (a.x === b.x && a.y === b.y)) return { ok: false, kind: 'bridge', tiles: [a], msg: "Ora clicca (o trascina) fino all'altra sponda" };
   let dx = b.x - a.x, dy = b.y - a.y;
   if (Math.abs(dx) >= Math.abs(dy)) dy = 0; else dx = 0;   // sempre dritto
   const n = Math.abs(dx + dy);
   const d = DIRS.findIndex(D => D.dx === Math.sign(dx) && D.dy === Math.sign(dy));
-  Object.assign(plan, { d, n, x0: a.x, y0: a.y, tiles: [] });
-  for (let i = 0; i <= n; i++) plan.tiles.push({ x: a.x + DIRS[d].dx * i, y: a.y + DIRS[d].dy * i });
+  const plan = linePlan('bridge', a, d, n);
   const fail = msg => Object.assign(plan, { msg });
   if (plan.tiles.some(p => !inMap(p.x, p.y))) return fail('Fuori dalla mappa');
   if (n < 2) return fail('Ponte troppo corto: serve almeno un tile in mezzo');
-  const heads = [plan.tiles[0], plan.tiles[n]];
-  for (const p of heads) {
-    const t = game.map[p.y][p.x];
-    if (t.building) return fail("Sulla testa del ponte c'è un edificio");
-    if (t.bridge) return fail('La testa del ponte è sotto un altro ponte');
-    if (!isBuildable(t)) return fail('Le teste del ponte vanno sulla terraferma');
-    if (t.field) return fail("Sulla testa del ponte c'è un campo");
-    if (t.path && netOf(t.path) !== 'road') return fail('Le teste del ponte vanno su una strada, non sui binari');
-    if (t.path && (t.rb || rampDir(p.x, p.y) >= 0)) return fail('Le teste del ponte devono essere in piano');
-  }
+  const A = headInfo(plan.tiles[0], d), B = headInfo(plan.tiles[n], (d + 2) % 4);
+  if (A.msg || B.msg) return fail(A.msg || B.msg);
   for (let i = 1; i < n; i++) {
     const t = game.map[plan.tiles[i].y][plan.tiles[i].x];
-    if (t.building) return fail("Sotto il ponte c'è un edificio");
-    if (t.bridge) return fail("C'è già un ponte");
+    if (t.bridge) return fail("C'è già un ponte o un tunnel");
+    if (t.building && BUILDINGS[t.building.kind].w > 1) return fail("Sotto il ponte c'è un edificio grande");
   }
-  const eA = game.map[heads[0].y][heads[0].x].elev, eB = game.map[heads[1].y][heads[1].x].elev;
-  if (Math.abs(eA - eB) > n - 1) return fail('Troppo dislivello tra le due teste: allunga il ponte');
-  // quota minima sopra ogni tile: niente terreno che buca il ponte, spazio per le auto sotto
+  const eA = A.e, eB = B.e;
+  if (Math.abs(eA - eB) > n - 1) return fail('Troppo dislivello tra le due sponde: allunga il ponte');
+  // quota minima sopra ogni tile: il terreno non deve bucare il ponte, sotto le auto e le case ci stanno
   const need = [];
   for (let i = 1; i < n; i++) {
     const p = plan.tiles[i], t = game.map[p.y][p.x];
-    need[i] = Math.max(...cornerHeights(p.x, p.y)) + (t.path ? BRIDGE.clearPath : 0);
+    const top = Math.max(...cornerHeights(p.x, p.y));
+    need[i] = t.building ? t.elev + buildingClear(t.building.kind) : top + (t.path ? BRIDGE.clearPath : 0);
   }
-  for (let D = Math.max(eA, eB); D <= MAX_ELEV + 8; D++) {
+  for (let D = Math.max(eA, eB); D <= MAX_ELEV + 10; D++) {
     const e = [];
     for (let k = 0; k < n; k++) e.push(Math.min(D, eA + k, eB + (n - 1 - k)));
     let ok = true;
     for (let i = 1; i < n && ok; i++) if (Math.min(e[i - 1], e[i]) < need[i]) ok = false;
     if (!ok) continue;
-    plan.e = e; plan.ok = true; plan.msg = '';
-    plan.cost = (n - 1) * BRIDGE.costPerTile + heads.filter(p => !game.map[p.y][p.x].path).length * PATHS.road.cost;
-    return plan;
+    return Object.assign(plan, { e, ok: true, msg: '', cost: planCost(plan, BRIDGE.costPerTile) });
   }
-  return fail('Il ponte non riesce a salire abbastanza: allungalo o parti più in alto');
+  // dove non ci sta: il primo tile troppo vicino alle teste per salire abbastanza
+  return fail('Il ponte non fa in tempo a salire sopra quello che c\'è sotto: allungalo di qualche tile');
 }
 
-function buildBridge(plan) {
+// Tunnel dall'entrata a, verso la collina in direzione d: dritto finché il terreno è più alto
+function planTunnelDir(a, d) {
+  const plan = linePlan('tunnel', a, d, 0);
+  const fail = msg => Object.assign(plan, { msg });
+  const A = headInfo(a, d);
+  if (A.msg) return fail(A.msg);
+  const eA = A.e;
+  let i = 1;
+  for (;; i++) {
+    const x = a.x + DIRS[d].dx * i, y = a.y + DIRS[d].dy * i;
+    if (!inMap(x, y)) { Object.assign(plan, linePlan('tunnel', a, d, i - 1)); return fail('La collina continua fino al bordo della mappa'); }
+    const t = game.map[y][x];
+    if (t.bridge) { Object.assign(plan, linePlan('tunnel', a, d, i)); return fail("C'è già un ponte o un tunnel in mezzo"); }
+    if (t.elev <= eA) break;      // qui il terreno torna giù: è l'uscita
+  }
+  Object.assign(plan, linePlan('tunnel', a, d, i), { d });
+  if (i < 2) return fail('Qui davanti non c\'è una collina');
+  const out = plan.tiles[i], B = headInfo(out, (d + 2) % 4);
+  if (B.msg) return fail("All'uscita: " + B.msg.charAt(0).toLowerCase() + B.msg.slice(1));
+  const eB = B.e;
+  if (eA - eB > i - 1) return fail("Dall'altra parte il terreno è troppo più basso");
+  const e = [];
+  for (let k = 0; k < i; k++) e.push(Math.max(eB, eA - k));   // scende piano piano dentro la collina
+  return Object.assign(plan, { e, ok: true, msg: '', cost: planCost(plan, TUNNEL.costPerTile) });
+}
+
+// Tunnel a partire dal tile a: prova le direzioni dove c'è una collina (prima quella scelta con R)
+function planTunnel(a, prefer) {
+  let firstFail = null;
+  for (let k = 0; k < 4; k++) {
+    const d = (prefer + k) % 4, nx = a.x + DIRS[d].dx, ny = a.y + DIRS[d].dy;
+    if (!inMap(nx, ny) || game.map[ny][nx].elev <= game.map[a.y][a.x].elev) continue;
+    const p = planTunnelDir(a, d);
+    if (p.ok) return p;
+    firstFail = firstFail || p;
+  }
+  return firstFail || { ok: false, kind: 'tunnel', tiles: [a], msg: 'Mettilo ai piedi di una collina o di una montagna' };
+}
+
+// Costruisce il ponte o il tunnel progettato. opts.free = gratis, opts.main = fa parte della strada principale
+function buildBridge(plan, opts) {
+  opts = opts || {};
   if (!plan || !plan.ok) return { ok: false, msg: plan && plan.msg };
-  if (!spend(plan.cost)) return { ok: false, msg: 'Fondi insufficienti' };
-  const b = { id: game.nextBridgeId++, x0: plan.x0, y0: plan.y0, d: plan.d, n: plan.n, e: plan.e.slice() };
+  if (!opts.free && !spend(plan.cost)) return { ok: false, msg: 'Fondi insufficienti' };
+  const b = { id: game.nextBridgeId++, kind: plan.kind || 'bridge', x0: plan.x0, y0: plan.y0, d: plan.d, n: plan.n, e: plan.e.slice() };
+  if (opts.main) b.main = true;
   for (const i of [0, b.n]) {   // le teste diventano strada se non lo sono già
     const p = plan.tiles[i], t = game.map[p.y][p.x];
-    if (!t.path) { if (t.type === T.FOREST) t.type = T.GRASS; setPath(p.x, p.y, 'road'); game.roads++; }
+    if (t.field) { t.field = false; t.farm = null; game.fields--; }
+    if (!t.path) { if (t.type === T.FOREST) t.type = T.GRASS; setPath(p.x, p.y, 'road'); game.roads++; if (opts.main) t.main = true; }
   }
   for (let i = 1; i < b.n; i++) {
     const p = plan.tiles[i], t = game.map[p.y][p.x];
-    if (t.type === T.FOREST) t.type = T.GRASS;   // gli alberi sotto vengono tagliati
+    if (b.kind === 'bridge' && t.type === T.FOREST) t.type = T.GRASS;   // gli alberi sotto il ponte vengono tagliati
     t.bridge = { id: b.id, i };
   }
   game.bridges.set(b.id, b);

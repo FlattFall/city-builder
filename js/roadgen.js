@@ -1,6 +1,7 @@
 // ---------- Strada principale ----------
 // Ogni mappa nuova ha una strada che arriva da un bordo, attraversa l'isola seguendo il
-// terreno ed esce dal bordo opposto. Sull'acqua passa su un terrapieno di sabbia.
+// terreno ed esce dal bordo opposto. Sull'acqua passa su un ponte (dritto) con i pilastri;
+// se lì un ponte non si può fare, su un terrapieno di sabbia.
 // Da queste due estremità arrivano le auto dei nuovi abitanti.
 
 // Coda con priorità (min-heap) per la ricerca del percorso
@@ -66,11 +67,13 @@ function mainRoadSearch(sx, sy, horizontal) {
       return path.reverse();
     }
     const e = roadgenElev(game.map[y][x]);
+    const wet = game.map[y][x].type === T.WATER;   // sull'acqua si va dritti (diventerà un ponte)
     const px = x - DIRS[dir].dx, py = y - DIRS[dir].dy;
     const cameDown = s !== s0 && inMap(px, py) && roadgenElev(game.map[py][px]) > e;
     for (let nd = 0; nd < 4; nd++) {
       if (nd === (dir + 2) % 4) continue;
       if (cameDown && nd !== dir) continue;      // questo tile sarà una rampa: si va dritti
+      if (wet && nd !== dir) continue;
       const nx = x + DIRS[nd].dx, ny = y + DIRS[nd].dy;
       if (!inMap(nx, ny)) continue;
       const nt = game.map[ny][nx];
@@ -98,14 +101,38 @@ function generateMainRoad() {
     path = horizontal ? mainRoadSearch(0, a, true) : mainRoadSearch(a, 0, false);
   }
   if (!path) return [];
-  for (const [x, y] of path) {
+  // tratti sull'acqua: dal tile di terra prima a quello dopo
+  const wet = ([x, y]) => game.map[y][x].type === T.WATER;
+  const runs = [];
+  for (let i = 0; i < path.length; i++) {
+    if (!wet(path[i])) continue;
+    let j = i;
+    while (j + 1 < path.length && wet(path[j + 1])) j++;
+    runs.push([i, j]);
+    i = j;
+  }
+  const isBridgeTile = new Set();
+  for (const [i, j] of runs) if (i > 0 && j < path.length - 1) for (let k = i; k <= j; k++) isBridgeTile.add(k);
+  path.forEach(([x, y], k) => {
+    if (isBridgeTile.has(k)) return;   // qui ci va il ponte: l'acqua resta
     const t = game.map[y][x];
-    if (t.type === T.WATER) { t.type = T.SAND; t.elev = 1; }  // terrapieno
+    if (t.type === T.WATER) { t.type = T.SAND; t.elev = 1; }  // terrapieno (acqua sul bordo della mappa)
     if (t.type === T.FOREST) t.type = T.GRASS;
     setPath(x, y, 'road');
     t.main = true;
-  }
-  for (const [x, y] of path) fillDips(x, y);
+  });
+  for (const [x, y] of path) if (game.map[y][x].path) fillDips(x, y);
   updateRoundabouts();
+  for (const [i, j] of runs) {
+    if (i === 0 || j === path.length - 1) continue;
+    const a = path[i - 1], b = path[j + 1];
+    const plan = planBridge({ x: a[0], y: a[1] }, { x: b[0], y: b[1] });
+    if (plan.ok) { buildBridge(plan, { free: true, main: true }); continue; }
+    for (let k = i; k <= j; k++) {   // il ponte non va: terrapieno di sabbia come prima
+      const [x, y] = path[k], t = game.map[y][x];
+      t.type = T.SAND; t.elev = 1; setPath(x, y, 'road'); t.main = true;
+    }
+    updateRoundabouts();
+  }
   return [{ x: path[0][0], y: path[0][1] }, { x: path[path.length - 1][0], y: path[path.length - 1][1] }];
 }

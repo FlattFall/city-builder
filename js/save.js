@@ -40,7 +40,7 @@ function serializeGame() {
     v: 3, seed: game.seed, size: N, money: game.money, nextId: game.nextId,
     entries: game.entries, diffs, paths, fields,
     buildings: [...game.buildings.values()].map(buildingData),
-    bridges: [...game.bridges.values()].map(b => ({ id: b.id, x0: b.x0, y0: b.y0, d: b.d, n: b.n, e: b.e })),
+    bridges: [...game.bridges.values()].map(b => ({ id: b.id, kind: b.kind || 'bridge', x0: b.x0, y0: b.y0, d: b.d, n: b.n, e: b.e, main: b.main || undefined })),
   };
 }
 

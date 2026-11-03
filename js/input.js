@@ -3,7 +3,8 @@
 // Destro o centrale (trascinando) = muovi la mappa
 
 let panning = false, painting = false, lastX = 0, lastY = 0, lastTile = null;
-let bridgeStart = null;            // testa del ponte che si sta trascinando
+let bridgeStart = null;            // prima testa del ponte (si trascina, oppure clic e poi clic sull'altra sponda)
+let bridgeDown = false;            // tasto premuto durante il ponte
 const paintedNow = new Set();      // tile fatti in questa passata (per girare la freccia del senso unico)
 
 // Percorso a 4 direzioni tra due tile, così le strade trascinate restano collegate
@@ -49,14 +50,29 @@ let downX = 0, downY = 0, handDown = false;
 
 canvas.addEventListener('mousedown', e => {
   closeSubmenu();
+  if (e.button === 2 && bridgeStart) { bridgeStart = null; game.bridgePlan = null; requestDraw(); return; }   // annulla il ponte
   if (e.button === 1 || e.button === 2 || (e.button === 0 && game.tool === 'hand')) {
     panning = true; lastX = e.clientX; lastY = e.clientY;
     downX = e.clientX; downY = e.clientY; handDown = e.button === 0;
     canvas.style.cursor = 'grabbing';
   } else if (e.button === 0 && game.tool === 'bridge') {
-    // ponte: si tiene premuto sulla prima testa e si trascina fino all'altra
+    // ponte: si preme sulla prima sponda e si trascina fino all'altra (oppure un clic per sponda)
     const tile = pickTile(e.clientX, e.clientY);
-    if (tile) { bridgeStart = tile; game.bridgePlan = planBridge(tile, null); requestDraw(); }
+    if (!tile) return;
+    bridgeDown = true;
+    if (!bridgeStart) bridgeStart = tile;
+    game.bridgePlan = planBridge(bridgeStart, tile);
+    requestDraw();
+  } else if (e.button === 0 && game.tool === 'tunnel') {
+    // tunnel: un clic ai piedi della collina; l'anteprima mostra già da dove esce
+    const tile = pickTile(e.clientX, e.clientY);
+    const plan = tile && planTunnel(tile, rotationDir());
+    if (!plan) return;
+    const r = buildBridge(plan);
+    if (r.ok) { game.dirty = true; updateHud(); toast('Tunnel costruito'); }
+    else if (r.msg) toast(r.msg);
+    game.bridgePlan = planTunnel(tile, rotationDir());
+    requestDraw();
   } else if (e.button === 0) {
     painting = true;
     paintedNow.clear();
@@ -75,11 +91,15 @@ addEventListener('mouseup', e => {
     if (b) openBuildingPanel(b); else if (panelIsOpen()) closePanel();
   }
   handDown = false;
-  if (bridgeStart) {
-    const r = buildBridge(game.bridgePlan);
-    if (r.ok) { game.dirty = true; updateHud(); }
-    else if (r.msg && game.bridgePlan.tiles.length > 1) toast(r.msg);
-    bridgeStart = null; game.bridgePlan = null; requestDraw();
+  if (bridgeStart && bridgeDown) {
+    bridgeDown = false;
+    const plan = game.bridgePlan;
+    if (plan && plan.tiles.length > 1) {   // c'è anche l'altra sponda: si costruisce (o si spiega perché no)
+      const r = buildBridge(plan);
+      if (r.ok) { game.dirty = true; updateHud(); } else if (r.msg) toast(r.msg);
+      bridgeStart = null; game.bridgePlan = null;
+    } else toast("Ora clicca sull'altra sponda (tasto destro per annullare)");
+    requestDraw();
   }
   panning = false; painting = false; lastTile = null;
   canvas.style.cursor = game.tool === 'hand' ? 'grab' : 'crosshair';
@@ -96,6 +116,7 @@ addEventListener('mousemove', e => {
   game.hover = pickTile(e.clientX, e.clientY);
   if (painting && game.hover) paintTo(game.hover);
   if (bridgeStart && game.hover) game.bridgePlan = planBridge(bridgeStart, game.hover);
+  if (game.tool === 'tunnel') game.bridgePlan = game.hover ? planTunnel(game.hover, rotationDir()) : null;
   updateInfo();
   requestDraw();
 });

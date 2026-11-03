@@ -640,8 +640,10 @@ function drawBridgeSpan(c, x, y, b, i) {
   const alongU = DIRS[b.d].dx !== 0;
   const ground = Math.max(...cornerHeights(x, y));
   const low = Math.min(...h) - DECK_T;
-  // pilastri ai due lati (la strada sotto resta libera)
-  if (low > ground + 0.15) {
+  // pilastri ai due lati, ma mai sopra strade, binari o case: lì il ponte passa sopra senza appoggiarsi
+  const under = game.map[y] && game.map[y][x];
+  const free = !(under && (under.path || under.building));
+  if (low > ground + 0.15 && free) {
     for (const o of [0.1, 0.9]) {
       const [u0, v0, u1, v1] = alongU ? [0.43, o - 0.06, 0.57, o + 0.06] : [o - 0.06, 0.43, o + 0.06, 0.57];
       box(c, x, y, ground, u0, v0, u1, v1, (heightIn(h, 0.5, 0.5) - DECK_T - ground) * STEP, { l: DECK.pillarL, r: DECK.pillarR });
@@ -665,9 +667,45 @@ function drawBridgeSpan(c, x, y, b, i) {
   }
 }
 
+// Bocca del tunnel: arco di pietra sul fianco della collina verso la testa (solo sui lati che si vedono)
+function drawPortal(c, x, y, face, floor) {
+  if (face !== 1 && face !== 2) return;
+  const [k1, k2] = EDGES[face];
+  const [u1, v1] = CORNERS[k1], [u2, v2] = CORNERS[k2];
+  const at = (f, z) => iso(x, y, u1 + (u2 - u1) * f, v1 + (v2 - v1) * f, floor + z);
+  const arch = (f0, f1, z0, zs, zt) => {
+    const pts = [at(f0, z0)];
+    for (let k = 0; k <= 8; k++) { const f = f0 + (f1 - f0) * k / 8; pts.push(at(f, zs + (zt - zs) * Math.sin(Math.PI * k / 8))); }
+    pts.push(at(f1, z0));
+    return pts;
+  };
+  const s = Math.max(0.5, Math.min(1, (game.map[y][x].elev - floor) / 1.25));   // collina bassa: arco più basso
+  poly(c, arch(0.1, 0.9, 0, 0.75 * s, 1.25 * s), face === 2 ? '#b9b4aa' : '#9a958b');   // cornice di pietra
+  poly(c, arch(0.2, 0.8, 0, 0.6 * s, 1.0 * s), '#16161c');                               // galleria buia
+  line(c, at(0.2, 0.02), at(0.8, 0.02), '#2c2c34');
+}
+
+// Anteprima del tunnel: entrata e uscita evidenziate, percorso tratteggiato sopra la collina
+function drawTunnelPlanTile(c, x, y, plan, i) {
+  const P = surface(x, y), a = 0.1, b = 0.9;
+  const shape = () => { c.beginPath(); c.moveTo(...P(a, a)); c.lineTo(...P(b, a)); c.lineTo(...P(b, b)); c.lineTo(...P(a, b)); c.closePath(); };
+  const head = i === 0 || i === plan.n;
+  if (head) {
+    shape();
+    c.fillStyle = plan.ok ? (i === 0 ? 'rgba(93,255,122,0.35)' : 'rgba(93,200,255,0.45)') : 'rgba(255,93,93,0.35)'; c.fill();
+    c.strokeStyle = plan.ok ? (i === 0 ? '#5dff7a' : '#5dc8ff') : '#ff5d5d'; c.lineWidth = 1.5; c.stroke();
+    if (plan.ok && plan.n > 0) drawPortal(c, ...(i === 0 ? bridgeTile(plan, 1) : bridgeTile(plan, plan.n - 1)), i === 0 ? (plan.d + 2) % 4 : plan.d, plan.e[i === 0 ? 0 : plan.n - 1]);
+    return;
+  }
+  c.setLineDash([3, 2]);
+  shape(); c.strokeStyle = plan.ok ? '#ffd966' : '#ff5d5d'; c.lineWidth = 1; c.stroke();
+  c.setLineDash([]);
+}
+
 // Anteprima del ponte che si sta trascinando: impalcato trasparente se va bene,
 // contorno rosso sui tile se non si può fare
 function drawBridgePlanTile(c, x, y, plan, i) {
+  if (plan.kind === 'tunnel') { drawTunnelPlanTile(c, x, y, plan, i); return; }
   if (plan.ok && i > 0 && i < plan.n) {
     c.globalAlpha = 0.7;
     drawBridgeSpan(c, x, y, plan, i);
@@ -830,7 +868,12 @@ function drawFrame() {
       if (vs) for (const v of vs) drawVehicle(ctx, v);
       // ponte sopra questo tile, poi le auto che ci passano sopra
       const tb = game.map[y][x].bridge;
-      if (tb) drawBridgeSpan(ctx, x, y, game.bridges.get(tb.id), tb.i);
+      if (tb) {
+        const br = game.bridges.get(tb.id);
+        if (!isTunnel(br)) drawBridgeSpan(ctx, x, y, br, tb.i);
+        else if (tb.i === 1) drawPortal(ctx, x, y, (br.d + 2) % 4, br.e[0]);           // bocca verso la prima testa
+        if (isTunnel(br) && tb.i === br.n - 1) drawPortal(ctx, x, y, br.d, br.e[br.n - 1]);  // e verso l'altra
+      }
       if (planKeys && planKeys.has(y * game.size + x)) drawBridgePlanTile(ctx, x, y, plan, planKeys.get(y * game.size + x));
       const vb = vmap.get(nodeKey(x, y, 1));
       if (vb) for (const v of vb) drawVehicle(ctx, v);

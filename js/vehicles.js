@@ -72,7 +72,7 @@ function findRoute(starts, goals) {
   const goalSet = new Set(goals.map(([x, y]) => nodeKey(x, y, 0)));
   const prev = new Map();
   const queue = [];
-  for (const [x, y] of starts) { const k = nodeKey(x, y, 0); if (!prev.has(k)) { prev.set(k, -1); queue.push(k); } }
+  for (const [x, y, L] of starts) { const k = nodeKey(x, y, L || 0); if (!prev.has(k)) { prev.set(k, -1); queue.push(k); } }
   for (let qi = 0; qi < queue.length; qi++) {
     const k = queue[qi];
     if (goalSet.has(k)) {
@@ -100,7 +100,7 @@ function surfaceHeight(mx, my) {
 // Dai tile del percorso ai punti che l'auto segue: centro dei tile e bordi tra un tile
 // e l'altro, spostati sulla corsia di destra (al centro sui sensi unici).
 // Ogni punto è [mx, my, quota, velocità, livello]
-function routePoints(tiles, fromOutside) {
+function routePoints(tiles, fromOutside, toOutside) {
   const dirOf = (a, b) => DIRS.findIndex(D => D.dx === b[0] - a[0] && D.dy === b[1] - a[1]);
   const right = d => [-DIRS[d].dy, DIRS[d].dx];
   const n = tiles.length, pts = [];
@@ -132,7 +132,80 @@ function routePoints(tiles, fromOutside) {
       pts.push([mx, my, H(mx, my, I, J), (I.speed + J.speed) / 2, Math.max(I.L, J.L)]);
     }
   }
+  if (toOutside) { // esce dalla mappa: va avanti fino a un tile oltre il bordo
+    const [x, y] = tiles[n - 1], N = game.size;
+    const d = x === 0 ? 3 : x === N - 1 ? 1 : y === 0 ? 0 : 2;
+    const r = right(d), o = info[n - 1].off;
+    const mx = x + 0.5 + DIRS[d].dx * 1.5 + r[0] * o, my = y + 0.5 + DIRS[d].dy * 1.5 + r[1] * o;
+    pts.push([mx, my, surfaceHeight(mx, my), info[n - 1].speed, 0]);
+  }
   return pts;
+}
+
+// ---------- Cambi di programma ----------
+// Prossimo nodo [x, y, livello] del percorso del veicolo (da lì si ricalcola la strada)
+function vehicleNextNode(v) {
+  const o = v.ptOff || 0;
+  const ti = Math.min(v.tiles.length - 1, Math.max(0, Math.ceil((v.seg + 1 - o) / 2)));
+  return v.tiles[ti];
+}
+
+// Il veicolo cambia destinazione senza sparire: da dove si trova va verso goals
+// (tile di strada a terra). out = poi esce dalla mappa. false se non c'è strada.
+function redirectVehicle(v, goals, out) {
+  const start = vehicleNextNode(v);
+  const route = start && findRoute([start], goals);
+  if (!route) return false;
+  const cur = vehiclePos(v), pts = routePoints(route, false, out);
+  v.pts = [[cur.mx, cur.my, cur.h, pts[0][3], cur.layer], ...pts];
+  v.ptOff = 1; v.tiles = route; v.seg = 0; v.s = 0;
+  v.keys = new Set(route.map(([x, y, L]) => nodeKey(x, y, L)));
+  return true;
+}
+
+// Case con posto libero, prima le più vicine al punto (x, y)
+function housesWithRoom(x, y) {
+  return [...game.buildings.values()]
+    .filter(h => h.kind === 'house' && h.residents + h.incoming < HOUSE_CAPACITY)
+    .sort((a, b) => Math.abs(a.ax - x) + Math.abs(a.ay - y) - Math.abs(b.ax - x) - Math.abs(b.ay - y));
+}
+
+// Un'auto con n persone va a vivere in una casa con posto (o esce dalla mappa se non ce ne sono).
+// v = auto già in strada da dirottare, oppure null per farne partire una nuova da starts.
+function relocate(n, starts, v, color) {
+  const here = v ? vehicleNextNode(v) : starts[0];
+  if (!here) return;
+  for (const h of housesWithRoom(here[0], here[1]).slice(0, 12)) {
+    const take = Math.min(n, HOUSE_CAPACITY - h.residents - h.incoming);
+    const ok = v ? redirectVehicle(v, accessTiles(h)) : !!findRoute(starts, accessTiles(h));
+    if (!ok) continue;
+    h.incoming += take;
+    const id = h.id;
+    const arrive = () => { const hh = game.buildings.get(id); if (hh) { hh.incoming -= take; hh.residents += take; game.population += take; updateHud(); } };
+    const cancel = () => { const hh = game.buildings.get(id); if (hh) hh.incoming -= take; };
+    if (v) Object.assign(v, { target: id, people: take, arrive, cancel });
+    else {
+      const route = findRoute(starts, accessTiles(h));
+      spawnVehicle({ kind: 'car', target: id, people: take, tiles: route, pts: routePoints(route, false), speed: CAR_SPEED,
+        color: color || CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)], arrive, cancel });
+    }
+    if (take < n) relocate(n - take, starts && starts.length ? starts : [here], null, v && v.color);   // gli altri cercano un'altra casa
+    return;
+  }
+  // nessuna casa libera: se ne vanno dalla mappa
+  if (v) {
+    if (redirectVehicle(v, entryTiles(), true)) Object.assign(v, { target: null, arrive() {}, cancel() {} });
+    else vehicles = vehicles.filter(o => o !== v);
+  } else leaveMap({ kind: 'car', color: color || CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)] }, starts);
+}
+
+// Fa partire un veicolo che esce dalla mappa (se c'è una strada fino al bordo)
+function leaveMap(v, starts) {
+  const route = findRoute(starts, entryTiles());
+  if (!route) return false;
+  spawnVehicle(Object.assign({ tiles: route, pts: routePoints(route, false, true), speed: v.kind === 'van' ? VAN_SPEED : CAR_SPEED,
+    arrive() {}, cancel() {} }, v));
+  return true;
 }
 
 function spawnVehicle(v) {
@@ -176,7 +249,7 @@ function spawnResident() {
     const n = Math.min(HOUSE_CAPACITY - b.residents - b.incoming, 1 + Math.floor(Math.random() * 2));
     b.incoming += n;
     spawnVehicle({
-      kind: 'car', target: b.id, people: n, tiles: route, pts: routePoints(route, true),
+      kind: 'car', target: b.id, people: n, tiles: route, pts: routePoints(route, true), ptOff: 1,
       speed: CAR_SPEED, color: CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)],
       arrive() {
         const h = game.buildings.get(b.id);
@@ -246,11 +319,32 @@ function simUpdate(dt) {
   if (vehicles.length) requestDraw();
 }
 
-// Un edificio demolito: spariscono i veicoli diretti lì o che ne partivano
-function removeVehiclesFor(id) {
-  const gone = vehicles.filter(v => v.target === id || v.from === id || v.to === id);
-  vehicles = vehicles.filter(v => !gone.includes(v));
-  for (const v of gone) v.cancel && v.cancel();
+// Un edificio demolito: i veicoli non spariscono, cambiano programma.
+//  - auto dirette alla casa: vanno in un'altra casa con posto, altrimenti escono dalla mappa
+//  - chi abitava nella casa prende l'auto e fa lo stesso
+//  - furgoni diretti lì: tornano a casa con la merce; furgoni senza più casa: escono dalla mappa
+function removeVehiclesFor(id, b) {
+  for (const v of vehicles.slice()) {
+    if (v.target === id) relocate(v.people || 1, null, v);
+    else if (v.kind === 'van' && v.to === id) {
+      const home = game.buildings.get(v.from), g = v.good, q = v.load, fid = v.from;
+      if (home && redirectVehicle(v, accessTiles(home))) {
+        home.status = 'Destinazione demolita: il furgone torna indietro';
+        Object.assign(v, { to: null, arrive() { const f = game.buildings.get(fid); if (f) { addTo(f.store, g, q); f.van = null; f.status = ''; } },
+          cancel() { const f = game.buildings.get(fid); if (f) { addTo(f.store, g, q); f.van = null; } } });
+      } else if (redirectVehicle(v, entryTiles(), true)) Object.assign(v, { to: null, from: null, arrive() {}, cancel() {} });
+      else { vehicles = vehicles.filter(o => o !== v); if (home) { home.van = null; addTo(home.store, g, q); } }
+    } else if (v.kind === 'van' && v.from === id && !v.to) {   // furgone di ritorno verso un edificio che non c'è più
+      if (redirectVehicle(v, entryTiles(), true)) Object.assign(v, { from: null, arrive() {}, cancel() {} });
+      else vehicles = vehicles.filter(o => o !== v);
+    }
+    // i furgoni partiti da un edificio demolito finiscono la consegna (poi escono dalla mappa)
+  }
+  // chi abitava nella casa demolita trasloca
+  if (b && b.kind === 'house' && b.residents > 0) {
+    const starts = accessTiles(b);
+    if (starts.length) relocate(b.residents, starts, null);
+  }
 }
 
 // Un ponte demolito: spariscono i veicoli che dovevano passarci sopra
@@ -288,6 +382,9 @@ function vehiclesByTile() {
     v.pos = p;
     const tx = Math.min(game.size - 1, Math.max(0, Math.floor(p.mx + 0.22)));
     const ty = Math.min(game.size - 1, Math.max(0, Math.floor(p.my + 0.22)));
+    // dentro un tunnel non si vedono
+    const inT = p.layer && bridgeAt(Math.floor(p.mx), Math.floor(p.my));
+    if (inT && isTunnel(inT) && game.map[Math.floor(p.my)][Math.floor(p.mx)].bridge.id === inT.id) continue;
     const k = nodeKey(tx, ty, p.layer);   // quelli sul ponte si disegnano dopo l'impalcato
     if (!m.has(k)) m.set(k, []);
     m.get(k).push(v);
