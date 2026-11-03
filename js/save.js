@@ -16,8 +16,8 @@ function writeSaves(list) {
 // (formato 2) "aaaab" -> [["a",4],["b",1]]
 function unrle(runs) { return runs.map(([ch, n]) => ch.repeat(n)).join(''); }
 
-const PATH_CODES = { road: 1, dirt: 2, rail: 3 };
-const PATH_FROM_CODE = { 1: 'road', 2: 'dirt', 3: 'rail' };
+const PATH_CODES = { road: 1, dirt: 2, rail: 3, oneway: 4, highway: 5 };
+const PATH_FROM_CODE = { 1: 'road', 2: 'dirt', 3: 'rail', 4: 'oneway', 5: 'highway' };
 
 // dati da salvare di un edificio (senza quelli che valgono solo mentre si gioca)
 function buildingData(b) {
@@ -33,13 +33,14 @@ function serializeGame() {
     for (let x = 0; x < N; x++) {
       const t = game.map[y][x], i = y * N + x;
       if (t.type !== base.type[i] || t.elev !== base.elev[i]) diffs.push([x, y, t.type, t.elev]);
-      if (t.path) paths.push([x, y, PATH_CODES[t.path], t.main ? 1 : 0]);
+      if (t.path) paths.push(t.path === 'oneway' ? [x, y, PATH_CODES[t.path], t.main ? 1 : 0, t.dir ?? 1] : [x, y, PATH_CODES[t.path], t.main ? 1 : 0]);
       if (t.field) fields.push([x, y, t.farm || 0]);
     }
   return {
     v: 3, seed: game.seed, size: N, money: game.money, nextId: game.nextId,
     entries: game.entries, diffs, paths, fields,
     buildings: [...game.buildings.values()].map(buildingData),
+    bridges: [...game.bridges.values()].map(b => ({ id: b.id, x0: b.x0, y0: b.y0, d: b.d, n: b.n, e: b.e })),
   };
 }
 
@@ -74,12 +75,23 @@ function loadGame(id) {
   game.money = d.money;
   game.fieldMode = null;
   game.selected = null;
+  resetBridges();
 
   if (d.v >= 3) {
     game.map = generateTerrain(d.seed, d.size);
     rememberBaseTerrain();
     for (const [x, y, type, elev] of d.diffs) { game.map[y][x].type = type; game.map[y][x].elev = elev; }
-    for (const [x, y, code, main] of d.paths) { game.map[y][x].path = PATH_FROM_CODE[code]; game.map[y][x].main = !!main; }
+    for (const [x, y, code, main, dir] of d.paths) {
+      const t = game.map[y][x];
+      t.path = PATH_FROM_CODE[code]; t.main = !!main;
+      if (t.path === 'oneway') t.dir = dir ?? 1;
+    }
+    for (const b of d.bridges || []) {
+      game.bridges.set(b.id, b);
+      for (let i = 1; i < b.n; i++) { const [x, y] = bridgeTile(b, i); if (inMap(x, y)) game.map[y][x].bridge = { id: b.id, i }; }
+      if (b.id >= game.nextBridgeId) game.nextBridgeId = b.id + 1;
+    }
+    rebuildBridgeIndex();
     for (const [x, y, farm] of d.fields) { game.map[y][x].field = true; game.map[y][x].farm = farm || null; }
     for (const bd of d.buildings) {
       if (!BUILDINGS[bd.kind]) continue;

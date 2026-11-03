@@ -4,7 +4,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 
 ## Struttura
 - `index.html` + `style.css`: pagina e interfaccia (barra in alto, barra strumenti con sottomenu, info tile, toast, menu).
-- `js/`: script classici (niente moduli ES, così funziona anche aprendo il file con doppio clic). L'ordine in `index.html` conta: config, noise, terrain, game, roadgen, camera, sprite-data, sprites, render, vehicles, economy, ui, panel, input, save, menu, app.
+- `js/`: script classici (niente moduli ES, così funziona anche aprendo il file con doppio clic). L'ordine in `index.html` conta: config, noise, terrain, game, bridges, roadgen, camera, sprite-data, sprites, render, vehicles, economy, ui, panel, input, save, menu, app.
   - `config.js` costanti: grandezze mappa (`MAP_SIZES`: 128, 256, 512, 1024), terreno, `PATHS` (strada, terra, binari), `BUILDINGS` (casa e panificio 1x1, le altre attività 2x2), abitanti, `CROPS`, `FARM`, costi
   - `game.js` stato (`game`) e regole: percorsi, rampe, rotonde, edifici, `checkTool` / `useTool` / `canUseTool`, `recount()`
   - `render.js` disegno (ordine del pittore, solo tile visibili sullo schermo); `requestDraw()` per ridisegnare
@@ -17,7 +17,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - `main.js` finestra Electron; `.github/workflows/build.yml` crea l'.exe su GitHub Actions.
 
 ## Tile
-`{ type, elev, path (null/'road'/'dirt'/'rail'), main (strada principale, non demolibile), field, farm (id fattoria del campo), building, rb }`. Usare `setPath()` per cambiare il percorso (aggiorna `game.pathKeys`, usato per calcolare in fretta le rotonde) e poi `updateRoundabouts()`.
+`{ type, elev, path (null/'road'/'oneway'/'highway'/'dirt'/'rail'), dir (solo senso unico: 0-3), main (strada principale, non demolibile), field, farm (id fattoria del campo), building, rb, bridge ({ id, i } se sopra c'è un ponte) }`. Usare `setPath()` per cambiare il percorso (aggiorna `game.pathKeys`, usato per calcolare in fretta le rotonde) e poi `updateRoundabouts()`.
 
 ## Rampe, collegamenti, anteprima e picking
 - Ogni tile ha 4 angoli (N, E, S, W) con un'altezza: `cornerHeights(x, y)`. Piatto = tutti uguali.
@@ -64,6 +64,14 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - `js/sprites.js`: `drawSprite(c, name, col, row, wx, wy)` con (wx, wy) = angolo in alto del tile; restituisce false finché l'immagine non è caricata (si usa il disegno di riserva). `onSpritesLoaded` (ui.js) rifà le icone.
 - Casa: `tools/sprites/house.py` (Python + Pillow) crea `house.png` da un piccolo modello 3D "fotografato" pixel per pixel con scale di toni (muri a doghe, tetto a tegole, comignolo, finestre con persiane, porta, gradino, vialetto, cespugli). L'utente vuole pixel art più dettagliata; la casa è la prima prova, poi un edificio alla volta.
 
+## Strade speciali e ponti
+- `PATHS[p].speed`: autostrada 2.2, terra 0.7, resto 1; `routePoints` mette in ogni punto [mx, my, quota, velocità, livello] e `moveVehicle` usa la velocità del tratto.
+- Una strada si può trasformare in un'altra della rete stradale passandoci sopra (es. strada -> autostrada); la principale resta principale ma non diventa senso unico né terra. Le rotonde si fanno solo con `road`.
+- Senso unico: `t.dir` = direzione di marcia (quella del trascinamento, `paintTo` gira anche il primo tile; con un clic `rotationDir()` dal tasto R). Ripassando al contrario si gira. `onewayOk(t, d)`: vietato muoversi contro la freccia, di lato si entra/esce. Corsia al centro.
+- Ponti (`bridges.js`): si trascinano dritti da testa a testa (`planBridge` / `buildBridge`, anteprima `game.bridgePlan`). Quote `e[k]` sui bordi: salgono di 1 per tile dalle teste fino a quanto serve (sopra strade/binari `BRIDGE.clearPath` = 2 livelli liberi, il terreno non deve bucare). Le teste diventano strada. Sotto: niente edifici né terreno modellato; si può fare una strada se c'è spazio.
+- Auto su due livelli: nodi `nodeKey(x, y, L)` (L = 1 sul ponte), `driveNeighbors(x, y, L)`; dalla testa si sale solo nella direzione del ponte, sul ponte si va avanti/indietro. `blockedAhead` ignora chi è a un'altra quota. Disegno: impalcato e auto sul ponte subito dopo il tile (`drawBridgeSpan`), auto a terra prima.
+- Demolire un tile del ponte (o la strada di una testa) toglie tutto il ponte (`removeBridge`, `onBridgeRemoved`). Salvataggio: `bridges` e `dir` nei `paths` (codici 4 senso unico, 5 autostrada).
+
 ## Rotonde
 - Rotonde circolari (l'utente ha provato quelle quadrate e la piazzola rialzata: non gli piacevano). Un 2x2 di strade asfaltate diventa rotonda (`t.rb = { ax, ay, slope, low }`), in piano o su un gradino di 1 (2 tile sopra, 2 sotto): i tile bassi sono rampe, senza aggiungere terreno.
 - Le strade che entrano di lato nella parte inclinata "si piegano": in `cornerHeights` gli angoli in comune con un tile basso di rotonda prendono la sua altezza (adattatore), così si collegano.
@@ -73,7 +81,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - Impronta da (ax, ay) verso +x e +y; tutti i tile puntano allo stesso oggetto `{ kind, variant, ax, ay }`. Serve terreno piano e libero. Gli edifici grandi si disegnano sul tile più avanti dell'impronta (`drawBuildingOn`), con `box` e `gableRoof`.
 
 ## Barra strumenti
-- `TOOL_GROUPS` in `ui.js`: 1 Mano, 2 Strade (strada, terra, binari; il campo non è nella barra: si usa solo in modalità campi della fattoria, `checkTool` lo rifiuta senza `game.fieldMode`, `setTool` accetta strumenti senza gruppo), 3 Case, 4 Industrie (fattoria, allevamenti di mucche/polli/maiali/pecore, magazzino, fabbrica alimentare, caseificio, macello, panificio, supermercato), 5 Demolisci. Il tasto numerico ripetuto passa al prossimo strumento del gruppo. Le icone sono disegnate con le funzioni di `render.js` (`buildIcons`).
+- `TOOL_GROUPS` in `ui.js`: 1 Mano, 2 Strade (strada, senso unico, autostrada, ponte, terra, binari; il campo non è nella barra: si usa solo in modalità campi della fattoria, `checkTool` lo rifiuta senza `game.fieldMode`, `setTool` accetta strumenti senza gruppo), 3 Case, 4 Industrie (fattoria, allevamenti di mucche/polli/maiali/pecore, magazzino, fabbrica alimentare, caseificio, macello, panificio, supermercato), 5 Demolisci. Il tasto numerico ripetuto passa al prossimo strumento del gruppo. Le icone sono disegnate con le funzioni di `render.js` (`buildIcons`).
 
 ## Menu e salvataggi
 - `menu.js`: menu principale/pausa (Riprendi e Salva solo se `game.started`), Nuova mappa (scelta grandezza), Carica, Opzioni ("ci stiamo lavorando"), Esci (`window.close()` in Electron). Esc apre/chiude il menu (prima chiude il sottomenu).

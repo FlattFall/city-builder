@@ -23,6 +23,10 @@ const game = {
   nextId: 1,
   fieldMode: null, // id della fattoria a cui si stanno assegnando i campi
   rotation: 0,     // rotazione (0-3) dei prossimi edifici
+  pathDir: 1,      // direzione (0-3) della prossima strada a senso unico
+  bridges: new Map(), // id -> ponte (vedi bridges.js)
+  nextBridgeId: 1,
+  bridgePlan: null,   // ponte che si sta trascinando (anteprima)
   levelTarget: null, // quota scelta dallo strumento Livella
   employed: 0,     // abitanti che lavorano
   base: null,      // terreno appena generato { type, elev } per salvare solo le differenze
@@ -46,8 +50,10 @@ function setPath(x, y, p) {
   t.path = p;
   if (p) { t.main = false; game.pathKeys.add(y * game.size + x); } // "principale" lo segna solo il generatore
   else {
-    game.pathKeys.delete(y * game.size + x); t.rb = null; t.main = false;
+    game.pathKeys.delete(y * game.size + x); t.rb = null; t.main = false; delete t.dir;
     if (typeof onRoadRemoved === 'function') onRoadRemoved(x, y);
+    // una testa di ponte senza strada: il ponte non serve più
+    if (typeof bridgesAtHead === 'function') for (const h of bridgesAtHead(x, y)) removeBridge(h.b);
   }
 }
 
@@ -164,7 +170,8 @@ function roadLinked(x, y, d) {
 function topHeightPx(x, y, withBuildings) {
   const t = game.map[y][x];
   const b = withBuildings && t.building ? BUILDINGS[t.building.kind].height : 0;
-  return Math.max(...cornerHeights(x, y)) * STEP + b;
+  const deck = withBuildings && t.bridge ? Math.max(...game.bridges.get(t.bridge.id).e) * STEP + 3 : 0;
+  return Math.max(Math.max(...cornerHeights(x, y)) * STEP + b, deck);
 }
 
 // ---------- Rotonde ----------
@@ -304,6 +311,7 @@ function newGame(seed, size) {
   game.dirty = false;
   game.saveId = null;
   game.hover = null;
+  resetBridges();
   if (typeof clearVehicles === 'function') clearVehicles();
   rememberBaseTerrain();
   game.entries = generateMainRoad(); // la strada principale fa parte della mappa nuova
@@ -375,8 +383,16 @@ function checkTool(tool, x, y) {
   if (!inMap(x, y)) return { silent: true };
   const t = game.map[y][x];
   if (PATHS[tool]) {
-    if (t.path === tool) return { silent: true };
-    if (t.path) return { msg: "C'è già " + (t.path === 'rail' ? 'un binario' : 'una strada') };
+    // senso unico già fatto: ripassandoci sopra si cambia la direzione
+    if (t.path === tool) return (PATHS[tool].oneway && t.dir !== game.pathDir) ? null : { silent: true };
+    if (t.path) {
+      // una strada si può trasformare in un'altra (es. strada -> autostrada), ma non in binario
+      if (netOf(t.path) !== 'road' || PATHS[tool].net !== 'road') return { msg: "C'è già " + (t.path === 'rail' ? 'un binario' : 'una strada') };
+      if (t.main && (PATHS[tool].oneway || tool === 'dirt')) return { msg: 'La strada principale resta a doppio senso e asfaltata' };
+      return null;
+    }
+    if (t.bridge && deckMin(game.bridges.get(t.bridge.id), t.bridge.i) < t.elev + BRIDGE.clearPath)
+      return { msg: "Sotto il ponte non c'è abbastanza spazio" };
     if (t.building) return { msg: "C'è già un edificio" };
     if (t.field) return { msg: "C'è un campo: demolisci prima" };
     if (!isBuildable(t)) return { msg: 'Qui non si può costruire' };
@@ -384,6 +400,7 @@ function checkTool(tool, x, y) {
   }
   if (tool === 'raise' || tool === 'lower' || tool === 'level') {
     if (t.building || t.path) return { msg: 'Libera il terreno prima di modellarlo' };
+    if (t.bridge) return { msg: "Sopra c'è un ponte" };
     if (tool === 'raise' && t.elev >= MAX_ELEV) return { msg: 'Più in alto non si può' };
     if (tool === 'lower' && t.type === T.WATER) return { msg: 'Più in basso non si può' };
     if (tool === 'level' && game.levelTarget != null && t.elev === game.levelTarget) return { silent: true };
@@ -405,6 +422,7 @@ function checkTool(tool, x, y) {
     for (const p of footprint(tool, x, y)) {
       if (!inMap(p.x, p.y)) return { msg: 'Fuori dalla mappa' };
       const q = game.map[p.y][p.x];
+      if (q.bridge) return { msg: 'Sotto il ponte non si può costruire' };
       if (q.building || q.path || q.field || !isBuildable(q))
         return { msg: b.w > 1 ? 'Serve uno spazio libero ' + b.w + 'x' + b.h : 'Qui non si può costruire' };
       if (q.elev !== t.elev) return { msg: 'Serve un terreno piano ' + b.w + 'x' + b.h };
@@ -413,7 +431,12 @@ function checkTool(tool, x, y) {
     }
     return null;
   }
+  if (tool === 'bridge') {
+    if (t.building || t.bridge || t.field || !isBuildable(t) || (t.path && netOf(t.path) !== 'road')) return { msg: 'Qui non può partire un ponte' };
+    return null;
+  }
   if (tool === 'demolish') {
+    if (t.bridge) return null;   // prima si toglie il ponte
     if (!t.building && t.path && t.main) return { msg: 'La strada principale non si può demolire' };
     if (t.building || t.path || t.field || t.type === T.FOREST) return null;
     return { silent: true };
@@ -427,12 +450,13 @@ function canUseTool(tool, x, y) { return tool === 'hand' || !checkTool(tool, x, 
 function toolCost(tool, x, y) {
   const t = game.map[y][x];
   const forest = t.type === T.FOREST ? COSTS.clearForest : 0;
-  if (PATHS[tool]) return PATHS[tool].cost + forest;
+  if (PATHS[tool]) return t.path === tool ? 0 : PATHS[tool].cost + (t.path ? 0 : forest);
   if (tool === 'field') return t.field ? 0 : COSTS.field;
   if (tool === 'raise' || tool === 'lower') return COSTS.terrain;
   if (tool === 'level') return COSTS.terrain * Math.abs((game.levelTarget ?? t.elev) - t.elev);
   if (BUILDINGS[tool]) return BUILDINGS[tool].cost;
   if (tool === 'demolish') {
+    if (t.bridge) return COSTS.demolishPath * (game.bridges.get(t.bridge.id).n - 1);
     if (t.building) return COSTS.demolishBuilding;
     if (t.path) return COSTS.demolishPath;
     if (t.field) return COSTS.demolishField;
@@ -451,10 +475,16 @@ function useTool(tool, x, y) {
   const t = game.map[y][x];
 
   if (PATHS[tool]) {
+    if (t.path === tool) { t.dir = game.pathDir; return { ok: true }; }   // senso unico girato
+    const replacing = !!t.path, main = t.main;
     if (t.type === T.FOREST) t.type = T.GRASS; // gli alberi vengono rimossi
     setPath(x, y, tool);
-    if (tool === 'rail') game.rails++; else game.roads++;
-    fillDips(x, y);
+    t.main = main;                              // la strada principale resta principale
+    if (PATHS[tool].oneway) t.dir = game.pathDir; else delete t.dir;
+    if (!replacing) {
+      if (tool === 'rail') game.rails++; else game.roads++;
+      fillDips(x, y);
+    }
     updateRoundabouts();
   } else if (tool === 'field') {
     if (t.type === T.FOREST) t.type = T.GRASS;
@@ -477,8 +507,9 @@ function useTool(tool, x, y) {
     const target = tool === 'raise' ? t.elev + 1 : tool === 'lower' ? t.elev - 1 : game.levelTarget;
     setElevation(x, y, target);
   } else if (tool === 'demolish') {
-    // priorità: edificio > percorso > campo > alberi
-    if (t.building) removeBuilding(t.building);
+    // priorità: ponte > edificio > percorso > campo > alberi
+    if (t.bridge) removeBridge(game.bridges.get(t.bridge.id));
+    else if (t.building) removeBuilding(t.building);
     else if (t.path) {
       if (t.path === 'rail') game.rails--; else game.roads--;
       setPath(x, y, null);

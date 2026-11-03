@@ -24,11 +24,18 @@ const COLORS = {
 
 // ---------- Percorsi (si trascinano per costruirne tanti) ----------
 // net = rete: le strade (asfalto e terra) si collegano tra loro, i binari solo con i binari
+// speed = quanto vanno veloci le auto (1 = normale); oneway = senso unico (direzione t.dir)
 const PATHS = {
-  road: { name: 'Strada', net: 'road', cost: 10 },
-  dirt: { name: 'Strada di terra', net: 'road', cost: 4 },
+  road: { name: 'Strada', net: 'road', cost: 10, speed: 1 },
+  oneway: { name: 'Strada a senso unico', net: 'road', cost: 12, speed: 1, oneway: true },
+  highway: { name: 'Autostrada', net: 'road', cost: 30, speed: 2.2 },
+  dirt: { name: 'Strada di terra', net: 'road', cost: 4, speed: 0.7 },
   rail: { name: 'Binari', net: 'rail', cost: 15 },
 };
+// Ponti: si trascinano da una sponda all'altra (dritti, lunghi quanto si vuole).
+// Salgono di un livello per tile dalle teste del ponte; sotto devono restare almeno
+// clear livelli liberi (clearPath se sotto c'è una strada o un binario).
+const BRIDGE = { costPerTile: 40, clear: 1, clearPath: 2, speed: 1 };
 
 // ---------- Edifici (w x h = tile occupati) ----------
 const BUILDINGS = {

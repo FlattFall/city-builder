@@ -744,6 +744,85 @@ function check(cond, msg) {
   check(wo.noSelf && wo.toShop, 'magazzino: uscita verso il supermercato (solo merce che accetta)');
   check(wo.noLoop, 'due magazzini non si mandano la merce a vicenda');
 
+  // 29. senso unico, autostrada, ponti
+  const rd = await page.evaluate(() => {
+    clearVehicles(); newGame(1, 128);
+    const N = game.size, c = N / 2, r = {};
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, rb: null, bridge: null, elev: 2 });
+    recount(); resetBridges(); game.money = 1e7;
+    for (let x = 0; x < N; x++) { useTool('road', x, c); game.map[c][x].main = true; }
+    game.entries = [{ x: 0, y: c }, { x: N - 1, y: c }];
+    // autostrada al posto della strada principale: resta principale, niente strade in più
+    const roads0 = game.roads;
+    r.upgrade = useTool('highway', 10, c).ok && game.map[c][10].path === 'highway' && game.map[c][10].main && game.roads === roads0;
+    r.mainNoOneway = !useTool('oneway', 11, c).ok;
+    for (let x = 30; x < 50; x++) useTool('highway', x, c);
+    const fast = routePoints(findRoute([[30, c]], [[49, c]]));
+    const slow = routePoints(findRoute([[60, c]], [[79, c]]));
+    const time = pts => { const v = { pts, seg: 0, s: 0, speed: CAR_SPEED }; let t = 0; while (!moveVehicle(v, 0.05)) t += 0.05; return t; };
+    r.faster = time(fast) < time(slow) * 0.6;
+    // senso unico trascinato verso +x (anche il primo tile), poi verso -x su un'altra fila
+    game.tool = 'oneway'; lastTile = null; paintedNow.clear();
+    paintTo({ x: 20, y: c - 5 }); paintTo({ x: 26, y: c - 5 });
+    r.dragDir = [20, 21, 25, 26].every(x => game.map[c - 5][x].path === 'oneway' && game.map[c - 5][x].dir === 1);
+    lastTile = null; paintedNow.clear();
+    paintTo({ x: 26, y: c - 7 }); paintTo({ x: 20, y: c - 7 });
+    r.dragBack = [20, 23, 26].every(x => game.map[c - 7][x].dir === 3);
+    game.tool = 'hand';
+    r.onewayRoute = !!findRoute([[20, c - 5]], [[26, c - 5]]) && !findRoute([[26, c - 5]], [[20, c - 5]]);
+    // ripassando al contrario la freccia si gira (gratis)
+    const m0 = game.money; game.pathDir = 3;
+    r.flip = useTool('oneway', 22, c - 5).ok && game.map[c - 5][22].dir === 3 && game.money === m0;
+    // ponte sopra un fiume (acqua da x 40 a 44, righe c+6..c+40)
+    for (let y = c + 3; y < c + 40; y++) for (let x = 40; x <= 44; x++) Object.assign(game.map[y][x], { type: T.WATER, elev: 0 });
+    for (let y = c + 1; y <= c + 10; y++) useTool('road', 36, y);
+    for (let x = 37; x <= 39; x++) useTool('road', x, c + 10);
+    const pl = planBridge({ x: 39, y: c + 10 }, { x: 45, y: c + 10 });
+    r.plan = pl.ok && pl.n === 6 && pl.e.every(e => e === 2);
+    r.bridge = buildBridge(pl).ok && game.bridges.size === 1 && !!game.map[c + 10][42].bridge;
+    useTool('road', 46, c + 10); useTool('house', 46, c + 11);
+    const house = [...game.buildings.values()].find(b => b.kind === 'house');
+    const route = findRoute(entryTiles(), accessTiles(house));
+    r.overRiver = !!route && route.some(([x, y, L]) => x === 42 && L === 1);
+    for (let i = 0; i < 600 && !house.residents; i++) simUpdate(0.1);
+    r.arrived = house.residents > 0;
+    // cavalcavia sopra una strada: sale di 2 livelli, sotto le auto passano
+    for (let x = 60; x <= 70; x++) useTool('road', x, c + 20);
+    for (const y of [c + 17, c + 23]) useTool('road', 65, y);
+    r.tooShort = !planBridge({ x: 65, y: c + 19 }, { x: 65, y: c + 21 }).ok;
+    const over = planBridge({ x: 65, y: c + 17 }, { x: 65, y: c + 23 });
+    r.overPlan = over.ok && over.e.join() === '2,3,4,4,3,2';
+    buildBridge(over);
+    const under = findRoute([[60, c + 20]], [[70, c + 20]]);
+    const across = findRoute([[65, c + 17]], [[65, c + 23]]);
+    r.overpass = !!under && under.every(([, , L]) => !L) && !!across && across.some(([x, y, L]) => y === c + 20 && L === 1)
+      && !findRoute([[65, c + 17]], [[60, c + 20]]);   // dal ponte non si scende sulla strada sotto
+    r.noBuildUnder = !useTool('house', 65, c + 19).ok && !useTool('raise', 65, c + 19).ok;
+    // salva e ricarica: ponti, sensi unici e autostrade restano
+    saveGame();
+    const sid = game.saveId;
+    loadGame(sid);
+    r.saved = game.bridges.size === 2 && !!game.map[c + 20][65].bridge && game.map[c - 5][21].dir === 1 && game.map[c - 7][21].dir === 3
+      && game.map[c][35].path === 'highway' && !!findRoute([[65, c + 17]], [[65, c + 23]]);
+    deleteSave(sid);
+    // demolire un pezzo del ponte lo toglie tutto; demolire la testa pure
+    useTool('demolish', 65, c + 19);
+    r.demolish = game.bridges.size === 1 && !game.map[c + 20][65].bridge;
+    useTool('demolish', 39, c + 10);
+    r.headGone = game.bridges.size === 0;
+    return r;
+  });
+  check(rd.upgrade && rd.mainNoOneway, 'strada principale trasformata in autostrada (ma non in senso unico)');
+  check(rd.faster, 'in autostrada le auto vanno più veloci');
+  check(rd.dragDir && rd.dragBack, 'senso unico nella direzione in cui si trascina');
+  check(rd.onewayRoute && rd.flip, 'senso unico: si va solo nel verso della freccia; ripassando si gira');
+  check(rd.plan && rd.bridge && rd.overRiver, 'ponte sopra il fiume, le auto ci passano sopra');
+  check(rd.arrived, 'abitanti arrivati passando sul ponte');
+  check(rd.tooShort && rd.overPlan && rd.overpass, 'cavalcavia: sale sopra la strada, sotto si passa, niente incrocio');
+  check(rd.noBuildUnder, 'sotto il ponte niente edifici e niente terreno modellato');
+  check(rd.saved, 'salvataggio con ponti, sensi unici e autostrade');
+  check(rd.demolish && rd.headGone, 'demolizione del ponte (anche togliendo la testa)');
+
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();
 })();

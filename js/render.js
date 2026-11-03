@@ -9,6 +9,9 @@ const CURB_COLOR = '#a0a0a8';
 const LANE_COLOR = '#e8d24a';
 const DIRT_COLORS = ['#a07c4c', '#ad8a59', '#8c6a3d'];  // piano, rampa chiara, rampa scura
 const DIRT_EDGE = '#7d5f38';
+const HW_COLORS = ['#44444e', '#51515c', '#393942'];     // autostrada: piano, rampa chiara, rampa scura
+const HW_LINE = '#f2f2f2', RAIL_GUARD = '#d0d4da', GUARD_POST = '#7e848c';
+const DECK = { top: ROAD_COLOR, l: '#a7a7ae', r: '#86868e', pillarL: '#b3b3ba', pillarR: '#8e8e96', rail: '#dfe2e6' };
 const BALLAST = '#8d8273', SLEEPER = '#5e4128', STEEL = '#d5dade';
 const SOIL = '#8b5e34';
 const GROUND = { farm: '#b89a5e', warehouse: '#9a9a92', factory: '#8f8f88', supermarket: '#9a9a92',
@@ -72,6 +75,33 @@ function drawRoad(c, P, links) {
   for (let d = 0; d < 4; d++) {
     if (links[d]) line(c, center, P(...MID_UV[d]), LANE_COLOR);
     else line(c, P(...EDGE_UV[d][0]), P(...EDGE_UV[d][1]), CURB_COLOR);
+  }
+}
+
+// Strada a senso unico: cordoli sui lati non collegati e freccia bianca nella direzione di marcia
+function drawOneway(c, P, links, dir) {
+  for (let d = 0; d < 4; d++) if (!links[d]) line(c, P(...EDGE_UV[d][0]), P(...EDGE_UV[d][1]), CURB_COLOR);
+  const { dx, dy } = DIRS[dir ?? 1];
+  const at = (s, o) => P(0.5 + dx * s - dy * o, 0.5 + dy * s + dx * o);   // s lungo la freccia, o di lato
+  line(c, at(-0.3, 0), at(0.18, 0), HW_LINE);
+  poly(c, [at(0.34, 0), at(0.14, -0.13), at(0.14, 0.13)], HW_LINE);
+}
+
+// Autostrada: asfalto scuro, linee bianche tratteggiate verso i vicini, guardrail sui lati liberi
+function drawHighway(c, P, links) {
+  for (let d = 0; d < 4; d++) {
+    const { dx, dy } = DIRS[d];
+    if (links[d]) {
+      for (const [s0, s1] of [[0.06, 0.2], [0.34, 0.48]]) line(c, P(0.5 + dx * s0, 0.5 + dy * s0), P(0.5 + dx * s1, 0.5 + dy * s1), HW_LINE);
+      continue;
+    }
+    const a = P(...EDGE_UV[d][0]), b = P(...EDGE_UV[d][1]);
+    const up = p => [p[0], p[1] - 2];
+    for (const f of [0.1, 0.5, 0.9]) {
+      const q = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+      line(c, q, up(q), GUARD_POST);
+    }
+    line(c, up(a), up(b), RAIL_GUARD);
   }
 }
 
@@ -553,7 +583,8 @@ function drawTile(c, x, y, detail, onlyTop) {
   }
 
   let top = col[0];
-  if (t.path === 'road') top = slopeShade(x, y, [ROAD_COLOR, RAMP_LIGHT, RAMP_DARK]);
+  if (t.path === 'road' || t.path === 'oneway') top = slopeShade(x, y, [ROAD_COLOR, RAMP_LIGHT, RAMP_DARK]);
+  else if (t.path === 'highway') top = slopeShade(x, y, HW_COLORS);
   else if (t.path === 'dirt') top = slopeShade(x, y, DIRT_COLORS);
   else if (t.field) top = SOIL;
   else if (t.building && GROUND[t.building.kind]) top = GROUND[t.building.kind];
@@ -571,9 +602,12 @@ function drawTile(c, x, y, detail, onlyTop) {
   }
 
   if (t.path) {
-    const links = [0, 1, 2, 3].map(d => roadLinked(x, y, d));
+    // collegato anche verso un ponte che parte da qui
+    const links = [0, 1, 2, 3].map(d => roadLinked(x, y, d) || !!bridgeFromHead(x, y, d));
     if (t.rb) drawRoundabout(c, x, y, P);
     else if (t.path === 'road') drawRoad(c, P, links);
+    else if (t.path === 'oneway') drawOneway(c, P, links, t.dir);
+    else if (t.path === 'highway') drawHighway(c, P, links);
     else if (t.path === 'dirt') drawDirt(c, P, links);
     else drawRail(c, P, links);
     return;
@@ -593,6 +627,56 @@ function drawTile(c, x, y, detail, onlyTop) {
 
   if (t.building) { drawBuildingOn(c, x, y, t.building); return; }
   if (t.type === T.FOREST && !onlyTop) drawTree(c, sx, sy, x, y);
+}
+
+// ---------- Ponti ----------
+// Impalcato del tile i del ponte b (sopra il tile x, y): pilastri ai lati, fianco visibile,
+// strada con cordoli e ringhiere. alpha < 1 per l'anteprima.
+const DECK_T = 0.4;   // spessore dell'impalcato (livelli)
+function drawBridgeSpan(c, x, y, b, i) {
+  const h = deckCorners(b, i);
+  const P = (u, v) => iso(x, y, u, v, heightIn(h, u, v));
+  const Pd = (u, v, dz) => iso(x, y, u, v, heightIn(h, u, v) - dz);
+  const alongU = DIRS[b.d].dx !== 0;
+  const ground = Math.max(...cornerHeights(x, y));
+  const low = Math.min(...h) - DECK_T;
+  // pilastri ai due lati (la strada sotto resta libera)
+  if (low > ground + 0.15) {
+    for (const o of [0.1, 0.9]) {
+      const [u0, v0, u1, v1] = alongU ? [0.43, o - 0.06, 0.57, o + 0.06] : [o - 0.06, 0.43, o + 0.06, 0.57];
+      box(c, x, y, ground, u0, v0, u1, v1, (heightIn(h, 0.5, 0.5) - DECK_T - ground) * STEP, { l: DECK.pillarL, r: DECK.pillarR });
+    }
+  }
+  // fianco davanti (quello che si vede) e fine dell'impalcato verso le teste
+  if (alongU) poly(c, [P(0, 1), P(1, 1), Pd(1, 1, DECK_T), Pd(0, 1, DECK_T)], DECK.l);
+  else poly(c, [P(1, 0), P(1, 1), Pd(1, 1, DECK_T), Pd(1, 0, DECK_T)], DECK.r);
+  poly(c, [P(0, 0), P(1, 0), P(1, 1), P(0, 1)], DECK.top);
+  const links = [0, 1, 2, 3].map(d => d === b.d || d === (b.d + 2) % 4);
+  drawRoad(c, P, links);
+  // ringhiere sui due lati lunghi
+  const sides = alongU ? [[[0, 0], [1, 0]], [[0, 1], [1, 1]]] : [[[0, 0], [0, 1]], [[1, 0], [1, 1]]];
+  for (const [A, B] of sides) {
+    const a = P(...A), bb = P(...B), up = p => [p[0], p[1] - 3];
+    for (const f of [0, 0.34, 0.67, 1]) {
+      const q = [a[0] + (bb[0] - a[0]) * f, a[1] + (bb[1] - a[1]) * f];
+      line(c, q, up(q), GUARD_POST);
+    }
+    line(c, up(a), up(bb), DECK.rail);
+  }
+}
+
+// Anteprima del ponte che si sta trascinando: impalcato trasparente se va bene,
+// contorno rosso sui tile se non si può fare
+function drawBridgePlanTile(c, x, y, plan, i) {
+  if (plan.ok && i > 0 && i < plan.n) {
+    c.globalAlpha = 0.7;
+    drawBridgeSpan(c, x, y, plan, i);
+    c.globalAlpha = 1;
+    return;
+  }
+  const P = surface(x, y), a = 0.1, b = 0.9;
+  c.strokeStyle = plan.ok ? '#5dff7a' : '#ff5d5d'; c.lineWidth = 1.5;
+  c.beginPath(); c.moveTo(...P(a, a)); c.lineTo(...P(b, a)); c.lineTo(...P(b, b)); c.lineTo(...P(a, b)); c.closePath(); c.stroke();
 }
 
 // ---------- Anteprima (fantasma) di quello che si sta per costruire ----------
@@ -621,14 +705,23 @@ function withPreview(p, draw) {
   const t = game.map[p.y][p.x];
   const saved = footprint(BUILDINGS[tool] ? tool : 'house', p.x, p.y).map(q => [q, game.map[q.y][q.x].building]);
   const savedField = t.field;
-  if (PATHS[tool]) { setPath(p.x, p.y, tool); updateRoundabouts(); }
+  const old = { path: t.path, main: t.main, dir: t.dir };
+  if (PATHS[tool]) {
+    if (old.path) t.path = tool; else setPath(p.x, p.y, tool);
+    if (PATHS[tool].oneway) t.dir = game.pathDir;
+    updateRoundabouts();
+  }
   else if (tool === 'field') t.field = true;
   else if (BUILDINGS[tool]) {
     const b = { kind: tool, variant: houseVariant(p.x, p.y), ax: p.x, ay: p.y, rot: game.rotation };
     for (const [q] of saved) game.map[q.y][q.x].building = b;
   }
   try { draw(); } finally {
-    if (PATHS[tool]) { setPath(p.x, p.y, null); updateRoundabouts(); }
+    if (PATHS[tool]) {
+      if (old.path) Object.assign(t, old); else setPath(p.x, p.y, null);
+      if (old.dir === undefined) delete t.dir;
+      updateRoundabouts();
+    }
     t.field = savedField;
     for (const [q, b] of saved) game.map[q.y][q.x].building = b;
   }
@@ -708,6 +801,8 @@ function drawFrame() {
   const vmap = vehiclesByTile();
   const sel = game.selected && game.buildings.get(game.selected);
   const selFront = sel ? [sel.ax + BUILDINGS[sel.kind].w - 1, sel.ay + BUILDINGS[sel.kind].h - 1] : null;
+  const plan = game.bridgePlan;
+  const planKeys = plan ? new Map(plan.tiles.map((p, i) => [p.y * game.size + p.x, i])) : null;
 
   // zona visibile in coordinate mondo (con margine per pareti, alberi ed edifici alti)
   const left = -cam.x / z - TW, right = (view.w - cam.x) / z + TW;
@@ -733,6 +828,12 @@ function drawFrame() {
       if (selFront && x === selFront[0] && y === selFront[1]) drawSelection(ctx, sel);
       const vs = vmap.get(y * game.size + x);
       if (vs) for (const v of vs) drawVehicle(ctx, v);
+      // ponte sopra questo tile, poi le auto che ci passano sopra
+      const tb = game.map[y][x].bridge;
+      if (tb) drawBridgeSpan(ctx, x, y, game.bridges.get(tb.id), tb.i);
+      if (planKeys && planKeys.has(y * game.size + x)) drawBridgePlanTile(ctx, x, y, plan, planKeys.get(y * game.size + x));
+      const vb = vmap.get(nodeKey(x, y, 1));
+      if (vb) for (const v of vb) drawVehicle(ctx, v);
     }
   }
   if (game.fieldMode) drawFieldArea(ctx);

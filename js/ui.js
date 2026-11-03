@@ -2,6 +2,9 @@
 const TOOL_INFO = {
   hand:      { label: 'Mano' },
   road:      { label: 'Strada', cost: PATHS.road.cost },
+  oneway:    { label: 'Senso unico', cost: PATHS.oneway.cost },
+  highway:   { label: 'Autostrada', cost: PATHS.highway.cost },
+  bridge:    { label: 'Ponte (per tile)', cost: BRIDGE.costPerTile },
   dirt:      { label: 'Strada di terra', cost: PATHS.dirt.cost },
   rail:      { label: 'Binari', cost: PATHS.rail.cost },
   field:     { label: 'Campo coltivabile', cost: COSTS.field },
@@ -26,7 +29,7 @@ const TOOL_INFO = {
 // Gruppi della barra: il tasto numerico sceglie il gruppo (premuto di nuovo passa al prossimo)
 const TOOL_GROUPS = [
   { key: '1', id: 'hand',     label: 'Mano',      tools: ['hand'] },
-  { key: '2', id: 'paths',    label: 'Strade',    tools: ['road', 'dirt', 'rail'] },
+  { key: '2', id: 'paths',    label: 'Strade',    tools: ['road', 'oneway', 'highway', 'bridge', 'dirt', 'rail'] },
   { key: '3', id: 'homes',    label: 'Case',      tools: ['house'] },
   { key: '4', id: 'industry', label: 'Industrie', tools: ['farm', 'cowFarm', 'chickenFarm', 'pigFarm', 'sheepFarm',
     'warehouse', 'factory', 'dairy', 'slaughterhouse', 'bakery', 'supermarket'] },
@@ -167,6 +170,13 @@ function buildIcons() {
   const diamond = (c, P, color) => poly(c, [P(0, 0), P(1, 0), P(1, 1), P(0, 1)], color);
   const straight = [false, true, false, true];
   ICONS.road = tileIcon((c, P) => { diamond(c, P, ROAD_COLOR); drawRoad(c, P, straight); });
+  ICONS.oneway = tileIcon((c, P) => { diamond(c, P, ROAD_COLOR); drawOneway(c, P, straight, 1); });
+  ICONS.highway = tileIcon((c, P) => { diamond(c, P, HW_COLORS[0]); drawHighway(c, P, straight); });
+  ICONS.bridge = tileIcon((c, P) => {
+    diamond(c, P, COLORS[T.WATER][0]);
+    const fake = { d: 1, e: [0.6, 0.6] };
+    drawBridgeSpan(c, 0, 0, fake, 1);
+  });
   ICONS.dirt = tileIcon((c, P) => { diamond(c, P, DIRT_COLORS[0]); drawDirt(c, P, straight); });
   ICONS.rail = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawRail(c, P, straight); });
   ICONS.field = tileIcon((c, P) => { diamond(c, P, SOIL); drawField(c, P, 'wheat', 3); });
@@ -319,8 +329,11 @@ function setTool(id) {
     b.querySelector('img').src = ICONS[groupChoice[gr.id]];
   }
   for (const b of document.querySelectorAll('#submenu .sub')) b.classList.toggle('active', b.dataset.tool === id);
-  const rotatable = !!BUILDINGS[id];
-  document.getElementById('toolname').textContent = toolLabel(id) + (rotatable ? '  |  R: ruota' : '');
+  const rotatable = !!BUILDINGS[id] || id === 'oneway';
+  if (id === 'oneway') game.pathDir = rotationDir();
+  const hint = id === 'oneway' ? '  |  trascina nel senso di marcia, R: gira la freccia'
+    : id === 'bridge' ? "  |  trascina da una sponda all'altra" : rotatable ? '  |  R: ruota' : '';
+  document.getElementById('toolname').textContent = toolLabel(id) + hint;
   document.getElementById('rotate-btn').hidden = !rotatable;
   canvas.style.cursor = id === 'hand' ? 'grab' : 'crosshair';
   requestDraw();
@@ -337,8 +350,12 @@ function updateHud() {
 }
 
 // Ruota i prossimi edifici di 90°
+// Direzione del senso unico quando si clicca senza trascinare (cambia con R)
+function rotationDir() { return [1, 2, 3, 0][game.rotation & 3]; }
+
 function rotateTool() {
   game.rotation = (game.rotation + 1) % 4;
+  game.pathDir = rotationDir();
   requestDraw();
 }
 
@@ -350,6 +367,7 @@ function updateInfo() {
   const t = game.map[h.y][h.x];
   let s = h.x + ',' + h.y + ' - ' + TERRAIN_NAMES[t.type] + ' (quota ' + t.elev + ')';
   if (t.path) s += ' - ' + (t.main ? 'Strada principale' : t.rb ? 'Rotonda' : PATHS[t.path].name);
+  if (t.bridge) s += ' - sotto un ponte';
   if (t.field) s += ' - Campo' + (t.farm ? ' della fattoria' : ' (senza fattoria)');
   if (t.building) {
     const b = t.building;

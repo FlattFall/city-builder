@@ -32,7 +32,7 @@ Sul tuo PC: `npm install` e poi `npm run dist`; l'.exe compare nella cartella `d
 - Esc o il pulsante **Menu**: Riprendi, Salva partita, Nuova mappa (4 grandezze: 128, 256, 512, 1024), Carica mappa, Opzioni, Esci
 - Barra in basso (tasti 1-5; premendo di nuovo lo stesso numero passi alla scelta successiva del gruppo):
   1. **Mano**: trascina la mappa
-  2. **Strade**: strada, strada di terra, binari (i campi si mettono dalla fattoria)
+  2. **Strade**: strada, senso unico, autostrada, ponte, strada di terra, binari (i campi si mettono dalla fattoria)
   3. **Case**
   4. **Industrie**: fattoria, allevamenti (mucche, polli, maiali, pecore), magazzino alimenti, fabbrica alimentare, caseificio, macello, panificio, supermercato
   5. **Demolisci**: demolisci, alza terreno, abbassa terreno, livella terreno
@@ -74,3 +74,8 @@ Il codice è diviso in file dentro `js/`: vedi `CLAUDE.md` per la struttura.
 
 ## Grafica
 La casa è uno sprite in pixel art (tile 64x32) in `assets/sprites/house.png`. Si può ridisegnare con Aseprite/LibreSprite/Piskel mantenendo la stessa griglia (4 rotazioni x 3 colori, celle 64x84) e poi lanciare `node tools/sprites/build.js`.
+
+## Strade e ponti
+- **Senso unico**: la freccia va nella direzione in cui trascini (con un clic: tasto R). Ripassa al contrario per girarla.
+- **Autostrada**: le auto vanno più veloci (la terra le rallenta). Passandoci sopra trasformi una strada in autostrada.
+- **Ponte**: tieni premuto su una sponda e trascina fino all'altra, dritto e lungo quanto vuoi. Sale da solo quanto serve per passare sopra fiumi, valli, strade e binari; sotto le auto continuano a passare.

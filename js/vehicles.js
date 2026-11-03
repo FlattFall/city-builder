@@ -13,14 +13,33 @@ function clearVehicles() { vehicles = []; moveInTimer = 0; }
 // Nelle rotonde da ogni quarto si può andare solo verso il quarto successivo (senso antiorario)
 const RB_NEXT = { '0,0': 2, '0,1': 1, '1,1': 0, '1,0': 3 };
 
-function driveNeighbors(x, y) {
+// Senso unico: non si può andare in direzione d se la freccia del tile punta al contrario
+// (si può entrare e uscire di lato, agli incroci)
+function onewayOk(t, d) { return !(t.path === 'oneway' && (t.dir ?? 1) === (d + 2) % 4); }
+
+// Vicini raggiungibili in auto dal tile (x, y) al livello L (0 = a terra, 1 = sul ponte).
+// Restituisce [nx, ny, livello]
+function driveNeighbors(x, y, L) {
   const out = [];
   const t = game.map[y][x];
+  if (L === 1) {   // sul ponte: avanti o indietro lungo il ponte, alle teste si scende a terra
+    const b = game.bridges.get(t.bridge.id), i = t.bridge.i;
+    for (const j of [i - 1, i + 1]) {
+      const [nx, ny] = bridgeTile(b, j);
+      const head = j === 0 || j === b.n;
+      const d = j > i ? b.d : (b.d + 2) % 4;
+      if (head && !onewayOk(game.map[ny][nx], d)) continue;
+      out.push([nx, ny, head ? 0 : 1]);
+    }
+    return out;
+  }
   for (let d = 0; d < 4; d++) {
     const nx = x + DIRS[d].dx, ny = y + DIRS[d].dy;
+    if (bridgeFromHead(x, y, d)) { if (onewayOk(t, d)) out.push([nx, ny, 1]); continue; }   // si sale sul ponte
     if (!roadLinked(x, y, d) || !roadAt(nx, ny)) continue;
     if (sameRoundabout(x, y, nx, ny) && d !== RB_NEXT[(x - t.rb.ax) + ',' + (y - t.rb.ay)]) continue;
-    out.push([nx, ny]);
+    if (!onewayOk(t, d) || !onewayOk(game.map[ny][nx], d)) continue;
+    out.push([nx, ny, 0]);
   }
   return out;
 }
@@ -40,22 +59,29 @@ function accessTiles(b) {
 }
 
 // Ricerca in ampiezza sulla rete stradale: da uno dei tile di partenza a uno di arrivo
+// Chiave di un nodo della rete: tile + livello (sul ponte = +N*N)
+function nodeKey(x, y, L) { return (L ? game.size * game.size : 0) + y * game.size + x; }
+function nodeOf(k) {
+  const N = game.size, NN = N * N, L = k >= NN ? 1 : 0, kk = k % NN;
+  return [kk % N, (kk / N) | 0, L];
+}
+
+// Partenze e arrivi sono sempre a terra; il percorso è una lista di [x, y, livello]
 function findRoute(starts, goals) {
   if (!starts.length || !goals.length) return null;
-  const N = game.size;
-  const goalSet = new Set(goals.map(([x, y]) => y * N + x));
+  const goalSet = new Set(goals.map(([x, y]) => nodeKey(x, y, 0)));
   const prev = new Map();
   const queue = [];
-  for (const [x, y] of starts) { const k = y * N + x; if (!prev.has(k)) { prev.set(k, -1); queue.push(k); } }
+  for (const [x, y] of starts) { const k = nodeKey(x, y, 0); if (!prev.has(k)) { prev.set(k, -1); queue.push(k); } }
   for (let qi = 0; qi < queue.length; qi++) {
     const k = queue[qi];
     if (goalSet.has(k)) {
       const path = [];
-      for (let c = k; c !== -1; c = prev.get(c)) path.push([c % N, (c / N) | 0]);
+      for (let c = k; c !== -1; c = prev.get(c)) path.push(nodeOf(c));
       return path.reverse();
     }
-    for (const [nx, ny] of driveNeighbors(k % N, (k / N) | 0)) {
-      const nk = ny * N + nx;
+    for (const [nx, ny, nl] of driveNeighbors(...nodeOf(k))) {
+      const nk = nodeKey(nx, ny, nl);
       if (!prev.has(nk)) { prev.set(nk, k); queue.push(nk); }
     }
   }
@@ -72,31 +98,46 @@ function surfaceHeight(mx, my) {
 }
 
 // Dai tile del percorso ai punti che l'auto segue: centro dei tile e bordi tra un tile
-// e l'altro, spostati sulla corsia di destra
+// e l'altro, spostati sulla corsia di destra (al centro sui sensi unici).
+// Ogni punto è [mx, my, quota, velocità, livello]
 function routePoints(tiles, fromOutside) {
-  const OFF = 0.18;
   const dirOf = (a, b) => DIRS.findIndex(D => D.dx === b[0] - a[0] && D.dy === b[1] - a[1]);
   const right = d => [-DIRS[d].dy, DIRS[d].dx];
   const n = tiles.length, pts = [];
+  const info = tiles.map(([x, y, L]) => {
+    const t = game.map[y][x];
+    if (L) return { L: 1, b: game.bridges.get(t.bridge.id), off: 0.18, speed: BRIDGE.speed };
+    return { L: 0, off: t.path === 'oneway' ? 0 : 0.18, speed: (PATHS[t.path] && PATHS[t.path].speed) || 1 };
+  });
+  const H = (mx, my, a, b) => {   // quota: sul ponte segue l'impalcato, a terra la superficie
+    const br = (a && a.L && a.b) || (b && b.L && b.b);
+    return br ? deckHeight(br, mx, my) : surfaceHeight(mx, my);
+  };
   const dFirst = n > 1 ? dirOf(tiles[0], tiles[1]) : 1;
   if (fromOutside) { // arriva da fuori mappa: parte un tile prima del bordo
-    const r = right(dFirst);
-    pts.push([tiles[0][0] + 0.5 - DIRS[dFirst].dx * 1.5 + r[0] * OFF, tiles[0][1] + 0.5 - DIRS[dFirst].dy * 1.5 + r[1] * OFF]);
+    const r = right(dFirst), o = info[0].off;
+    const mx = tiles[0][0] + 0.5 - DIRS[dFirst].dx * 1.5 + r[0] * o, my = tiles[0][1] + 0.5 - DIRS[dFirst].dy * 1.5 + r[1] * o;
+    pts.push([mx, my, surfaceHeight(mx, my), info[0].speed, 0]);
   }
   for (let i = 0; i < n; i++) {
-    const [x, y] = tiles[i];
+    const [x, y] = tiles[i], I = info[i], J = info[i + 1];
     const dIn = i > 0 ? dirOf(tiles[i - 1], tiles[i]) : dFirst;
     const dOut = i < n - 1 ? dirOf(tiles[i], tiles[i + 1]) : dIn;
     const ri = right(dIn), ro = right(dOut);
-    pts.push([x + 0.5 + (ri[0] + ro[0]) / 2 * OFF, y + 0.5 + (ri[1] + ro[1]) / 2 * OFF]);
-    if (i < n - 1) pts.push([x + MID_UV[dOut][0] + ro[0] * OFF, y + MID_UV[dOut][1] + ro[1] * OFF]);
+    let mx = x + 0.5 + (ri[0] + ro[0]) / 2 * I.off, my = y + 0.5 + (ri[1] + ro[1]) / 2 * I.off;
+    pts.push([mx, my, H(mx, my, I), I.speed, I.L]);
+    if (i < n - 1) {
+      const o = (I.off + J.off) / 2;
+      mx = x + MID_UV[dOut][0] + ro[0] * o; my = y + MID_UV[dOut][1] + ro[1] * o;
+      pts.push([mx, my, H(mx, my, I, J), (I.speed + J.speed) / 2, Math.max(I.L, J.L)]);
+    }
   }
-  return pts.map(([mx, my]) => [mx, my, surfaceHeight(mx, my)]);
+  return pts;
 }
 
 function spawnVehicle(v) {
   v.seg = 0; v.s = 0;
-  v.keys = new Set(v.tiles.map(([x, y]) => y * game.size + x));
+  v.keys = new Set(v.tiles.map(([x, y, L]) => nodeKey(x, y, L)));
   vehicles.push(v);
   return v;
 }
@@ -108,18 +149,17 @@ let linkCheckTimer = 0;
 function checkHouseLinks() {
   if ((linkCheckTimer -= MOVE_IN_EVERY) > 0) return;
   linkCheckTimer = 3;
-  const N = game.size, seen = new Set();
-  const queue = entryTiles().map(([x, y]) => y * N + x);
+  const seen = new Set();
+  const queue = entryTiles().map(([x, y]) => nodeKey(x, y, 0));
   for (const k of queue) seen.add(k);
   for (let qi = 0; qi < queue.length; qi++) {
-    const k = queue[qi];
-    for (const [nx, ny] of driveNeighbors(k % N, (k / N) | 0)) {
-      const nk = ny * N + nx;
+    for (const [nx, ny, nl] of driveNeighbors(...nodeOf(queue[qi]))) {
+      const nk = nodeKey(nx, ny, nl);
       if (!seen.has(nk)) { seen.add(nk); queue.push(nk); }
     }
   }
   for (const b of game.buildings.values())
-    if (b.kind === 'house') b.unreachable = !accessTiles(b).some(([x, y]) => seen.has(y * N + x));
+    if (b.kind === 'house') b.unreachable = !accessTiles(b).some(([x, y]) => seen.has(nodeKey(x, y, 0)));
 }
 // Ogni tanto un'auto parte da un'entrata della strada principale verso una casa con posti liberi
 function spawnResident() {
@@ -151,14 +191,16 @@ function spawnResident() {
 }
 
 // ---------- Aggiornamento ----------
+// La velocità dipende dalla strada (autostrada più veloce, terra più lenta)
 function moveVehicle(v, dt) {
-  let left = v.speed * dt;
+  let left = dt;   // tempo che resta in questo fotogramma
   while (left > 0 && v.seg < v.pts.length - 1) {
     const a = v.pts[v.seg], b = v.pts[v.seg + 1];
     const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 0.0001;
-    const step = Math.min(left, len - v.s);
-    v.s += step; left -= step;
-    if (v.s >= len - 1e-6) { v.seg++; v.s = 0; }
+    const sp = v.speed * ((a[3] || 1) + (b[3] || 1)) / 2;
+    const need = (len - v.s) / sp;
+    if (need <= left) { left -= need; v.seg++; v.s = 0; }
+    else { v.s += sp * left; left = 0; }
   }
   return v.seg >= v.pts.length - 1;
 }
@@ -175,6 +217,7 @@ function blockedAhead(v) {
   for (const o of vehicles) {
     if (o === v) continue;
     const q = vehiclePos(o);
+    if (Math.abs(q.h - p.h) > 0.7) continue;   // uno sul ponte e uno sotto: non si danno fastidio
     const rx = q.mx - p.mx, ry = q.my - p.my;
     const ahead = rx * dx + ry * dy, side = Math.abs(-rx * dy + ry * dx);
     if (ahead > 0 && ahead < 0.5 && side < 0.12) return true;
@@ -210,9 +253,18 @@ function removeVehiclesFor(id) {
   for (const v of gone) v.cancel && v.cancel();
 }
 
+// Un ponte demolito: spariscono i veicoli che dovevano passarci sopra
+function onBridgeRemoved(b) {
+  const keys = [];
+  for (let i = 1; i < b.n; i++) keys.push(nodeKey(...bridgeTile(b, i), 1));
+  const gone = vehicles.filter(v => keys.some(k => v.keys.has(k)));
+  vehicles = vehicles.filter(v => !gone.includes(v));
+  for (const v of gone) v.cancel && v.cancel();
+}
+
 // Una strada demolita: i veicoli che dovevano passarci spariscono (ci riproveranno)
 function onRoadRemoved(x, y) {
-  const k = y * game.size + x;
+  const k = nodeKey(x, y, 0);
   const gone = vehicles.filter(v => v.keys.has(k));
   vehicles = vehicles.filter(v => !gone.includes(v));
   for (const v of gone) v.cancel && v.cancel();
@@ -224,7 +276,7 @@ function vehiclePos(v) {
   const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
   const f = Math.min(1, v.s / len);
   return { mx: a[0] + (b[0] - a[0]) * f, my: a[1] + (b[1] - a[1]) * f, h: a[2] + (b[2] - a[2]) * f,
-    alongU: Math.abs(b[0] - a[0]) >= Math.abs(b[1] - a[1]) };
+    alongU: Math.abs(b[0] - a[0]) >= Math.abs(b[1] - a[1]), layer: Math.max(a[4] || 0, b[4] || 0) };
 }
 
 // Veicoli raggruppati per tile: ognuno si disegna dopo il tile più avanti che occupa,
@@ -236,7 +288,7 @@ function vehiclesByTile() {
     v.pos = p;
     const tx = Math.min(game.size - 1, Math.max(0, Math.floor(p.mx + 0.22)));
     const ty = Math.min(game.size - 1, Math.max(0, Math.floor(p.my + 0.22)));
-    const k = ty * game.size + tx;
+    const k = nodeKey(tx, ty, p.layer);   // quelli sul ponte si disegnano dopo l'impalcato
     if (!m.has(k)) m.set(k, []);
     m.get(k).push(v);
   }

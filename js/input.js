@@ -3,6 +3,8 @@
 // Destro o centrale (trascinando) = muovi la mappa
 
 let panning = false, painting = false, lastX = 0, lastY = 0, lastTile = null;
+let bridgeStart = null;            // testa del ponte che si sta trascinando
+const paintedNow = new Set();      // tile fatti in questa passata (per girare la freccia del senso unico)
 
 // Percorso a 4 direzioni tra due tile, così le strade trascinate restano collegate
 function tilePath(a, b) {
@@ -21,12 +23,21 @@ function paintTo(tile) {
   const big = BUILDINGS[game.tool] && BUILDINGS[game.tool].w > 1;
   if (big && lastTile) return;
   const path = (lastTile && !BUILDINGS[game.tool]) ? tilePath(lastTile, tile) : [tile];
-  let changed = false;
+  let changed = false, prev = lastTile;
   for (const p of path) {
     if (lastTile && p.x === lastTile.x && p.y === lastTile.y) continue;
+    if (game.tool === 'oneway') {
+      // il senso unico va nella direzione in cui si trascina; il primo tile si gira al secondo passo
+      if (prev) {
+        game.pathDir = DIRS.findIndex(D => D.dx === p.x - prev.x && D.dy === p.y - prev.y);
+        const pt = game.map[prev.y][prev.x];
+        if (paintedNow.has(prev.y * game.size + prev.x) && pt.path === 'oneway') pt.dir = game.pathDir;
+      } else game.pathDir = rotationDir();
+    }
     const r = useTool(game.tool, p.x, p.y);
-    if (r.ok) { changed = true; game.dirty = true; }
+    if (r.ok) { changed = true; game.dirty = true; paintedNow.add(p.y * game.size + p.x); }
     else if (r.msg) toast(r.msg);
+    prev = p;
   }
   lastTile = tile;
   if (changed) { updateHud(); requestDraw(); }
@@ -42,8 +53,13 @@ canvas.addEventListener('mousedown', e => {
     panning = true; lastX = e.clientX; lastY = e.clientY;
     downX = e.clientX; downY = e.clientY; handDown = e.button === 0;
     canvas.style.cursor = 'grabbing';
+  } else if (e.button === 0 && game.tool === 'bridge') {
+    // ponte: si tiene premuto sulla prima testa e si trascina fino all'altra
+    const tile = pickTile(e.clientX, e.clientY);
+    if (tile) { bridgeStart = tile; game.bridgePlan = planBridge(tile, null); requestDraw(); }
   } else if (e.button === 0) {
     painting = true;
+    paintedNow.clear();
     lastTile = null;
     game.levelTarget = null; // Livella: la quota la decide il primo tile
     const tile = pickTile(e.clientX, e.clientY);
@@ -59,6 +75,12 @@ addEventListener('mouseup', e => {
     if (b) openBuildingPanel(b); else if (panelIsOpen()) closePanel();
   }
   handDown = false;
+  if (bridgeStart) {
+    const r = buildBridge(game.bridgePlan);
+    if (r.ok) { game.dirty = true; updateHud(); }
+    else if (r.msg && game.bridgePlan.tiles.length > 1) toast(r.msg);
+    bridgeStart = null; game.bridgePlan = null; requestDraw();
+  }
   panning = false; painting = false; lastTile = null;
   canvas.style.cursor = game.tool === 'hand' ? 'grab' : 'crosshair';
 });
@@ -73,6 +95,7 @@ addEventListener('mousemove', e => {
   }
   game.hover = pickTile(e.clientX, e.clientY);
   if (painting && game.hover) paintTo(game.hover);
+  if (bridgeStart && game.hover) game.bridgePlan = planBridge(bridgeStart, game.hover);
   updateInfo();
   requestDraw();
 });
