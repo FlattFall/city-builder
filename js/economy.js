@@ -234,7 +234,7 @@ function wantedGoods(b) {
   return Object.keys(GOODS).filter(g => usesInput(b, g));
 }
 
-// Chiede a un magazzino quello che serve (un furgone alla volta, ogni qualche secondo)
+// Chiede ai suoi magazzini (quelli che lo hanno come destinazione) quello che serve (un furgone alla volta, ogni qualche secondo)
 function pullGoods(b) {
   if (b.pullTimer > 0 || !b.workers) return;
   b.pullTimer = 3;
@@ -246,24 +246,30 @@ function pullGoods(b) {
   const wanted = list.filter(g => roomFor(b, g) >= VAN_MIN_LOAD).sort((x, y) => have(x) - have(y) || order(x) - order(y));
   if (!wanted.length) return;
   for (const w of game.buildings.values()) {
-    if (!isWarehouse(w) || vansBusy(w) || !w.workers) continue;
-    const g = wanted.find(x => (w.store[x] || 0) > 0);
+    // solo dai magazzini che hanno scelto questo edificio come destinazione (richiesta dell'utente:
+    // prima il supermercato prendeva da qualsiasi magazzino anche se non era stato selezionato)
+    if (!isWarehouse(w) || vansBusy(w) || !w.workers || !(w.dests || []).includes(b.id)) continue;
+    const g = wanted.find(x => (w.store[x] || 0) > 0 && !(splitOf(w, x) && !(w.split[x][b.id] > 0)));
     if (!g) continue;
     if (sendGoods(w, b, g, Math.min(w.store[g], VAN_CAPACITY, roomFor(b, g)))) return;
   }
 }
 
 // ---------- Produzione ----------
+// Il deposito della fattoria tiene sempre almeno due raccolti: così il raccolto non viene
+// tagliato e più campi = più produzione, in proporzione (richiesta dell'utente)
+function farmCap(f) { return Math.max(CAPS.farm.store, 2 * (f.fields || 0) * FARM.yieldPerField); }
 function updateFarm(f, dt) {
   // cresce solo se ha campi, personale e posto in inventario; più personale = più veloce
   const staff = (f.workers || 0) / JOBS.farm * gridBoost();
-  f.full = sumOf(f.store) >= CAPS.farm.store;
+  const cap = farmCap(f), crop = (f.fields || 0) * FARM.yieldPerField;
+  f.full = sumOf(f.store) + crop > cap;   // non c'è posto per il prossimo raccolto intero: si aspetta
   if (f.fields > 0 && staff > 0 && !f.full) {
     const before = Math.floor(f.growth * 4);
     f.growth += dt / FARM.cycleSec * staff;
     if (f.growth >= 1) {
       f.growth = 0;
-      addTo(f.store, f.crop, Math.min(CAPS.farm.store - sumOf(f.store), f.fields * FARM.yieldPerField));
+      addTo(f.store, f.crop, crop);
     }
     if (Math.floor(f.growth * 4) !== before) requestDraw();
   }

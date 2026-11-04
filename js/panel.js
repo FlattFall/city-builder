@@ -306,8 +306,8 @@ function renderPanel() {
     const takes = Object.keys(GOODS).filter(g => warehouseTakes(b.kind, g));
     box.appendChild(subButton('accept', TR('Cosa accetta ({a} di {b})', { a: takes.filter(g => b.accept[g] !== false).length, b: takes.length })));
     if (b.kind === 'port' && !dockTiles(b).length) box.appendChild(el('div', 'pwarn', TR("Dietro il porto non c'è acqua: le navi non possono attraccare.")));
-    box.appendChild(el('div', 'pnote', b.kind === 'port' ? TR('Magazzino marittimo: tutte le merci. Le navi arrivano dalle piattaforme e dagli altri porti; scegli un altro porto come destinazione per mandarci la merce in nave.') : b.kind === 'warehouse' ? TR('Solo cibo e animali. Fabbrica, panificio, caseificio, macello e supermercato prendono da qui quello che gli serve.')
-      : TR('Solo merci (legno, mobili, cotone, lana, tessuti, vestiti, energia). Segheria, fabbriche e negozi prendono da qui quello che gli serve.')));
+    box.appendChild(el('div', 'pnote', b.kind === 'port' ? TR('Magazzino marittimo: tutte le merci. Le navi arrivano dalle piattaforme e dagli altri porti; scegli un altro porto come destinazione per mandarci la merce in nave.') : b.kind === 'warehouse' ? TR('Solo cibo e animali. Manda la merce solo agli edifici che scegli qui sotto come uscita.')
+      : TR('Solo merci (legno, mobili, cotone, lana, tessuti, vestiti, energia). Manda la merce solo agli edifici che scegli qui sotto come uscita.')));
     destSection(box, b);   // uscita: dove mandare le scorte
   }
 
@@ -336,11 +336,12 @@ function renderPanel() {
     if (!b.fields) box.appendChild(el('div', 'pwarn', TR('Senza campi la fattoria non produce.')));
 
     box.appendChild(liveText('div', 'prow', () => TR('Crescita: {n}%', { n: Math.floor(b.growth * 100) })));
+    box.appendChild(el('div', 'pnote', TR('Raccolto: {n} unità ({f} campi) ogni {s} s con tutto il personale', { n: b.fields * FARM.yieldPerField, f: b.fields, s: FARM.cycleSec })));
     box.appendChild(bar(() => b.growth, 1));
-    box.appendChild(liveText('div', 'prow', () => TR('Inventario: {a} / {b}', { a: sumOf(b.store), b: CAPS.farm.store })));
-    box.appendChild(bar(() => sumOf(b.store), CAPS.farm.store));
+    box.appendChild(liveText('div', 'prow', () => TR('Inventario: {a} / {b}', { a: sumOf(b.store), b: farmCap(b) })));
+    box.appendChild(bar(() => sumOf(b.store), farmCap(b)));
     box.appendChild(goodsList(() => b.store, TR('Ancora niente raccolto.')));
-    box.appendChild(liveText('div', 'pwarn', () => sumOf(b.store) >= CAPS.farm.store ? TR('Inventario pieno: la crescita è ferma.') : ''));
+    box.appendChild(liveText('div', 'pwarn', () => b.full ? TR('Inventario pieno: la crescita è ferma.') : ''));
     destSection(box, b);
   }
 
@@ -420,7 +421,7 @@ function renderPanel() {
     const row = el('div', 'prow pwrapicons', TR('Vende:') + ' ');
     for (const g of sells) { const im = goodImg(g); im.title = GOODS[g].name; row.appendChild(im); }
     box.appendChild(row);
-    box.appendChild(el('div', 'pnote', TR('Si rifornisce anche dai magazzini. Tasse: {n}% del prezzo.', { n: Math.round(TAX_RATE * 100) })));
+    box.appendChild(el('div', 'pnote', TR('Si rifornisce dai magazzini che lo hanno come uscita. Tasse: {n}% del prezzo.', { n: Math.round(TAX_RATE * 100) })));
   }
   renderSubpanel(b);
 }

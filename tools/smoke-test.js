@@ -473,14 +473,15 @@ function check(cond, msg) {
     for (let i = 0; i < 200 * 20; i++) simUpdate(0.05);
     r.stock = wh.store.potato || 0; r.inv = sumOf(farm.store); r.workers = [farm.workers, wh.workers];
     // senza magazzino l'inventario si riempie fino al limite e poi si ferma
-    farm.dests = [];
+    farm.dests = []; farm.store = { potato: 80 };
     for (let i = 0; i < 400 * 10; i++) simUpdate(0.1);
-    r.capped = sumOf(farm.store) === CAPS.farm.store;
+    const crop = farm.fields * FARM.yieldPerField;   // si ferma quando il prossimo raccolto intero non ci sta
+    r.capped = sumOf(farm.store) <= farmCap(farm) && sumOf(farm.store) > farmCap(farm) - crop && farm.full;
     return r;
   });
   check(del.crop === 'potato' && del.storage, 'pannello: coltura patate e magazzino scelti');
   check(del.stock > 0, `il furgone ha portato le patate al magazzino: ${del.stock} (lavoratori fattoria/magazzino ${del.workers})`);
-  check(del.capped, 'inventario della fattoria limitato a ' + 100);
+  check(del.capped, 'inventario della fattoria limitato (si ferma prima di un raccolto che non ci sta)');
   await page.screenshot({ path: process.env.SHOTS + '/5b-farm-panel.png' });
 
   // 22. salva e ricarica tutto (abitanti, fattoria, magazzino, strada principale) in poco spazio
@@ -631,6 +632,7 @@ function check(cond, msg) {
     r.crops = Object.keys(CROPS).join(',');
     farm.crop = 'wheat'; farm.store = { wheat: 60 };
     farm.dests = [fac.id]; fac.dests = [wh.id]; bk.dests = [sm.id];
+    wh.dests = [fac.id, sm.id, bk.id];   // il magazzino rifornisce solo chi ha scelto come uscita
     wh.store = { tomato: 40, cabbage: 30 };
     wh.accept.chips = false;
     r.refuses = freeFor(wh, 'chips') === 0 && freeFor(wh, 'flour') > 0;
@@ -1579,6 +1581,27 @@ function check(cond, msg) {
     return { close, maxWait, left: vehicles.filter(v => v.kind === "ship").length, landed: sumOf(pb.store), st: pa.status, w: pa.workers + "/" + pb.workers, ps: JSON.stringify(pa.store) };
   });
   check(sh.close === 0 && sh.left === 0 && sh.landed > 0, `navi: mai sovrapposte (${sh.close}), tutte tornate (${sh.left} in mare), merce arrivata ${sh.landed} ${JSON.stringify(sh)}`);
+
+  // 55. raccolto in proporzione ai campi; il magazzino rifornisce solo chi ha scelto come uscita
+  const bal = await page.evaluate(() => {
+    const r = {};
+    const fake = n => { const f = { kind: 'farm', crop: 'carrot', fields: n, growth: 0.999, workers: JOBS.farm, store: {}, dests: [] }; updateFarm(f, 1); return sumOf(f.store); };
+    r.small = fake(12); r.big = fake(172);
+    clearVehicles(); newGame(16, 128); unlockAll(); game.started = true; if (menuIsOpen()) closeMenu();
+    const N = game.size, c = N / 2;
+    for (let y = c - 10; y < c + 10; y++) for (let x = c - 10; x < c + 10; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, elev: 2, bridge: null });
+    for (let x = c - 10; x < c + 10; x++) useTool('road', x, c + 2);
+    game.rotation = 0; useTool('warehouse', c - 6, c); useTool('supermarket', c, c);
+    const wh = game.map[c][c - 6].building, sm = game.map[c][c].building;
+    wh.store = { carrot: 50 }; wh.workers = 2; sm.workers = 2;
+    for (let i = 0; i < 100; i++) { wh.workers = 2; sm.workers = 2; sm.pullTimer = 0; pullGoods(sm); }
+    r.notChosen = (wh.store.carrot || 0) === 50 && !vehicles.some(v => v.kind === 'van');
+    wh.dests = [sm.id]; sm.pullTimer = 0; pullGoods(sm);
+    r.chosen = (wh.store.carrot || 0) < 50;
+    return r;
+  });
+  check(bal.small === 12 && bal.big === 172, `raccolto in proporzione ai campi: 12 campi = ${bal.small}, 172 campi = ${bal.big}`);
+  check(bal.notChosen && bal.chosen, 'il supermercato prende dal magazzino solo se il magazzino lo ha come uscita');
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();

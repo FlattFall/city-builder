@@ -121,6 +121,11 @@ DICT.en = {
   'Tutto': 'All',
   'Niente': 'None',
   'Clic su una ricetta per accenderla o spegnerla.': 'Click a recipe to turn it on or off.',
+  'Raccolto: {n} unità ({f} campi) ogni {s} s con tutto il personale': 'Harvest: {n} units ({f} fields) every {s} s with full staff',
+  'Solo cibo e animali. Manda la merce solo agli edifici che scegli qui sotto come uscita.': 'Food and animals only. It sends goods only to the buildings you choose below as output.',
+  'Solo merci (legno, mobili, cotone, lana, tessuti, vestiti, energia). Manda la merce solo agli edifici che scegli qui sotto come uscita.': 'Goods only (wood, furniture, cotton, wool, fabrics, clothes, energy). It sends goods only to the buildings you choose below as output.',
+  'Si rifornisce dai magazzini che lo hanno come uscita. Tasse: {n}% del prezzo.': 'It restocks from the warehouses that have it as output. Taxes: {n}% of the price.',
+  'Un magazzino rifornisce solo gli edifici che hai scelto come sua uscita (nel suo pannello): da lì fabbriche e negozi chiedono prima quello che gli manca. Il supermercato lascia la precedenza alle fabbriche per le merci che loro trasformano (es. la farina va prima al panificio).': 'A warehouse only supplies the buildings you chose as its output (in its panel): from those, factories and shops first ask for what they lack. The supermarket gives priority to factories for the goods they process (e.g. flour goes to the bakery first).',
   'Distribuzione per merce': 'Distribution per good', 'Personalizzata': 'Custom', 'Automatica': 'Automatic',
   'Clic per tornare alla distribuzione automatica': 'Click to go back to automatic distribution', 'Clic per scegliere quanto mandare a ogni destinazione': 'Click to choose how much to send to each destination',
   'Questa merce non va da nessuna parte: metti almeno una percentuale.': 'This good goes nowhere: set at least one percentage.', 'Va alla destinazione che ne ha bisogno.': 'It goes to the destination that needs it.',
@@ -133,8 +138,6 @@ DICT.en = {
   'Cosa accetta (clic per cambiare)': 'What it accepts (click to change)', ': accettato': ': accepted', ': rifiutato': ': refused',
   "Dietro il porto non c'è acqua: le navi non possono attraccare.": 'There is no water behind the port: ships cannot dock.',
   'Magazzino marittimo: tutte le merci. Le navi arrivano dalle piattaforme e dagli altri porti; scegli un altro porto come destinazione per mandarci la merce in nave.': 'Harbour warehouse: all goods. Ships arrive from platforms and other ports; choose another port as a destination to send goods there by ship.',
-  'Solo cibo e animali. Fabbrica, panificio, caseificio, macello e supermercato prendono da qui quello che gli serve.': 'Food and animals only. The food factory, bakery, dairy, slaughterhouse and supermarket collect what they need from here.',
-  'Solo merci (legno, mobili, cotone, lana, tessuti, vestiti, energia). Segheria, fabbriche e negozi prendono da qui quello che gli serve.': 'Goods only (wood, furniture, cotton, wool, fabrics, clothes, energy). The sawmill, factories and shops collect what they need from here.',
   'Cosa coltivare': 'What to grow', 'Campi: {n}': 'Fields: {n}', 'Aggiungi campi': 'Add fields', 'Senza campi la fattoria non produce.': 'Without fields the farm produces nothing.',
   'Crescita: {n}%': 'Growth: {n}%', 'Inventario: {a} / {b}': 'Inventory: {a} / {b}', 'Ancora niente raccolto.': 'Nothing harvested yet.', 'Inventario pieno: la crescita è ferma.': 'Inventory full: growth has stopped.',
   'Cosa allevare': 'What to raise', 'Produce: {list}': 'Produces: {list}', "Qui non c'è erba: solo pecore": 'No grass here: sheep only',
@@ -154,7 +157,6 @@ DICT.en = {
   'Bollette incassate: {m}. Con la corrente le attività lavorano fino al {n}% più in fretta.': 'Bills collected: {m}. With power, businesses work up to {n}% faster.',
   'Clienti (abitanti entro {r} tile): {n}': 'Customers (residents within {r} tiles): {n}', 'Venduti: {n} - tasse incassate: {m}': 'Sold: {n} - taxes collected: {m}',
   'Scaffali: {a} / {b}': 'Shelves: {a} / {b}', 'Scaffali vuoti.': 'Empty shelves.', 'Scaffali vuoti: mandagli merce o mettila in un magazzino.': 'Empty shelves: send it goods or put them in a warehouse.',
-  'Si rifornisce anche dai magazzini. Tasse: {n}% del prezzo.': 'It also restocks from warehouses. Taxes: {n}% of the price.',
   'trascina sul terreno per mettere i campi (dentro il riquadro tratteggiato).': 'drag on the ground to place fields (inside the dashed area).',
   // manual
   'Come si inizia': 'Getting started', 'Case, abitanti e lavoro': 'Houses, residents and jobs', 'Agricoltura': 'Farming', 'Trasformazione alimentare': 'Food processing',
@@ -179,8 +181,8 @@ DICT.en = {
   'Ogni attività prende i lavoratori dalle case entro <b>{n} tile</b>. Più personale = lavora più in fretta; senza personale si ferma. In alto vedi quanti <b>Disoccupati</b> ci sono: se sono tanti puoi aprire nuove attività.': 'Every business takes its workers from houses within <b>{n} tiles</b>. More staff = faster work; without staff it stops. At the top you can see how many are <b>Unemployed</b>: if there are many you can open new businesses.',
   'Le icone sopra gli edifici': 'The icons above buildings', 'Nessuna strada (o non collegata alla principale)': 'No road (or not connected to the main road)', 'Nessun lavoratore': 'No workers',
   'Pochi lavoratori': 'Few workers', 'Deposito pieno: scegli una destinazione': 'Storage full: choose a destination', 'Mancano le materie prime': 'Raw materials missing', 'Negozio vuoto: niente da vendere': 'Empty shop: nothing to sell',
-  'Dopo aver piazzato la fattoria scegli i campi (entro {r} tile, poi "Fatto"). Nel pannello della fattoria scegli la coltura e le destinazioni. Con tutto il personale si raccoglie ogni {s} secondi, {y} unità per campo. La fattoria tiene al massimo {c} unità.':
-    'After placing the farm choose the fields (within {r} tiles, then "Done"). In the farm panel choose the crop and the destinations. With full staff it harvests every {s} seconds, {y} units per field. The farm holds at most {c} units.',
+  'Dopo aver piazzato la fattoria scegli i campi (entro {r} tile, poi "Fatto"). Nel pannello della fattoria scegli la coltura e le destinazioni. Con tutto il personale si raccoglie ogni {s} secondi, {y} unità per campo. La fattoria tiene almeno {c} unità (e sempre due raccolti): più campi = più raccolto.':
+    'After placing the farm choose the fields (within {r} tiles, then "Done"). In the farm panel choose the crop and the destinations. With full staff it harvests every {s} seconds, {y} units per field. The farm holds at least {c} units (and always two harvests): more fields = bigger harvest.',
   'Colture': 'Crops', 'serve a: {list}': 'used by: {list}', 'da sbloccare': 'to unlock',
   'Un solo edificio: nel pannello scegli quale animale allevare. Produce da solo (non servono campi), più in fretta con tutto il personale.': 'A single building: in the panel choose which animal to raise. It produces by itself (no fields needed), faster with full staff.',
   'ogni {n} secondi': 'every {n} seconds', "(vuole l'erba)": '(needs grass)', '(anche in montagna)': '(also in the mountains)',
@@ -197,7 +199,6 @@ DICT.en = {
   'nave': 'ship', 'furgone': 'van',
   "Ogni attività ha un furgone (i magazzini {w}). Il furgone parte quando ci sono almeno <b>{a} unità</b> e ne porta fino a <b>{b}</b>, poi torna indietro. Le destinazioni si scelgono nel pannello dell'edificio: se ne scegli più di una, ogni merce va alla prima che la accetta e ha posto.":
     'Every business has one van (warehouses have {w}). The van leaves when there are at least <b>{a} units</b>, carries up to <b>{b}</b>, then comes back. Destinations are chosen in the building panel: if you choose more than one, each good goes to the first one that accepts it and has room.',
-  'Fabbriche e negozi vanno anche da soli a prendere nei magazzini quello che gli serve. Il supermercato lascia la precedenza alle fabbriche per le merci che loro trasformano (es. la farina va prima al panificio).': 'Factories and shops also collect what they need from warehouses by themselves. The supermarket gives way to factories for the goods they process (e.g. flour goes to the bakery first).',
   "Nel pannello del magazzino puoi scegliere cosa accetta (clic sulle merci) e un'uscita verso altri edifici. Due magazzini non possono mandarsi la merce a vicenda.": 'In the warehouse panel you can choose what it accepts (click the goods) and an output to other buildings. Two warehouses cannot send goods to each other.',
   'I clienti di un negozio sono gli abitanti delle case vicine. Per ogni cosa venduta incassi il <b>{n}%</b> del prezzo come tasse.': 'The customers of a shop are the residents of nearby houses. For everything sold you collect <b>{n}%</b> of the price as taxes.',
   'Clienti entro {n} tile.': 'Customers within {n} tiles.',

@@ -93,7 +93,7 @@ const FARM = {
   fieldRadius: 6,     // i campi devono stare entro questa distanza (in tile) dalla fattoria
   inventoryCap: 100,  // inventario massimo della fattoria
   cycleSec: 120,      // secondi dalla semina al raccolto (con tutto il personale)
-  yieldPerField: 4,   // unità raccolte per ogni campo
+  yieldPerField: 1,   // unità raccolte per ogni campo (prima 4: con il deposito pieno 12 campi rendevano quasi come 170)
   vanCapacity: 25,    // quanto porta il furgone in un viaggio
   vanMinLoad: 10,     // il furgone parte quando c'è almeno questo
 };

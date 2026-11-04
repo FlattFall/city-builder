@@ -121,6 +121,11 @@ DICT.es = {
   'Tutto': 'Todo',
   'Niente': 'Nada',
   'Clic su una ricetta per accenderla o spegnerla.': 'Haz clic en una receta para activarla o desactivarla.',
+  'Raccolto: {n} unità ({f} campi) ogni {s} s con tutto il personale': 'Cosecha: {n} unidades ({f} campos) cada {s} s con todo el personal',
+  'Solo cibo e animali. Manda la merce solo agli edifici che scegli qui sotto come uscita.': 'Solo comida y animales. Envía la mercancía solo a los edificios que elijas abajo como salida.',
+  'Solo merci (legno, mobili, cotone, lana, tessuti, vestiti, energia). Manda la merce solo agli edifici che scegli qui sotto come uscita.': 'Solo mercancías (madera, muebles, algodón, lana, telas, ropa, energía). Envía la mercancía solo a los edificios que elijas abajo como salida.',
+  'Si rifornisce dai magazzini che lo hanno come uscita. Tasse: {n}% del prezzo.': 'Se abastece de los almacenes que lo tienen como salida. Impuestos: {n}% del precio.',
+  'Un magazzino rifornisce solo gli edifici che hai scelto come sua uscita (nel suo pannello): da lì fabbriche e negozi chiedono prima quello che gli manca. Il supermercato lascia la precedenza alle fabbriche per le merci che loro trasformano (es. la farina va prima al panificio).': 'Un almacén solo abastece a los edificios que elegiste como su salida (en su panel): de ahí fábricas y tiendas piden primero lo que les falta. El supermercado da prioridad a las fábricas para las mercancías que transforman (p. ej. la harina va primero a la panadería).',
   'Distribuzione per merce': 'Distribución por mercancía', 'Personalizzata': 'Personalizada', 'Automatica': 'Automática',
   'Clic per tornare alla distribuzione automatica': 'Clic para volver a la distribución automática', 'Clic per scegliere quanto mandare a ogni destinazione': 'Clic para elegir cuánto enviar a cada destino',
   'Questa merce non va da nessuna parte: metti almeno una percentuale.': 'Esta mercancía no va a ninguna parte: pon al menos un porcentaje.', 'Va alla destinazione che ne ha bisogno.': 'Va al destino que la necesita.',
@@ -133,8 +138,6 @@ DICT.es = {
   'Cosa accetta (clic per cambiare)': 'Qué acepta (clic para cambiar)', ': accettato': ': aceptado', ': rifiutato': ': rechazado',
   "Dietro il porto non c'è acqua: le navi non possono attraccare.": 'Detrás del puerto no hay agua: los barcos no pueden atracar.',
   'Magazzino marittimo: tutte le merci. Le navi arrivano dalle piattaforme e dagli altri porti; scegli un altro porto come destinazione per mandarci la merce in nave.': 'Almacén portuario: todas las mercancías. Los barcos llegan de las plataformas y de otros puertos; elige otro puerto como destino para enviarle la mercancía en barco.',
-  'Solo cibo e animali. Fabbrica, panificio, caseificio, macello e supermercato prendono da qui quello che gli serve.': 'Solo comida y animales. La fábrica, la panadería, la quesería, el matadero y el supermercado recogen aquí lo que necesitan.',
-  'Solo merci (legno, mobili, cotone, lana, tessuti, vestiti, energia). Segheria, fabbriche e negozi prendono da qui quello che gli serve.': 'Solo mercancías (madera, muebles, algodón, lana, telas, ropa, energía). El aserradero, las fábricas y las tiendas recogen aquí lo que necesitan.',
   'Cosa coltivare': 'Qué cultivar', 'Campi: {n}': 'Campos: {n}', 'Aggiungi campi': 'Añadir campos', 'Senza campi la fattoria non produce.': 'Sin campos la granja no produce.',
   'Crescita: {n}%': 'Crecimiento: {n}%', 'Inventario: {a} / {b}': 'Inventario: {a} / {b}', 'Ancora niente raccolto.': 'Todavía no hay cosecha.', 'Inventario pieno: la crescita è ferma.': 'Inventario lleno: el crecimiento está parado.',
   'Cosa allevare': 'Qué criar', 'Produce: {list}': 'Produce: {list}', "Qui non c'è erba: solo pecore": 'Aquí no hay hierba: solo ovejas',
@@ -154,7 +157,6 @@ DICT.es = {
   'Bollette incassate: {m}. Con la corrente le attività lavorano fino al {n}% più in fretta.': 'Facturas cobradas: {m}. Con electricidad los negocios trabajan hasta un {n}% más rápido.',
   'Clienti (abitanti entro {r} tile): {n}': 'Clientes (habitantes a menos de {r} casillas): {n}', 'Venduti: {n} - tasse incassate: {m}': 'Vendidos: {n} - impuestos cobrados: {m}',
   'Scaffali: {a} / {b}': 'Estanterías: {a} / {b}', 'Scaffali vuoti.': 'Estanterías vacías.', 'Scaffali vuoti: mandagli merce o mettila in un magazzino.': 'Estanterías vacías: envíale mercancía o ponla en un almacén.',
-  'Si rifornisce anche dai magazzini. Tasse: {n}% del prezzo.': 'También se abastece de los almacenes. Impuestos: {n}% del precio.',
   'trascina sul terreno per mettere i campi (dentro il riquadro tratteggiato).': 'arrastra sobre el terreno para poner los campos (dentro del recuadro discontinuo).',
   // manual
   'Come si inizia': 'Cómo empezar', 'Case, abitanti e lavoro': 'Casas, habitantes y trabajo', 'Agricoltura': 'Agricultura', 'Trasformazione alimentare': 'Transformación de alimentos',
@@ -179,8 +181,8 @@ DICT.es = {
   'Ogni attività prende i lavoratori dalle case entro <b>{n} tile</b>. Più personale = lavora più in fretta; senza personale si ferma. In alto vedi quanti <b>Disoccupati</b> ci sono: se sono tanti puoi aprire nuove attività.': 'Cada negocio toma sus trabajadores de las casas a menos de <b>{n} casillas</b>. Más personal = trabaja más rápido; sin personal se para. Arriba ves cuántos <b>Desempleados</b> hay: si son muchos puedes abrir nuevos negocios.',
   'Le icone sopra gli edifici': 'Los iconos sobre los edificios', 'Nessuna strada (o non collegata alla principale)': 'Sin carretera (o no conectada a la principal)', 'Nessun lavoratore': 'Sin trabajadores',
   'Pochi lavoratori': 'Pocos trabajadores', 'Deposito pieno: scegli una destinazione': 'Depósito lleno: elige un destino', 'Mancano le materie prime': 'Faltan materias primas', 'Negozio vuoto: niente da vendere': 'Tienda vacía: nada que vender',
-  'Dopo aver piazzato la fattoria scegli i campi (entro {r} tile, poi "Fatto"). Nel pannello della fattoria scegli la coltura e le destinazioni. Con tutto il personale si raccoglie ogni {s} secondi, {y} unità per campo. La fattoria tiene al massimo {c} unità.':
-    'Después de colocar la granja elige los campos (a menos de {r} casillas, luego "Hecho"). En el panel de la granja elige el cultivo y los destinos. Con todo el personal se cosecha cada {s} segundos, {y} unidades por campo. La granja guarda como máximo {c} unidades.',
+  'Dopo aver piazzato la fattoria scegli i campi (entro {r} tile, poi "Fatto"). Nel pannello della fattoria scegli la coltura e le destinazioni. Con tutto il personale si raccoglie ogni {s} secondi, {y} unità per campo. La fattoria tiene almeno {c} unità (e sempre due raccolti): più campi = più raccolto.':
+    'Después de colocar la granja elige los campos (a menos de {r} casillas, luego "Hecho"). En el panel de la granja elige el cultivo y los destinos. Con todo el personal se cosecha cada {s} segundos, {y} unidades por campo. La granja guarda al menos {c} unidades (y siempre dos cosechas): más campos = más cosecha.',
   'Colture': 'Cultivos', 'serve a: {list}': 'lo usa: {list}', 'da sbloccare': 'por desbloquear',
   'Un solo edificio: nel pannello scegli quale animale allevare. Produce da solo (non servono campi), più in fretta con tutto il personale.': 'Un solo edificio: en el panel eliges qué animal criar. Produce solo (no hacen falta campos), más rápido con todo el personal.',
   'ogni {n} secondi': 'cada {n} segundos', "(vuole l'erba)": '(necesita hierba)', '(anche in montagna)': '(también en la montaña)',
@@ -197,7 +199,6 @@ DICT.es = {
   'nave': 'barco', 'furgone': 'furgoneta',
   "Ogni attività ha un furgone (i magazzini {w}). Il furgone parte quando ci sono almeno <b>{a} unità</b> e ne porta fino a <b>{b}</b>, poi torna indietro. Le destinazioni si scelgono nel pannello dell'edificio: se ne scegli più di una, ogni merce va alla prima che la accetta e ha posto.":
     'Cada negocio tiene una furgoneta (los almacenes {w}). La furgoneta sale cuando hay al menos <b>{a} unidades</b> y lleva hasta <b>{b}</b>, luego vuelve. Los destinos se eligen en el panel del edificio: si eliges más de uno, cada mercancía va al primero que la acepta y tiene sitio.',
-  'Fabbriche e negozi vanno anche da soli a prendere nei magazzini quello che gli serve. Il supermercato lascia la precedenza alle fabbriche per le merci che loro trasformano (es. la farina va prima al panificio).': 'Las fábricas y las tiendas también recogen solas en los almacenes lo que necesitan. El supermercado cede el paso a las fábricas para las mercancías que ellas transforman (p. ej. la harina va primero a la panadería).',
   "Nel pannello del magazzino puoi scegliere cosa accetta (clic sulle merci) e un'uscita verso altri edifici. Due magazzini non possono mandarsi la merce a vicenda.": 'En el panel del almacén puedes elegir qué acepta (clic en las mercancías) y una salida hacia otros edificios. Dos almacenes no pueden enviarse mercancía entre sí.',
   'I clienti di un negozio sono gli abitanti delle case vicine. Per ogni cosa venduta incassi il <b>{n}%</b> del prezzo come tasse.': 'Los clientes de una tienda son los habitantes de las casas cercanas. Por cada cosa vendida cobras el <b>{n}%</b> del precio en impuestos.',
   'Clienti entro {n} tile.': 'Clientes a menos de {n} casillas.',

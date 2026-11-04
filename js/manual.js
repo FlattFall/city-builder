@@ -107,7 +107,7 @@ const MANUAL = [
 
   { id: 'farm', title: 'Agricoltura', icon: 'farm', build(b) {
     b.appendChild(item('farm'));
-    b.appendChild(mEl('p', null, TR('Dopo aver piazzato la fattoria scegli i campi (entro {r} tile, poi "Fatto"). Nel pannello della fattoria scegli la coltura e le destinazioni. Con tutto il personale si raccoglie ogni {s} secondi, {y} unità per campo. La fattoria tiene al massimo {c} unità.', { r: FARM.fieldRadius, s: FARM.cycleSec, y: FARM.yieldPerField, c: CAPS.farm.store })));
+    b.appendChild(mEl('p', null, TR('Dopo aver piazzato la fattoria scegli i campi (entro {r} tile, poi "Fatto"). Nel pannello della fattoria scegli la coltura e le destinazioni. Con tutto il personale si raccoglie ogni {s} secondi, {y} unità per campo. La fattoria tiene almeno {c} unità (e sempre due raccolti): più campi = più raccolto.', { r: FARM.fieldRadius, s: FARM.cycleSec, y: FARM.yieldPerField, c: CAPS.farm.store })));
     b.appendChild(mEl('h4', null, TR('Colture')));
     for (const c of Object.keys(CROPS)) {
       const row = mEl('div', 'chain-row');
@@ -196,7 +196,7 @@ const MANUAL = [
     b.appendChild(item('goodsWarehouse'));
     b.appendChild(mEl('p', null, TR("Ogni attività ha un furgone (i magazzini {w}). Il furgone parte quando ci sono almeno <b>{a} unità</b> e ne porta fino a <b>{b}</b>, poi torna indietro. Le destinazioni si scelgono nel pannello dell'edificio: se ne scegli più di una, ogni merce va alla prima che la accetta e ha posto.", { w: VANS.warehouse, a: VAN_MIN_LOAD, b: VAN_CAPACITY })));
     b.appendChild(mEl('p', null, TR("<b>Distribuzione per merce</b>: con due o più destinazioni che accettano la stessa merce, nel pannello puoi passare da <b>Automatica</b> a <b>Personalizzata</b> e decidere la percentuale per ognuna con + e − (es. 50% e 50%, oppure 100% a una sola).")));
-    b.appendChild(mEl('p', null, TR('Fabbriche e negozi vanno anche da soli a prendere nei magazzini quello che gli serve. Il supermercato lascia la precedenza alle fabbriche per le merci che loro trasformano (es. la farina va prima al panificio).')));
+    b.appendChild(mEl('p', null, TR('Un magazzino rifornisce solo gli edifici che hai scelto come sua uscita (nel suo pannello): da lì fabbriche e negozi chiedono prima quello che gli manca. Il supermercato lascia la precedenza alle fabbriche per le merci che loro trasformano (es. la farina va prima al panificio).')));
     b.appendChild(mEl('div', 'man-tip', TR("Nel pannello del magazzino puoi scegliere cosa accetta (clic sulle merci) e un'uscita verso altri edifici. Due magazzini non possono mandarsi la merce a vicenda.")));
   } },
 
