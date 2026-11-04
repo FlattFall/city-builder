@@ -553,51 +553,81 @@ function redirectShip(v) {
     cancel() { const f = game.buildings.get(fid); if (f) vanHome(f); } });
 }
 
-// Nave: scafo scuro e rosso con la prua a punta, ponte con le cisterne del petrolio, cabina a poppa
+// Nave: petroliera disegnata come gli edifici. Scafo blu scuro con la fascia rossa sotto la linea
+// di galleggiamento e la prua a punta, ponte verde con il tubo e i boccaporti, albero a prua,
+// ponte di comando bianco a poppa (due piani con le finestre) e fumaiolo con la striscia colorata.
+// Dondola un po' sull'acqua; scia e onde alla prua.
 function drawShip(c, v) {
-  const { mx, my, h } = v.pos;
+  const { mx, my } = v.pos;
   const d = vehicleDir(v), f = DIRS[d], sd = [-f.dy, f.dx];
-  const L = 0.36, W = 0.13;
-  const LP = (a, w, z) => iso(0, 0, mx + f.dx * a + sd[0] * w, my + f.dy * a + sd[1] * w, h + z / STEP);
+  const bob = DETAIL ? Math.sin(animT * 2.2 + (v.from || 0)) * 0.025 : 0;
+  const h = v.pos.h + bob;
+  const L = 0.46, W = 0.115, DECK = 3.4, K = 1.3;   // K = grandezza della nave (tutto in proporzione)
+  const LP = (a, w, z) => iso(0, 0, mx + (f.dx * a + sd[0] * w) * K, my + (f.dy * a + sd[1] * w) * K, h + z * K / STEP);
   const R = (a0, a1, w0, w1) => {
     const us = [], vs = [];
-    for (const a of [a0, a1]) for (const w of [w0, w1]) { us.push(mx + f.dx * a + sd[0] * w); vs.push(my + f.dy * a + sd[1] * w); }
+    for (const a of [a0, a1]) for (const w of [w0, w1]) { us.push(mx + (f.dx * a + sd[0] * w) * K); vs.push(my + (f.dy * a + sd[1] * w) * K); }
     return [Math.min(...us), Math.min(...vs), Math.max(...us), Math.max(...vs)];
   };
-  const vbox = (rc, z0, hp, col) => box(c, 0, 0, h + z0 / STEP, rc[0], rc[1], rc[2], rc[3], hp, Object.assign({ plain: true }, col));
-  if (DETAIL) {   // scia bianca dietro
-    c.fillStyle = 'rgba(255,255,255,0.35)';
-    c.beginPath(); c.moveTo(...LP(-L, -W * 0.8, 0)); c.lineTo(...LP(-L - 0.3, 0, 0)); c.lineTo(...LP(-L, W * 0.8, 0)); c.closePath(); c.fill();
-  }
-  // scafo: rosso sotto la linea di galleggiamento, nero sopra, prua a punta
-  const hull = (z0, z1, col) => {
-    const out = [[-L, -W], [L * 0.6, -W], [L, 0], [L * 0.6, W], [-L, W]];
-    const lo = out.map(([a, w]) => LP(a, w, z0)), hi = out.map(([a, w]) => LP(a, w, z1));
-    for (let i = 0; i < out.length; i++) {   // fianchi che guardano lo schermo
-      const j = (i + 1) % out.length;
-      const ax = out[i], bx = out[j];
-      const nx = (bx[1] - ax[1]), ny = -(bx[0] - ax[0]);   // normale nel piano (a, w)
-      const wu = f.dx * nx + sd[0] * ny, wv = f.dy * nx + sd[1] * ny;
-      if (wu + wv <= 0) continue;
-      poly(c, [lo[i], lo[j], hi[j], hi[i]], wu > wv ? shadeC(col, -0.25) : col);
+  const vbox = (rc, z0, hp, col) => box(c, 0, 0, h + z0 * K / STEP, rc[0], rc[1], rc[2], rc[3], hp * K, Object.assign({ plain: true }, col));
+  // finestre su un box: fascia sulle due facce che si vedono (v = v1 e u = u1)
+  const windows = (rc, z0, z1, n) => {
+    const [u0, v0, u1, v1] = rc, P = (u, vv, z) => iso(0, 0, u, vv, h + z * K / STEP);
+    for (let k = 0; k < n; k++) {
+      const a0 = u0 + (u1 - u0) * (k + 0.3) / n, a1 = u0 + (u1 - u0) * (k + 0.7) / n;
+      poly(c, [P(a0, v1, z0), P(a1, v1, z0), P(a1, v1, z1), P(a0, v1, z1)], '#2f4f72');
+      const b0 = v0 + (v1 - v0) * (k + 0.3) / n, b1 = v0 + (v1 - v0) * (k + 0.7) / n;
+      poly(c, [P(u1, b0, z0), P(u1, b1, z0), P(u1, b1, z1), P(u1, b0, z1)], '#25415e');
     }
-    return hi;
   };
-  hull(-0.5, 1.2, '#b5473a');
-  const deck = hull(1.2, 3.2, '#2b2f38');
-  poly(c, deck, '#8a8f96');
-  // cisterne sul ponte e cabina a poppa (disegnate dal fondo dello schermo verso il davanti)
+  if (DETAIL) {   // scia dietro e onde ai lati della prua
+    const wake = 0.35 + 0.15 * Math.sin(animT * 3);
+    c.fillStyle = 'rgba(255,255,255,' + wake.toFixed(2) + ')';
+    c.beginPath(); c.moveTo(...LP(-L + 0.02, -W * 0.9, 0)); c.lineTo(...LP(-L - 0.38, -W * 0.25, 0)); c.lineTo(...LP(-L - 0.38, W * 0.25, 0)); c.lineTo(...LP(-L + 0.02, W * 0.9, 0)); c.closePath(); c.fill();
+    c.strokeStyle = 'rgba(255,255,255,0.7)'; c.lineWidth = 0.6;
+    for (const s of [-1, 1]) { c.beginPath(); c.moveTo(...LP(L, 0, 0)); c.lineTo(...LP(L * 0.55, s * W * 1.45, 0)); c.stroke(); }
+  }
+  // scafo: contorno con la prua a punta e la poppa squadrata
+  const out = [[-L, -W], [L * 0.5, -W], [L * 0.82, -W * 0.62], [L, 0], [L * 0.82, W * 0.62], [L * 0.5, W], [-L, W]];
+  const ring = (z, k) => out.map(([a, w]) => LP(a * (k || 1), w * (k || 1), z));
+  const sides = (z0, z1, col, k0, k1) => {
+    const lo = ring(z0, k0), hi = ring(z1, k1);
+    for (let i = 0; i < out.length; i++) {
+      const j = (i + 1) % out.length, A = out[i], B = out[j];
+      const nx = B[1] - A[1], ny = -(B[0] - A[0]);              // normale verso fuori nel piano (marcia, lato)
+      const wu = f.dx * nx + sd[0] * ny, wv = f.dy * nx + sd[1] * ny;
+      if (wu + wv <= 0) continue;                                 // faccia girata dall'altra parte
+      poly(c, [lo[i], lo[j], hi[j], hi[i]], wu > wv ? shadeC(col, -0.3) : col);
+    }
+  };
+  sides(-0.6, 1.2, '#b5473a', 0.96, 1);      // opera viva rossa, un po' rientrata sotto
+  sides(1.2, DECK, '#24324a', 1, 1);         // fiancata blu scuro
+  const deck = ring(DECK);
+  poly(c, deck, '#4f7a52');                  // ponte verde
+  if (DETAIL) {
+    c.strokeStyle = '#f2f2f2'; c.lineWidth = 0.45;   // bordo bianco del ponte
+    c.beginPath(); c.moveTo(...deck[0]); for (const p of deck.slice(1)) c.lineTo(...p); c.closePath(); c.stroke();
+    c.strokeStyle = '#c9ced4'; c.lineWidth = 0.7;    // tubo lungo il ponte
+    c.beginPath(); c.moveTo(...LP(-0.12, 0, DECK + 0.6)); c.lineTo(...LP(L * 0.7, 0, DECK + 0.6)); c.stroke();
+  }
+  // pezzi sul ponte, dal fondo dello schermo verso il davanti
+  const stripe = v.stripe || '#d94141';
   const parts = [
-    { rc: R(-0.04, 0.12, -W * 0.6, W * 0.6), z: 3.2, hp: 2.6, col: { l: '#e8c23a', r: '#c9a42a', t: '#f2d870' } },
-    { rc: R(0.16, 0.32, -W * 0.6, W * 0.6), z: 3.2, hp: 2.6, col: { l: '#e8c23a', r: '#c9a42a', t: '#f2d870' } },
-    { rc: R(-L + 0.02, -0.1, -W * 0.8, W * 0.8), z: 3.2, hp: 6, col: { l: '#f2f2f2', r: '#cfd1d4', t: '#ffffff' } },
-  ].sort((p, q) => (p.rc[0] + p.rc[1]) - (q.rc[0] + q.rc[1]));
-  for (const p of parts) vbox(p.rc, p.z, p.hp, p.col);
-  if (DETAIL) {   // finestre della cabina e fumaiolo
-    const cab = parts.find(p => p.hp === 6).rc;
-    const top = iso(0, 0, (cab[0] + cab[2]) / 2, (cab[1] + cab[3]) / 2, h + 9.2 / STEP);
-    c.fillStyle = '#d94141'; c.fillRect(top[0] - 0.6, top[1] - 2.5, 1.2, 2.5);
-    c.fillStyle = '#2b2b33'; c.fillRect(top[0] - 0.6, top[1] - 2.9, 1.2, 0.5);
+    ...[-0.12, -0.01, 0.1, 0.21].map(a => ({ rc: R(a - 0.03, a + 0.03, -W * 0.45, W * 0.45), z: DECK, hp: 0.8, col: { l: '#6b8f6a', r: '#4f6f4e', t: '#86a884' } })),   // boccaporti
+    { rc: R(-L + 0.03, -L + 0.17, -W * 0.8, W * 0.8), z: DECK, hp: 4.4, col: { l: '#f4f4f2', r: '#cfd1d4', t: '#e8e8e6' }, win: [1.6, 4] },   // cabine
+    { rc: R(-L + 0.08, -L + 0.17, -W * 0.95, W * 0.95), z: DECK + 4.4, hp: 2.4, col: { l: '#f4f4f2', r: '#cfd1d4', t: '#9aa1aa' }, win: [0.6, 3] },   // ponte di comando (con le alette)
+    { rc: R(-L + 0.035, -L + 0.075, -0.028, 0.028), z: DECK + 4.4, hp: 4.2, col: { l: stripe, r: shadeC(stripe, -0.25), t: '#1f1f24' }, funnel: true },
+    { rc: R(L * 0.72, L * 0.74, -0.01, 0.01), z: DECK, hp: 5, col: { l: '#e8e8e8', r: '#bfc3c8', t: '#ffffff' } },   // albero a prua
+  ].sort((p, q) => (p.rc[0] + p.rc[1] + p.rc[2] + p.rc[3]) - (q.rc[0] + q.rc[1] + q.rc[2] + q.rc[3]));
+  for (const p of parts) {
+    vbox(p.rc, p.z, p.hp, p.col);
+    if (p.win && DETAIL) windows(p.rc, p.z + p.win[0], p.z + p.win[0] + 0.9, p.win[1]);
+    if (p.funnel && DETAIL) {   // fascia nera in cima al fumaiolo e un filo di fumo
+      const [u0, v0, u1, v1] = p.rc, P = (u, vv, z) => iso(0, 0, u, vv, h + z * K / STEP), z0 = p.z + p.hp - 0.9, z1 = p.z + p.hp;
+      poly(c, [P(u0, v1, z0), P(u1, v1, z0), P(u1, v1, z1), P(u0, v1, z1)], '#1f1f24');
+      poly(c, [P(u1, v1, z0), P(u1, v0, z0), P(u1, v0, z1), P(u1, v1, z1)], '#16161a');
+      smokePuff(c, ...P((u0 + u1) / 2, (v0 + v1) / 2, z1), 0.5 + (v.from || 0) * 0.1);
+    }
   }
 }
 

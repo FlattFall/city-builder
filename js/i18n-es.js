@@ -14,6 +14,10 @@ DICT.es = {
   'Nessuna partita salvata. Durante una partita usa "Salva partita" nel menu (Esc).': 'No hay partidas guardadas. Durante una partida usa "Guardar partida" en el menú (Esc).',
   '{r} strade, {h} case': '{r} carreteras, {h} casas', 'Carica': 'Cargar', 'Salvataggio non leggibile.': 'No se puede leer esta partida.', 'Elimina': 'Borrar',
   'Eliminare "{n}"?': '¿Borrar "{n}"?', 'Nella versione web chiudi la scheda del browser per uscire.': 'En la versión web cierra la pestaña del navegador para salir.',
+  'Per iniziare: si gioca in fretta': 'Para empezar: partidas rápidas',
+  'Equilibrata: spazio per tutte le industrie': 'Equilibrado: sitio para todas las industrias',
+  'Tanto spazio per grandi città': 'Mucho sitio para grandes ciudades',
+  'Gigantesca: serve un computer potente': 'Gigantesco: necesita un ordenador potente',
   'Città {n}': 'Ciudad {n}', 'Piccola': 'Pequeño', 'Media': 'Mediano', 'Grande': 'Grande', 'Enorme': 'Enorme',
   // grupos de la barra y terreno
   'Mano': 'Mano', 'Strade': 'Carreteras', 'Case': 'Casas', 'Agroalimentare': 'Agroalimentario', 'Legno': 'Madera', 'Tessile': 'Textil', 'Energia': 'Energía', 'Demolisci': 'Demoler',

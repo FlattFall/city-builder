@@ -35,7 +35,7 @@ function applyLanguage() {
   for (const o of Object.values(GOODS)) trField(o, 'name');
   for (const o of Object.values(CROPS)) trField(o, 'name');
   for (const o of Object.values(LIVESTOCK)) trField(o, 'animal');
-  for (const o of MAP_SIZES) trField(o, 'name');
+  for (const o of MAP_SIZES) { trField(o, 'name'); trField(o, 'desc'); }
   for (const g of TOOL_GROUPS) trField(g, 'label');
   for (const u of UNLOCKS) { trField(u, 'sector'); if (u.name) trField(u, 'name'); if (u.desc) trField(u, 'desc'); }
   for (const ch of MANUAL) trField(ch, 'title');

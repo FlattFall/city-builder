@@ -14,6 +14,10 @@ DICT.en = {
   'Nessuna partita salvata. Durante una partita usa "Salva partita" nel menu (Esc).': 'No saved games. During a game use "Save game" in the menu (Esc).',
   '{r} strade, {h} case': '{r} roads, {h} houses', 'Carica': 'Load', 'Salvataggio non leggibile.': 'This save cannot be read.', 'Elimina': 'Delete',
   'Eliminare "{n}"?': 'Delete "{n}"?', 'Nella versione web chiudi la scheda del browser per uscire.': 'In the web version close the browser tab to quit.',
+  'Per iniziare: si gioca in fretta': 'To get started: quick games',
+  'Equilibrata: spazio per tutte le industrie': 'Balanced: room for every industry',
+  'Tanto spazio per grandi città': 'Lots of room for big cities',
+  'Gigantesca: serve un computer potente': 'Gigantic: needs a powerful computer',
   'Città {n}': 'City {n}', 'Piccola': 'Small', 'Media': 'Medium', 'Grande': 'Large', 'Enorme': 'Huge',
   // toolbar groups and terrain
   'Mano': 'Hand', 'Strade': 'Roads', 'Case': 'Houses', 'Agroalimentare': 'Agrifood', 'Legno': 'Wood', 'Tessile': 'Textile', 'Energia': 'Energy', 'Demolisci': 'Demolish',

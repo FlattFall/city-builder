@@ -14,7 +14,7 @@ function showMenuPage(page) {
     $('m-save').hidden = !game.started;
   }
   if (page === 'load') renderSaveList();
-  if (page === 'new') for (const sz of MAP_SIZES) { const b = $('m-size-' + sz.size); if (b) b.textContent = sz.name + ' - ' + sz.size + ' x ' + sz.size; }
+  if (page === 'new') sizeLabels();
   if (page === 'options') renderLangList();
 }
 
@@ -74,18 +74,53 @@ function startNewMap(size) {
   }, 30);
 }
 
+// Nuova mappa: una scheda per grandezza con un'isola in miniatura (più grande per le mappe grandi)
 function buildSizeChoices() {
   const box = $('size-list');
-  for (const s of MAP_SIZES) {
+  MAP_SIZES.forEach((s, i) => {
     const b = document.createElement('button');
     b.id = 'm-size-' + s.size;
-    b.textContent = s.name + ' - ' + s.size + ' x ' + s.size;
-    b.dataset.size = s.size;
+    b.className = 'size-card';
+    const cv = document.createElement('canvas');
+    cv.width = 150; cv.height = 84;
+    drawMapPreview(cv, s.preview, 4242 + i * 17, 0.55 + i * 0.15);
+    const name = document.createElement('b'), dim = document.createElement('span'), desc = document.createElement('small');
+    dim.className = 'size-dim';
+    b.append(cv, name, dim, desc);
     b.addEventListener('click', () => startNewMap(s.size));
     box.appendChild(b);
+  });
+  sizeLabels();
+}
+function sizeLabels() {
+  for (const s of MAP_SIZES) {
+    const b = $('m-size-' + s.size);
+    if (!b) continue;
+    b.querySelector('b').textContent = s.name;
+    b.querySelector('.size-dim').textContent = s.size + ' × ' + s.size;
+    b.querySelector('small').textContent = s.desc;
   }
 }
 
+// Isola isometrica in miniatura (terreno vero generato piccolo): n tile per lato, scale = grandezza nel riquadro
+function drawMapPreview(cv, n, seed, scale) {
+  const c = cv.getContext('2d'), map = generateTerrain(seed, n);
+  const tw = 136 * (scale || 1) / n, th = tw / 2, step = th * 0.55;
+  const ox = cv.width / 2, oy = 10 + (84 - 10 - n * th) / 2;
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const t = map[y][x], h = t.elev * step;
+    const cx = ox + (x - y) * tw / 2, cy = oy + (x + y) * th / 2 - h;
+    const col = COLORS[t.type];
+    const top = [[cx, cy], [cx + tw / 2, cy + th / 2], [cx, cy + th], [cx - tw / 2, cy + th / 2]];
+    const fill = (pts, color) => { c.fillStyle = color; c.beginPath(); c.moveTo(...pts[0]); for (const p of pts.slice(1)) c.lineTo(...p); c.closePath(); c.fill(); };
+    if (h > 0) {   // fianchi davanti (solo dove si vedono, fino a terra)
+      fill([[cx - tw / 2, cy + th / 2], [cx, cy + th], [cx, cy + th + h], [cx - tw / 2, cy + th / 2 + h]], col[1]);
+      fill([[cx, cy + th], [cx + tw / 2, cy + th / 2], [cx + tw / 2, cy + th / 2 + h], [cx, cy + th + h]], col[2]);
+    }
+    fill(top, col[0]);
+    if (t.type === T.FOREST) { c.fillStyle = '#2f6b2a'; c.beginPath(); c.arc(cx, cy + th / 2 - tw * 0.18, tw * 0.22, 0, Math.PI * 2); c.fill(); }
+  }
+}
 function saveFromMenu() {
   menuMessage(saveGame() ? TR('Partita salvata.') : TR('Impossibile salvare: spazio pieno o non disponibile.'));
   updateHud();

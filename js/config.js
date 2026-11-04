@@ -2,10 +2,10 @@
 const TW = 32, TH = 16;   // dimensioni del rombo di un tile
 const STEP = 8;           // altezza in pixel di un livello di quota
 const MAP_SIZES = [       // grandezze tra cui scegliere quando si crea una mappa
-  { size: 128, name: 'Piccola' },
-  { size: 256, name: 'Media' },
-  { size: 512, name: 'Grande' },
-  { size: 1024, name: 'Enorme' },
+  { size: 128, name: 'Piccola', desc: 'Per iniziare: si gioca in fretta', preview: 14 },
+  { size: 256, name: 'Media', desc: 'Equilibrata: spazio per tutte le industrie', preview: 20 },
+  { size: 512, name: 'Grande', desc: 'Tanto spazio per grandi città', preview: 28 },
+  { size: 1024, name: 'Enorme', desc: 'Gigantesca: serve un computer potente', preview: 38 },
 ];
 const ZOOMS = [0.5, 1, 2, 3, 4];
 
