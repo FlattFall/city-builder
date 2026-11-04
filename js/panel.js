@@ -129,8 +129,11 @@ function goodsOut(b) {
 function splitSection(box, b) {
   const rows = goodsOut(b).map(g => ({ g, ws: b.dests.map(id => game.buildings.get(id)).filter(w => w && takesGood(w, g)) }))
     .filter(r => r.ws.length >= 2);
-  if (!rows.length) return;
   box.appendChild(el('div', 'plabel', TR('Distribuzione per merce')));
+  if (!rows.length) {   // la sezione si vede sempre, con la spiegazione di come accenderla
+    box.appendChild(el('div', 'pnote psplit', TR('Accendi almeno due destinazioni che accettano la stessa merce: qui potrai decidere quanta ne va a ognuna (es. 50% e 50%, o 100% a una sola).')));
+    return;
+  }
   for (const { g, ws } of rows) {
     const sp = b.split && b.split[g];
     const card = el('div', 'psplit');

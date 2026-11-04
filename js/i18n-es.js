@@ -57,7 +57,7 @@ DICT.es = {
   'Tronchi': 'Troncos', 'Legna da ardere': 'Leña', 'Assi di legno': 'Tablas de madera', 'Travature': 'Vigas', 'Pannelli di legno': 'Paneles de madera',
   'Tavoli': 'Mesas', 'Sedie': 'Sillas', 'Armadi': 'Armarios', 'Letti': 'Camas', 'Mobili da cucina': 'Muebles de cocina',
   'Filati': 'Hilo', 'Tessuto': 'Tela', 'Stoffe lavorate': 'Tejido elaborado', 'Magliette': 'Camisetas', 'Pantaloni': 'Pantalones', 'Giacche': 'Chaquetas', 'Scarpe': 'Zapatos', 'Cappotti': 'Abrigos',
-  'Carbone': 'Carbón', 'Petrolio grezzo': 'Petróleo crudo', 'Benzina': 'Gasolina', 'Gasolio': 'Gasóleo',
+  'Carbone': 'Carbón', 'Petrolio grezzo': 'Petróleo crudo', 'Benzina': 'Gasolina', 'Gasolio': 'Diésel',
   'Mucche': 'Vacas', 'Pecore': 'Ovejas',
   // desbloqueos
   'Nuove colture': 'Nuevos cultivos', 'Mais, pomodori e cavoli per le fattorie.': 'Maíz, tomates y coles para las granjas.',
@@ -107,6 +107,7 @@ DICT.es = {
   // panel del edificio
   'Dove portare il raccolto (anche più di una)': 'Adónde llevar la cosecha (puede ser más de uno)', 'Uscita: dove mandare le scorte (anche più di una)': 'Salida: adónde enviar las existencias (puede ser más de uno)',
   'Dove mandare la merce (anche più di una)': 'Adónde enviar la mercancía (puede ser más de uno)', ' - nessuna strada': ' - sin carretera', 'Costruisci {list}.': 'Construye: {list}.',
+  'Accendi almeno due destinazioni che accettano la stessa merce: qui potrai decidere quanta ne va a ognuna (es. 50% e 50%, o 100% a una sola).': 'Activa al menos dos destinos que acepten la misma mercancía: aquí podrás decidir cuánta va a cada uno (p. ej. 50% y 50%, o 100% a uno solo).',
   'Distribuzione per merce': 'Distribución por mercancía', 'Personalizzata': 'Personalizada', 'Automatica': 'Automática',
   'Clic per tornare alla distribuzione automatica': 'Clic para volver a la distribución automática', 'Clic per scegliere quanto mandare a ogni destinazione': 'Clic para elegir cuánto enviar a cada destino',
   'Questa merce non va da nessuna parte: metti almeno una percentuale.': 'Esta mercancía no va a ninguna parte: pon al menos un porcentaje.', 'Va alla destinazione che ne ha bisogno.': 'Va al destino que la necesita.',
@@ -237,8 +238,8 @@ TOOL_TEXT.es = {
   oilWell: { label: 'Pozo petrolífero', desc: 'Extrae petróleo crudo de un yacimiento en tierra (con la herramienta en la mano ves las zonas oscuras donde hay).' },
   oilPlatform: { label: 'Plataforma petrolífera (2x2)', desc: 'Se construye en el agua sobre un yacimiento. El personal vive a bordo; un barco lleva el petróleo al puerto.' },
   port: { label: 'Puerto (2x2)', desc: 'Puerto con almacén portuario para todas las mercancías: delante la carretera, detrás el agua (R para girarlo). Los barcos llevan la mercancía a otros puertos (petroleros para petróleo y combustibles, portacontenedores para el resto), las furgonetas a almacenes, fábricas y tiendas.' },
-  refinery: { label: 'Refinería de petróleo (2x2)', desc: 'Transforma el petróleo crudo en gasolina y gasóleo.' },
-  gasStation: { label: 'Gasolinera', desc: 'Vende gasolina y gasóleo a los habitantes cercanos: cobras impuestos en cada venta.' },
+  refinery: { label: 'Refinería de petróleo (2x2)', desc: 'Transforma el petróleo crudo en gasolina y diésel.' },
+  gasStation: { label: 'Gasolinera', desc: 'Vende gasolina y diésel a los habitantes cercanos: cobras impuestos en cada venta.' },
   demolish: { label: 'Demoler', desc: 'Quita edificios, carreteras, puentes, túneles, campos y árboles. Al arrastrar solo quita cosas del mismo tipo que el primer clic.' },
   raise: { label: 'Subir terreno', desc: 'Sube el terreno un nivel (solo donde no hay carreteras ni edificios).' },
   lower: { label: 'Bajar terreno', desc: 'Baja el terreno un nivel; a altura 0 se convierte en agua.' },
