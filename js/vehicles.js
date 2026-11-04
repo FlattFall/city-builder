@@ -400,27 +400,50 @@ function vehicleDir(v) {
   if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? 1 : 3;
   return dy >= 0 ? 2 : 0;
 }
+// Auto e furgoni disegnati come gli edifici (scatole con contorno): carrozzeria, abitacolo con i
+// vetri, ruote, fari davanti e luci rosse dietro (sul lato che si vede), ombra a terra.
+// Il furgone ha il cassone bianco con la striscia del colore dell'attività.
 function drawVehicle(c, v) {
-  const { mx, my, h, alongU } = v.pos;
-  const img = tintedSprite('vehicles', v.kind === 'van' ? (v.stripe || '#3fa34d') : v.color);
-  if (img) {
-    if (v.model == null) v.model = Math.random() < 0.5 ? 0 : 1;   // berlina o utilitaria
-    let [wx, wy] = iso(0, 0, mx, my, h);
-    wx = Math.round(wx * 2) / 2; wy = Math.round(wy * 2) / 2;   // pixel dello sprite allineati allo schermo
-    drawSpriteImage(c, 'vehicles', img, vehicleDir(v), v.kind === 'van' ? 2 : v.model, wx, wy);
-    return;
+  const { mx, my, h } = v.pos;
+  const d = vehicleDir(v), f = DIRS[d], sd = [-f.dy, f.dx];   // avanti e di lato
+  const van = v.kind === 'van';
+  const L = van ? 0.24 : 0.19, W = van ? 0.115 : 0.1;
+  // rettangolo nel sistema del veicolo (a lungo la marcia, w di lato) -> rettangolo della mappa
+  const R = (a0, a1, w0, w1) => {
+    const us = [], vs = [];
+    for (const a of [a0, a1]) for (const w of [w0, w1]) { us.push(mx + f.dx * a + sd[0] * w); vs.push(my + f.dy * a + sd[1] * w); }
+    return [Math.min(...us), Math.min(...vs), Math.max(...us), Math.max(...vs)];
+  };
+  const vbox = (rc, z0, hp, col) => box(c, 0, 0, h + z0 / STEP, rc[0], rc[1], rc[2], rc[3], hp, Object.assign({ plain: true }, col));
+  if (DETAIL) {                                                   // ombra
+    const [sx, sy] = iso(0, 0, mx, my, h);
+    c.fillStyle = 'rgba(0,0,0,0.2)'; c.beginPath(); c.ellipse(sx, sy + 0.5, (van ? 6 : 5), 2.4, 0, 0, Math.PI * 2); c.fill();
   }
-  const L = v.kind === 'van' ? 0.24 : 0.19, W = v.kind === 'van' ? 0.12 : 0.1;
-  const [hu, hv] = alongU ? [L, W] : [W, L];
-  if (v.kind === 'van') {
-    box(c, 0, 0, h, mx - hu, my - hv, mx + hu, my + hv, 7, { l: '#e8e8e8', r: '#c4c4c4', t: '#f6f6f6' });
-    const st = v.stripe || '#3fa34d';
-    box(c, 0, 0, h + 3 / STEP, mx - hu, my - hv, mx + hu, my + hv, 1.5, { l: st, r: shade(st, -0.2), t: null }); // striscia colorata
+  // ruote: prima quelle lontane dallo schermo, poi la carrozzeria, poi le vicine
+  const wheels = [];
+  for (const a of [-L + 0.06, L - 0.06]) for (const w of [-W + 0.01, W - 0.01]) wheels.push(R(a - 0.035, a + 0.035, w - 0.02, w + 0.02));
+  const wheelCol = { l: '#2a2a30', r: '#1e1e22', t: '#3a3a40' };
+  const far = rc => rc[0] + rc[1] < mx + my;
+  wheels.filter(far).forEach(rc => vbox(rc, 0, 2.4, wheelCol));
+  const body = v.color || '#d94141', stripe = v.stripe || '#3fa34d';
+  let cabin;
+  if (van) {
+    vbox(R(-L, L * 0.3, -W, W), 1, 8.5, { l: '#f2f2f2', r: '#cfd1d4', t: '#ffffff' });                // cassone
+    vbox(R(-L - 0.002, L * 0.3 + 0.002, -W - 0.002, W + 0.002), 4.5, 1.6, { l: stripe, r: shade(stripe, -0.2) });   // striscia
+    vbox(R(L * 0.3, L, -W, W), 1, 4, { l: stripe, r: shade(stripe, -0.25), t: shade(stripe, 0.1) });   // muso
+    cabin = { rc: R(L * 0.3, L * 0.8, -W * 0.92, W * 0.92), z: 5, hp: 3, top: shade(stripe, 0.15) };
   } else {
-    const col = v.color;
-    box(c, 0, 0, h, mx - hu, my - hv, mx + hu, my + hv, 4, { l: col, r: shade(col, -0.25), t: shade(col, 0.15) });
-    const [cu, cv] = alongU ? [hu * 0.55, hv * 0.85] : [hu * 0.85, hv * 0.55];
-    box(c, 0, 0, h + 4 / STEP, mx - cu, my - cv, mx + cu, my + cv, 3, { l: '#9fd3e8', r: '#7fb3c8', t: shade(col, 0.1) });
+    vbox(R(-L, L, -W, W), 1, 3.6, { l: body, r: shade(body, -0.25), t: shade(body, 0.12) });             // carrozzeria
+    cabin = { rc: R(-L * 0.55, L * 0.35, -W * 0.86, W * 0.86), z: 4.6, hp: 3, top: shade(body, 0.2) };
+  }
+  vbox(cabin.rc, cabin.z, cabin.hp, { l: '#8fc8e2', r: '#6fa6c2', t: cabin.top });                   // abitacolo con i vetri
+  wheels.filter(rc => !far(rc)).forEach(rc => vbox(rc, 0, 2.4, wheelCol));
+  if (!DETAIL) return;
+  // fari: sul muso se guarda verso lo schermo (+u o +v), altrimenti luci rosse sul retro
+  const front = d === 1 || d === 2, a = front ? L : -L, col = front ? '#fff3b0' : '#e83a3a';
+  for (const w of [-W * 0.62, W * 0.62]) {
+    const p = iso(0, 0, mx + f.dx * a + sd[0] * w, my + f.dy * a + sd[1] * w, h + 2.6 / STEP);
+    c.fillStyle = col; c.fillRect(p[0] - 0.5, p[1] - 0.5, 1, 0.8);
   }
 }
 

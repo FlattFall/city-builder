@@ -19,10 +19,11 @@ const GROUND = { farm: '#b89a5e', warehouse: '#9a9a92', factory: '#8f8f88', supe
   forestry: '#8a6a40', sawmill: '#a08a64', furnitureFactory: '#8f8f88', furnitureStore: '#9a9a92',
   goodsWarehouse: '#9a9a92', textileMill: '#8f8f88', clothingFactory: '#8f8f88', clothingStore: '#9a9a92' };   // terreno sotto gli edifici grandi
 
+// colori delle case: muri (l = lato sinistro, r = destro), tetto, falda dietro, persiane
 const HOUSE_STYLES = [
-  { l: '#d9c3a0', r: '#b39d7c', roof: '#b5473a', lip: '#8f372d' },
-  { l: '#e6d9c2', r: '#c0b399', roof: '#4a6fa5', lip: '#385782' },
-  { l: '#c9d6b8', r: '#a4b394', roof: '#8a5a3a', lip: '#6b432a' },
+  { l: '#efe0c2', r: '#cdbb9a', roof: '#c4533f', back: '#8f372d', shutter: '#4f9f57' },
+  { l: '#f4f4f0', r: '#d2d4d6', roof: '#4f74b0', back: '#385782', shutter: '#5f718c' },
+  { l: '#d6e3c4', r: '#b2c2a0', roof: '#9a6540', back: '#6b432a', shutter: '#bd8640' },
 ];
 
 function poly(c, pts, color) {
@@ -411,33 +412,60 @@ function drawRoundabout(c, x, y, P) {
 // ---------- Edifici ----------
 // La casa è uno sprite in pixel art (assets/sprites/house.png: colonne = rotazioni, righe = colori).
 // Finché l'immagine non è caricata si usa il disegno semplice qui sotto.
-function drawHouse(c, sx, sy, variant, rot) {
-  if (drawSprite(c, 'house', (rot || 0) & 3, variant || 0, sx, sy)) return;
-  const s = HOUSE_STYLES[variant % HOUSE_STYLES.length];
-  const hw = 12, hh = 6, h = 14;
-  const cx = sx, cy = sy + TH / 2;
-  const L = [cx - hw, cy], B = [cx, cy + hh], R = [cx + hw, cy], Tp = [cx, cy - hh];
-  const up = (p, d) => [p[0], p[1] - d];
-
-  poly(c, [L, B, up(B, h), up(L, h)], s.l);
-  poly(c, [B, R, up(R, h), up(B, h)], s.r);
-  poly(c, [up(Tp, h), up(R, h), up(B, h), up(L, h)], s.roof);
-  poly(c, [up(L, h), up(B, h), up(B, h - 2), up(L, h - 2)], s.lip);
-  poly(c, [up(B, h), up(R, h), up(R, h - 2), up(B, h - 2)], s.lip);
-
-  c.fillStyle = '#2b3a4d';
-  for (const t of [0.3, 0.7]) {
-    c.fillRect(Math.round(L[0] + (B[0] - L[0]) * t) - 1, Math.round(L[1] + (B[1] - L[1]) * t - h * 0.5) - 1, 2, 3);
-    c.fillRect(Math.round(B[0] + (R[0] - B[0]) * t) - 1, Math.round(B[1] + (R[1] - B[1]) * t - h * 0.5) - 1, 2, 3);
-  }
-  // porta: sul lato sinistro (rot 0) o destro (rot 3); con rot 1 e 2 è sul retro e non si vede
+// Casa 1x1, disegnata come gli altri edifici: muri, tetto a due falde con il comignolo,
+// porta (sul lato che dice la rotazione: 0 = +v, 1 = -u, 2 = -v, 3 = +u), finestre con persiane,
+// vialetto e cespugli. Due tipi (villetta e casa a due piani) e tre colori.
+function drawHouse(c, x, y, base, variant, rot) {
+  const s = HOUSE_STYLES[(variant || 0) % HOUSE_STYLES.length];
   const r = (rot || 0) & 3;
-  if (r === 0 || r === 3) {
-    const [a, b] = r === 0 ? [L, B] : [B, R];
-    const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-    poly(c, [[m[0] - 1.5, m[1] - 0.75 * (r === 0 ? 1 : -1)], [m[0] + 1.5, m[1] + 0.75 * (r === 0 ? 1 : -1)],
-      [m[0] + 1.5, m[1] + 0.75 * (r === 0 ? 1 : -1) - 6], [m[0] - 1.5, m[1] - 0.75 * (r === 0 ? 1 : -1) - 6]], '#5a3a22');
+  const tall = hash(x, y, 42) > 0.6;                      // casa a due piani
+  const P = (u, v, z) => iso(x, y, u, v, base + z / STEP);
+  const A = 0.17, B = 0.83, H = tall ? 21 : 13;
+  const doorFace = ['+v', '-u', '-v', '+u'][r];
+  // quadrilatero su un lato del muro: face '+v' (v = B) o '+u' (u = B), da a0 a a1, alto da z0 a z1
+  const onFace = (face, a0, a1, z0, z1, color) => {
+    const pt = (a, z) => face === '+v' ? P(a, B, z) : P(B, a, z);
+    const q = [pt(a0, z0), pt(a1, z0), pt(a1, z1), pt(a0, z1)];
+    poly(c, q, color);
+    return q;
+  };
+  const windowOn = (face, a, z0) => {
+    const q = onFace(face, a - 0.065, a + 0.065, z0, z0 + 5, '#9fd3e8');
+    if (!DETAIL) return;
+    aline(c, [(q[0][0] + q[1][0]) / 2, (q[0][1] + q[1][1]) / 2], [(q[3][0] + q[2][0]) / 2, (q[3][1] + q[2][1]) / 2], '#ffffff', 0.9);
+    aline(c, [(q[0][0] + q[3][0]) / 2, (q[0][1] + q[3][1]) / 2], [(q[1][0] + q[2][0]) / 2, (q[1][1] + q[2][1]) / 2], '#ffffff', 0.9);
+    for (let k = 0; k < 4; k++) aline(c, q[k], q[(k + 1) % 4], '#ffffff', 0.9);       // cornice
+    onFace(face, a - 0.105, a - 0.07, z0, z0 + 5, s.shutter);                         // persiane
+    onFace(face, a + 0.07, a + 0.105, z0, z0 + 5, s.shutter);
+    onFace(face, a - 0.08, a + 0.08, z0 - 0.8, z0, '#f2f0ea');                        // davanzale
+  };
+  // vialetto davanti alla porta e due cespugli
+  const toEdge = { '+v': [0.43, B, 0.57, 1], '+u': [B, 0.43, 1, 0.57], '-v': [0.43, 0, 0.57, A], '-u': [0, 0.43, A, 0.57] }[doorFace];
+  poly(c, [P(toEdge[0], toEdge[1], 0), P(toEdge[2], toEdge[1], 0), P(toEdge[2], toEdge[3], 0), P(toEdge[0], toEdge[3], 0)], '#c9bfa8');
+  const bush = { l: '#4a9a3c', r: '#3a7f30', t: '#5aae48', plain: true };
+  // corpo della casa (senza coperchio: sopra c'è il tetto)
+  const top = box(c, x, y, base, A, A, B, B, H, { l: s.l, r: s.r });
+  const alongV = (r & 1) === 1;                           // il colmo è parallelo al lato della porta
+  const chim = alongV ? [0.3, 0.6, 0.4, 0.7] : [0.6, 0.3, 0.7, 0.4];
+  gableRoof(c, x, y, top, A - 0.07, A - 0.07, B + 0.07, B + 0.07, 8, { back: s.back, roof: s.roof, gable: s.r, gableL: s.l }, alongV,
+    () => box(c, x, y, top, chim[0], chim[1], chim[2], chim[3], 13, { l: '#b5634a', r: '#8f4a36', t: '#3a3034', plain: true }));
+  // porta, finestre (sui due lati che si vedono)
+  for (const face of ['+v', '+u']) {
+    const floors = tall ? [4, 12] : [4];
+    if (face === doorFace) {
+      const q = onFace(face, 0.43, 0.57, 0, 9, '#6b4424');
+      if (DETAIL) {
+        for (let k = 0; k < 4; k++) aline(c, q[k], q[(k + 1) % 4], '#f2f0ea', 0.9);
+        const kn = face === '+v' ? P(0.54, B, 4.5) : P(B, 0.54, 4.5);
+        c.fillStyle = '#f2d14a'; c.fillRect(kn[0], kn[1], 0.6, 0.6);           // maniglia
+      }
+      windowOn(face, 0.27, 4); windowOn(face, 0.73, 4);
+      if (tall) { windowOn(face, 0.3, 12); windowOn(face, 0.7, 12); }
+    } else for (const z of floors) { windowOn(face, 0.33, z); windowOn(face, 0.67, z); }
   }
+  // cespugli agli angoli davanti
+  box(c, x, y, base, 0.04, 0.86, 0.14, 0.96, 3, bush);
+  box(c, x, y, base, 0.86, 0.04, 0.96, 0.14, 3, bush);
 }
 
 // Parallelepipedo da (u0, v0) a (u1, v1) rispetto all'angolo (ax, ay), alla quota base, alto hp pixel
@@ -469,18 +497,21 @@ function box(c, ax, ay, base, u0, v0, u1, v1, hp, col) {
 }
 
 // Tetto a due falde con il colmo lungo u, appoggiato alla quota top, alto rh pixel
-function gableRoof(c, ax, ay, top, u0, v0, u1, v1, rh, col, alongV) {
+// mid = disegno da fare tra la falda dietro e quella davanti (es. il comignolo)
+function gableRoof(c, ax, ay, top, u0, v0, u1, v1, rh, col, alongV, mid) {
   const P = (u, v, h) => iso(ax, ay, u, v, h);
   const ridge = top + rh / STEP;
   if (!alongV) {
     const vm = (v0 + v1) / 2;
     poly(c, [P(u0, v0, top), P(u1, v0, top), P(u1, vm, ridge), P(u0, vm, ridge)], col.back);
+    if (mid) mid();
     poly(c, [P(u1, v1, top), P(u1, v0, top), P(u1, vm, ridge)], col.gable);
     poly(c, [P(u0, v1, top), P(u1, v1, top), P(u1, vm, ridge), P(u0, vm, ridge)], col.roof);
     if (DETAIL) roofLines(c, P(u0, v1, top), P(u1, v1, top), P(u0, vm, ridge), P(u1, vm, ridge));
   } else { // colmo lungo v (edificio ruotato)
     const um = (u0 + u1) / 2;
     poly(c, [P(u0, v0, top), P(u0, v1, top), P(um, v1, ridge), P(um, v0, ridge)], col.back);
+    if (mid) mid();
     poly(c, [P(u0, v1, top), P(u1, v1, top), P(um, v1, ridge)], col.gableL || col.gable);
     poly(c, [P(u1, v0, top), P(u1, v1, top), P(um, v1, ridge), P(um, v0, ridge)], col.roof);
     if (DETAIL) roofLines(c, P(u1, v0, top), P(u1, v1, top), P(um, v0, ridge), P(um, v1, ridge));
@@ -787,7 +818,7 @@ function drawBuildingOn(c, x, y, b) {
   const def = BUILDINGS[b.kind];
   if (b.kind === 'house') {
     const t = game.map[y][x];
-    drawHouse(c, (x - y) * TW / 2, (x + y) * TH / 2 - t.elev * STEP, b.variant, b.rot);
+    drawHouse(c, x, y, t.elev, b.variant, b.rot);
     return;
   }
   if (b.kind === 'bakery') { drawBakery(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
