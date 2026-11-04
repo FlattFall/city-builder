@@ -1319,6 +1319,15 @@ function drawEntrance(c, b) {
   c.beginPath(); c.moveTo(M[0], M[1]); c.lineTo(O[0], O[1]); c.stroke();
 }
 
+// Segna quali tile sono già stati disegnati in questo fotogramma (senza azzerare ogni volta)
+let drawStampData = null;
+function drawStamp(N) {
+  if (!drawStampData || drawStampData.arr.length !== N * N) drawStampData = { arr: new Uint32Array(N * N), id: 0 };
+  drawStampData.id++;
+  if (drawStampData.id > 4e9) { drawStampData.arr.fill(0); drawStampData.id = 1; }
+  return drawStampData;
+}
+
 function drawFrame() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = '#1a1c2c';
@@ -1349,39 +1358,80 @@ function drawFrame() {
   const left = -cam.x / z - TW, right = (view.w - cam.x) / z + TW;
   const topY = -cam.y / z - TH, bottomY = (view.h - cam.y) / z + 48;
 
-  // dal fondo al fronte (ordine del pittore).
+  // dal fondo al fronte (ordine del pittore), fila per fila.
   // Anteprima e contorno della selezione si disegnano subito dopo il loro tile:
   // così i blocchi davanti li coprono, come farebbero con l'oggetto vero.
-  for (let y = r.y0; y <= r.y1; y++) {
-    // in questa fila solo le x che cadono dentro lo schermo in orizzontale
-    const xa = Math.max(r.x0, Math.floor(y + left / (TW / 2)));
-    const xb = Math.min(r.x1, Math.ceil(y + right / (TW / 2)));
-    for (let x = xa; x <= xb; x++) {
-      const gy = (x + y) * TH / 2; // posizione a quota 0
-      if (gy - game.map[y][x].elev * STEP > bottomY || gy + TH < topY) continue;
-      drawTile(ctx, x, y, detail);
-      if (oilView) drawOilSpot(ctx, x, y);
-      if (pv && inPreview(x, y)) {
-        ctx.globalAlpha = 0.75;
-        withPreview(pv, () => drawTile(ctx, x, y, detail, true));
-        ctx.globalAlpha = 1;
+  // Edifici grandi (2x2): si disegnano sul tile più avanti dell'impronta, ma i tile alla loro
+  // destra nelle file di dietro (es. una casa accanto alla fattoria) stanno davanti e vanno disegnati
+  // DOPO: ogni tile aspetta il tile a sinistra e quello sopra; se uno dei due è di un edificio
+  // grande, aspetta il tile più avanti di quell'edificio (che a sua volta aspetta i suoi tile).
+  // Prima la casa accanto alla fattoria veniva coperta dalla fattoria (segnalazione dell'utente).
+  const N = game.size;
+  const rowA = y => Math.max(r.x0, Math.floor(y + left / (TW / 2)));
+  const rowB = y => Math.min(r.x1, Math.ceil(y + right / (TW / 2)));
+  const visible = (x, y) => {
+    if (y < r.y0 || y > r.y1 || x < rowA(y) || x > rowB(y)) return false;
+    const gy = (x + y) * TH / 2;
+    return !(gy - game.map[y][x].elev * STEP > bottomY || gy + TH < topY);
+  };
+  const stamp = drawStamp(N);
+  const isDone = k => stamp.arr[k] === stamp.id;
+  // tile da aspettare al posto di (px, py), visto da (x, y)
+  const before = (px, py, x, y) => {
+    if (px < 0 || py < 0 || !visible(px, py)) return -1;
+    const b = game.map[py][px].building;
+    if (b && b.kind !== 'house') {
+      const d = BUILDINGS[b.kind];
+      if ((d.w > 1 || d.h > 1) && game.map[y][x].building !== b) {
+        const fx = b.ax + d.w - 1, fy = b.ay + d.h - 1;
+        return inMap(fx, fy) && visible(fx, fy) ? fy * N + fx : -1;
       }
-      if (ha && x === ha.x && y === ha.y) drawHover(ctx);
-      if (selFront && x === selFront[0] && y === selFront[1]) drawSelection(ctx, sel);
-      const vs = vmap.get(y * game.size + x);
-      if (vs) for (const v of vs) drawVehicle(ctx, v);
-      // ponte sopra questo tile, poi le auto che ci passano sopra
-      const tb = game.map[y][x].bridge;
-      if (tb) {
-        const br = game.bridges.get(tb.id);
-        if (!isTunnel(br)) drawBridgeSpan(ctx, x, y, br, tb.i);
-        else if (tb.i === 1) drawPortal(ctx, x, y, (br.d + 2) % 4, br.e[0]);           // bocca verso la prima testa
-        if (isTunnel(br) && tb.i === br.n - 1) drawPortal(ctx, x, y, br.d, br.e[br.n - 1]);  // e verso l'altra
-      }
-      if (planKeys && planKeys.has(y * game.size + x)) drawBridgePlanTile(ctx, x, y, plan, planKeys.get(y * game.size + x));
-      const vb = vmap.get(nodeKey(x, y, 1));
-      if (vb) for (const v of vb) drawVehicle(ctx, v);
     }
+    return py * N + px;
+  };
+  const drawNode = (x, y) => {
+    drawTile(ctx, x, y, detail);
+    if (oilView) drawOilSpot(ctx, x, y);
+    if (pv && inPreview(x, y)) {
+      ctx.globalAlpha = 0.75;
+      withPreview(pv, () => drawTile(ctx, x, y, detail, true));
+      ctx.globalAlpha = 1;
+    }
+    if (ha && x === ha.x && y === ha.y) drawHover(ctx);
+    if (selFront && x === selFront[0] && y === selFront[1]) drawSelection(ctx, sel);
+    const vs = vmap.get(y * N + x);
+    if (vs) for (const v of vs) drawVehicle(ctx, v);
+    // ponte sopra questo tile, poi le auto che ci passano sopra
+    const tb = game.map[y][x].bridge;
+    if (tb) {
+      const br = game.bridges.get(tb.id);
+      if (!isTunnel(br)) drawBridgeSpan(ctx, x, y, br, tb.i);
+      else if (tb.i === 1) drawPortal(ctx, x, y, (br.d + 2) % 4, br.e[0]);           // bocca verso la prima testa
+      if (isTunnel(br) && tb.i === br.n - 1) drawPortal(ctx, x, y, br.d, br.e[br.n - 1]);  // e verso l'altra
+    }
+    if (planKeys && planKeys.has(y * N + x)) drawBridgePlanTile(ctx, x, y, plan, planKeys.get(y * N + x));
+    const vb = vmap.get(nodeKey(x, y, 1));
+    if (vb) for (const v of vb) drawVehicle(ctx, v);
+  };
+  const stack = [];
+  const run = k0 => {
+    if (isDone(k0)) return;
+    stack.push(k0);
+    while (stack.length) {
+      const k = stack[stack.length - 1];
+      if (isDone(k)) { stack.pop(); continue; }
+      const x = k % N, y = (k - x) / N;
+      const a = before(x - 1, y, x, y), b = before(x, y - 1, x, y);
+      if (a >= 0 && !isDone(a) && a !== k) { stack.push(a); continue; }
+      if (b >= 0 && !isDone(b) && b !== k) { stack.push(b); continue; }
+      stamp.arr[k] = stamp.id;
+      stack.pop();
+      drawNode(x, y);
+    }
+  };
+  for (let y = r.y0; y <= r.y1; y++) {
+    const xa = rowA(y), xb = rowB(y);
+    for (let x = xa; x <= xb; x++) if (visible(x, y)) run(y * N + x);
   }
   if (game.fieldMode) drawFieldArea(ctx);
   drawWorkerIcons(ctx);

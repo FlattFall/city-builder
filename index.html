@@ -100,7 +100,18 @@
 </div>
 
 <!-- L'ordine conta: ogni file usa quelli caricati prima -->
-<script src="js/config.js"></script>
+<div id="confirm" class="overlay" hidden>
+    <div class="confirm-box">
+      <b id="confirm-title"></b>
+      <p id="confirm-text"></p>
+      <div id="confirm-goods"></div>
+      <div class="confirm-btns">
+        <button id="confirm-no" data-i18n>Annulla</button>
+        <button id="confirm-yes" class="danger" data-i18n>Demolisci</button>
+      </div>
+    </div>
+  </div>
+  <script src="js/config.js"></script>
 <script src="js/noise.js"></script>
 <script src="js/terrain.js"></script>
 <script src="js/game.js"></script>

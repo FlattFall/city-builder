@@ -42,6 +42,21 @@ function paintTo(tile) {
         if (paintedNow.has(prev.y * game.size + prev.x) && pt.path === 'oneway') pt.dir = game.pathDir;
       } else game.pathDir = rotationDir();
     }
+    // un edificio con della merce dentro: prima si chiede se si è sicuri (la merce si perde)
+    if (game.tool === 'demolish' && game.demolishCat === 'building') {
+      const b = game.map[p.y][p.x].building;
+      if (b && goodsInside(b) > 0) {
+        const pick = { x: p.x, y: p.y, deck: game.pickDeck };
+        painting = false; lastTile = null;
+        askDemolish(b, () => {
+          game.pickDeck = pick.deck;
+          const r2 = useTool('demolish', pick.x, pick.y);
+          if (r2.ok) { game.dirty = true; updateHud(); requestDraw(); } else if (r2.msg) toast(r2.msg);
+        });
+        if (changed) { updateHud(); requestDraw(); }
+        return;
+      }
+    }
     const r = useTool(game.tool, p.x, p.y);
     if (r.ok) { changed = true; game.dirty = true; paintedNow.add(p.y * game.size + p.x); }
     else if (r.msg) toast(r.msg);
@@ -147,6 +162,41 @@ const PAN_KEYS = { w: [0, 1], arrowup: [0, 1], s: [0, -1], arrowdown: [0, -1],
   a: [1, 0], arrowleft: [1, 0], d: [-1, 0], arrowright: [-1, 0] };
 const PAN_SPEED = 900; // pixel dello schermo al secondo
 const keysHeld = new Set();
+
+// ---------- Conferma prima di demolire un edificio con della merce ----------
+function goodsInside(b) { return sumOf(b.store || {}) + sumOf(b.input || {}); }
+let confirmYes = null;
+function confirmIsOpen() { return !document.getElementById('confirm').hidden; }
+function closeConfirm() { document.getElementById('confirm').hidden = true; confirmYes = null; }
+function askDemolish(b, yes) {
+  const box = document.getElementById('confirm');
+  document.getElementById('confirm-title').textContent = TR('Demolire {b}?', { b: buildingName(b) });
+  const list = document.getElementById('confirm-goods');
+  list.textContent = '';
+  const all = {};
+  for (const m of [b.store || {}, b.input || {}]) for (const [g, q] of Object.entries(m)) if (q > 0) all[g] = (all[g] || 0) + q;
+  for (const [g, q] of Object.entries(all)) {
+    const row = document.createElement('span');
+    row.className = 'cgood';
+    const img = document.createElement('img');
+    img.src = GOOD_ICONS[g]; img.alt = GOODS[g].name;
+    row.append(img, document.createTextNode(GOODS[g].name + ' ' + Math.floor(q)));
+    list.appendChild(row);
+  }
+  document.getElementById('confirm-text').textContent = TR('Dentro ci sono {n} unità di merce: se lo demolisci le perdi.', { n: Math.floor(goodsInside(b)) });
+  confirmYes = yes;
+  box.hidden = false;
+  document.getElementById('confirm-yes').focus();
+}
+document.getElementById('confirm-yes').addEventListener('click', () => { const f = confirmYes; closeConfirm(); if (f) f(); });
+document.getElementById('confirm-no').addEventListener('click', closeConfirm);
+document.getElementById('confirm').addEventListener('mousedown', e => { if (e.target.id === 'confirm') closeConfirm(); });
+addEventListener('keydown', e => {   // con la domanda aperta: Invio = sì, Esc = no, il resto è fermo
+  if (!confirmIsOpen()) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  if (e.key === 'Escape') closeConfirm();
+  else if (e.key === 'Enter') document.getElementById('confirm-yes').click();
+}, true);
 
 addEventListener('keydown', e => {
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;   // si sta scrivendo un nome

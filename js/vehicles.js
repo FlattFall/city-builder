@@ -385,8 +385,12 @@ function vehiclesByTile() {
   for (const v of vehicles) {
     const p = vehiclePos(v);
     v.pos = p;
-    const tx = Math.min(game.size - 1, Math.max(0, Math.floor(p.mx + 0.22)));
-    const ty = Math.min(game.size - 1, Math.max(0, Math.floor(p.my + 0.22)));
+    // il tile è quello dove arriva la punta più avanti del veicolo (in +x e +y): così il tile dopo,
+    // disegnato più tardi, non copre il muso o il retro che ci sporge dentro
+    const along = v.kind === 'ship' ? 0.5 : v.kind === 'van' ? 0.25 : 0.2, side = v.kind === 'ship' ? 0.3 : 0.12;
+    const d = v.pts ? vehicleDir(v) : 1, ex = d === 1 || d === 3 ? along : side, ey = d === 1 || d === 3 ? side : along;
+    const tx = Math.min(game.size - 1, Math.max(0, Math.floor(p.mx + ex - 0.01)));
+    const ty = Math.min(game.size - 1, Math.max(0, Math.floor(p.my + ey - 0.01)));
     // dentro un tunnel non si vedono
     const inT = p.layer && bridgeAt(Math.floor(p.mx), Math.floor(p.my));
     if (inT && isTunnel(inT) && game.map[Math.floor(p.my)][Math.floor(p.mx)].bridge.id === inT.id) continue;
@@ -394,6 +398,8 @@ function vehiclesByTile() {
     if (!m.has(k)) m.set(k, []);
     m.get(k).push(v);
   }
+  // nello stesso tile prima quelli dietro (somma delle coordinate più piccola)
+  for (const list of m.values()) if (list.length > 1) list.sort((a, b) => (a.pos.mx + a.pos.my) - (b.pos.mx + b.pos.my));
   return m;
 }
 

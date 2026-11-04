@@ -1505,6 +1505,28 @@ function check(cond, msg) {
   check(Math.abs(sp.fifty[0] - sp.fifty[1]) <= 10 && sp.fifty[0] > 0, `distribuzione 50/50: ${sp.fifty.join(' / ')}`);
   check(sp.all[0] > 0 && sp.all[1] === 0, `distribuzione 100/0: ${sp.all.join(' / ')}`);
 
+  // 52. ruspa su un edificio con della merce: prima chiede, poi demolisce; vuoto si demolisce subito
+  const dq = await page.evaluate(() => {
+    clearVehicles(); newGame(14, 128); unlockAll(); game.started = true;
+    const N = game.size, c = N / 2;
+    for (let y = c - 8; y < c + 8; y++) for (let x = c - 8; x < c + 8; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, elev: 2, bridge: null });
+    useTool('warehouse', c, c); useTool('warehouse', c + 4, c);
+    const full = game.map[c][c].building; full.store = { wheat: 25 };
+    setTool('demolish');
+    lastTile = null; paintTo({ x: c + 4, y: c }); lastTile = null;
+    const r = { emptyGone: !game.map[c][c + 4].building };
+    paintTo({ x: c, y: c }); lastTile = null;
+    r.asked = confirmIsOpen() && !!game.map[c][c].building && document.getElementById('confirm-text').textContent.includes('25');
+    document.getElementById('confirm-no').click();
+    r.kept = !confirmIsOpen() && !!game.map[c][c].building;
+    paintTo({ x: c, y: c }); lastTile = null;
+    document.getElementById('confirm-yes').click();
+    r.gone = !confirmIsOpen() && !game.map[c][c].building;
+    setTool('hand');
+    return r;
+  });
+  check(dq.emptyGone && dq.asked && dq.kept && dq.gone, 'ruspa: chiede conferma per un edificio con merce (Annulla lo tiene, Demolisci lo toglie), vuoto subito: ' + JSON.stringify(dq));
+
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();
 })();
