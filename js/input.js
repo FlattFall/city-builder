@@ -103,6 +103,7 @@ canvas.addEventListener('mousedown', e => {
     game.convertRoads = !!(t0 && PATHS[game.tool] && netOf(pathAt(t0.x, t0.y)) === 'road' && PATHS[game.tool].net === 'road');
     lastTile = null;
     game.levelTarget = null; // Livella: la quota la decide il primo tile
+    startTerrainStroke();     // ogni passata = un passo da annullare con Ctrl+Z
     const tile = pickTile(e.clientX, e.clientY);
     if (tile) paintTo(tile);
   }
@@ -221,6 +222,12 @@ addEventListener('keydown', e => {
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;   // si sta scrivendo un nome
   if (menuIsOpen()) return; // con il menu aperto la tastiera non comanda il gioco
   const k = e.key.toLowerCase();
+  if ((e.ctrlKey || e.metaKey) && k === 'z' && game.started) {   // annulla l'ultima modifica del terreno
+    e.preventDefault();
+    if (undoTerrain()) { game.dirty = true; updateHud(); requestDraw(); toast(TR('Terreno com\'era prima (Ctrl+Z)')); }
+    else toast(TR('Niente da annullare: Ctrl+Z annulla solo le modifiche del terreno'));
+    return;
+  }
   const act = actionOfKey(k);
   if (!e.repeat && act === 'manual') { toggleManual(); return; }
   if (!e.repeat && act === 'progress') { toggleProgress(); return; }

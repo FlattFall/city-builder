@@ -1,7 +1,7 @@
 // ---------- Disegni del settore energia e petrolio ----------
 // Stesso stile degli altri edifici (box, contorni, parti ordinate con drawParts). Qui ci sono
 // anche il cilindro (serbatoi, torri di raffreddamento, colonne) e le parti animate
-// (pale eoliche, pompa del pozzo, fiamma): quando si vedono, waterSeen = true fa ridisegnare.
+// (pale eoliche, pompa del pozzo, fiamma): quando si vedono, animSeen = true fa ridisegnare.
 
 // Cilindro verticale con centro (cu, cv) del riquadro, raggio r (in tile), alto hp pixel
 function cyl(c, ax, ay, base, cu, cv, r, hp, col) {
@@ -70,7 +70,7 @@ function drawPart2(c, ax, ay, base, r, p, b) {
 
 function smokePuff(c, x, y, k) {   // nuvolette di fumo che salgono piano
   if (!DETAIL) return;
-  waterSeen = true;
+  animSeen = true;
   for (let i = 0; i < 3; i++) {
     const t = (animT * 0.35 + i / 3 + k) % 1;
     c.fillStyle = 'rgba(210,210,215,' + (0.55 * (1 - t)).toFixed(2) + ')';
@@ -148,7 +148,7 @@ function drawWindPlant(c, ax, ay, base, r) {
     c.fillStyle = '#c9ced4'; c.beginPath(); c.moveTo(b[0], b[1]); c.lineTo(t[0], t[1]); c.lineTo(t[0] + 0.7, t[1]); c.lineTo(b[0] + 1.6, b[1]); c.closePath(); c.fill();
     box(c, ax, ay, base + H / STEP, u - 0.08, v - 0.14, u + 0.08, v + 0.1, 3, { l: '#f2f4f6', r: '#c9ced4', t: '#ffffff' });   // navicella
     const hub = P(u + 0.02, v + 0.12, H + 1.5);
-    if (DETAIL) waterSeen = true;
+    if (DETAIL) animSeen = true;
     const a0 = animT * 2.2 + u * 3;
     c.strokeStyle = '#fafbfc'; c.lineWidth = 1.3; c.lineCap = 'round';
     for (let k = 0; k < 3; k++) {
@@ -170,7 +170,7 @@ function drawOilWell(c, x, y, base, r) {
   // cavalletto: piramide a A e bilanciere che oscilla (in coordinate del tile, lungo u o v secondo la rotazione)
   const alongU = (r & 1) === 0;
   const L = (a, w, h) => alongU ? P(0.2 + a * 0.55, 0.35 + w, h) : P(0.35 + w, 0.2 + a * 0.55, h);
-  if (DETAIL) waterSeen = true;
+  if (DETAIL) animSeen = true;
   const tilt = Math.sin(animT * 1.8) * 3;
   const pivot = L(0.5, 0, 12);
   for (const w of [-0.08, 0.08]) { line(c, L(0.35, w, 1.5), pivot, '#5a5a62'); line(c, L(0.65, w, 1.5), pivot, '#5a5a62'); }
@@ -219,7 +219,7 @@ function drawOilPlatform(c, ax, ay, base, r) {
     { box: [1.75, 0.3, 1.85, 0.4], z: D + 3, h: 22, col: STEEL_PART,   // torcia
       after(b, top) {
         const p = P((b[0] + b[2]) / 2, (b[1] + b[3]) / 2, D + 25);
-        if (DETAIL) waterSeen = true;
+        if (DETAIL) animSeen = true;
         const fl = 2.5 + Math.sin(animT * 9) * 0.7;
         c.fillStyle = '#f2a33a'; c.beginPath(); c.ellipse(p[0], p[1] - fl, 1.6, fl, 0, 0, Math.PI * 2); c.fill();
         c.fillStyle = '#fff1a0'; c.beginPath(); c.ellipse(p[0], p[1] - fl * 0.7, 0.8, fl * 0.6, 0, 0, Math.PI * 2); c.fill();
@@ -279,7 +279,7 @@ function drawRefinery(c, ax, ay, base, r) {
     { box: [1.75, 0.12, 1.85, 0.22], h: 36, col: STEEL_PART,
       after(b) {
         const p = P((b[0] + b[2]) / 2, (b[1] + b[3]) / 2, base + 37 / STEP);
-        if (DETAIL) waterSeen = true;
+        if (DETAIL) animSeen = true;
         const fl = 2.5 + Math.sin(animT * 8) * 0.7;
         c.fillStyle = '#f2a33a'; c.beginPath(); c.ellipse(p[0], p[1] - fl, 1.6, fl, 0, 0, Math.PI * 2); c.fill();
         c.fillStyle = '#fff1a0'; c.beginPath(); c.ellipse(p[0], p[1] - fl * 0.7, 0.8, fl * 0.6, 0, 0, Math.PI * 2); c.fill();

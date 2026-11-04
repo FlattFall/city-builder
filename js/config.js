@@ -42,7 +42,7 @@ const TUNNEL = { costPerTile: 80 };
 // ---------- Edifici (w x h = tile occupati) ----------
 const BUILDINGS = {
   house:     { name: 'Casa', w: 1, h: 1, cost: 100, height: 22, group: 'homes' },
-  farm:      { name: 'Fattoria', w: 2, h: 2, cost: 500, height: 34, group: 'industry', grass: true },
+  farm:      { name: 'Fattoria', w: 2, h: 2, cost: 500, height: 34, group: 'industry', grass: true, jobRadius: 22 },   // i contadini possono abitare più lontano (richiesta dell'utente)
   livestock: { name: 'Allevamento', w: 2, h: 2, cost: 600, height: 22, group: 'industry' },   // l'animale si sceglie nel pannello
   warehouse: { name: 'Magazzino alimenti', w: 2, h: 2, cost: 400, height: 20, group: 'industry' },
   factory:   { name: 'Fabbrica alimentare', w: 2, h: 2, cost: 1500, height: 40, group: 'industry' },
@@ -325,6 +325,7 @@ const JOBS = { farm: 4, warehouse: 2, factory: 6, bakery: 2, supermarket: 3,
   charcoalKiln: 2, coalPlant: 5, solarPlant: 1, windPlant: 1, oilWell: 2, port: 4, refinery: 6, gasStation: 2 };
 // la piattaforma petrolifera non prende lavoratori dalle case (il personale vive a bordo)
 const JOB_RADIUS = 12;
+function jobRadiusOf(kind) { return (BUILDINGS[kind] && BUILDINGS[kind].jobRadius) || JOB_RADIUS; }
 
 // ---------- Modellare il terreno ----------
 const MAX_ELEV = 14;

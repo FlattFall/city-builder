@@ -177,7 +177,9 @@ function check(cond, msg) {
   await page.screenshot({ path: SHOTS + '/1b-pause-menu.png' });
   const savedRoads = await page.evaluate(() => game.roads);
   await page.click('#m-save');
-  check(await page.isVisible('text=Partita salvata'), 'Salva partita: messaggio di conferma');
+  await page.fill('#save-name', 'La mia città');
+  await page.click('#save-ok');
+  check(await page.isVisible('text=Partita salvata') && await page.evaluate(() => readSaves()[0].name === 'La mia città'), 'Salva partita: nome scelto e messaggio di conferma');
   await page.click('#m-resume');
   await page.evaluate(([x, y]) => { buildRoad(x, y + 3); buildRoad(x + 1, y + 3); game.dirty = true; }, [run.x, run.y]);
   await page.keyboard.press('Escape');
@@ -1682,6 +1684,27 @@ function check(cond, msg) {
     return out;
   });
   check(bad.length === 0, 'prezzi: ogni prodotto vale almeno 1,5 volte le materie prime' + (bad.length ? ': ' + bad.join(', ') : ''));
+
+  // 60. Ctrl+Z rimette il terreno com'era (e ridà i soldi); la fattoria prende lavoratori fino a 22 tile
+  const un = await page.evaluate(() => {
+    clearVehicles(); newGame(19, 128); unlockAll(); game.started = true; if (menuIsOpen()) closeMenu();
+    const N = game.size, c = N / 2;
+    for (let y = c - 30; y < c + 30; y++) for (let x = c - 30; x < c + 30; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, elev: 2, bridge: null });
+    recount();
+    const m0 = game.money;
+    startTerrainStroke(); useTool('raise', c, c); useTool('raise', c + 1, c);
+    startTerrainStroke(); useTool('lower', c + 5, c);
+    const r = { changed: game.map[c][c].elev === 3 && game.map[c][c + 5].elev === 1 };
+    undoTerrain(); r.one = game.map[c][c + 5].elev === 2 && game.map[c][c].elev === 3;
+    undoTerrain(); r.two = game.map[c][c].elev === 2 && game.map[c][c + 1].elev === 2 && game.money === m0;
+    r.empty = !undoTerrain();
+    useTool('farm', c - 10, c - 10); game.fieldMode = null; useTool('house', c + 10, c + 10);
+    const f = game.map[c - 10][c - 10].building, h = game.map[c + 10][c + 10].building; h.residents = HOUSE_CAPACITY;
+    updateJobs(); r.far = distToBuilding(f, h.ax, h.ay) > JOB_RADIUS && f.workers > 0;
+    return r;
+  });
+  check(un.changed && un.one && un.two && un.empty, "Ctrl+Z: il terreno torna com'era passo per passo e i soldi tornano: " + JSON.stringify(un));
+  check(un.far, 'fattoria: lavoratori anche da case oltre 12 tile (fino a 22)');
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();

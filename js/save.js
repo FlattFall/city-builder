@@ -46,14 +46,20 @@ function serializeGame() {
 }
 
 // Salva la partita: se viene da un salvataggio lo sovrascrive, altrimenti ne crea uno nuovo
-function saveGame() {
+// name = nome scelto dal giocatore (richiesta dell'utente); asNew = salva come nuova partita
+function currentSaveName() {
+  const e = game.saveId && readSaves().find(s => s.id === game.saveId);
+  return e ? e.name : TR('Città {n}', { n: game.seed });
+}
+function saveGame(name, asNew) {
   const list = readSaves();
   const now = new Date();
-  let entry = game.saveId && list.find(s => s.id === game.saveId);
+  let entry = !asNew && game.saveId && list.find(s => s.id === game.saveId);
   if (!entry) {
     entry = { id: 's' + now.getTime(), name: TR('Città {n}', { n: game.seed }) };
     list.unshift(entry);
   }
+  if (name && name.trim()) entry.name = name.trim().slice(0, 40);
   entry.date = now.toISOString();
   entry.roads = game.roads;
   entry.houses = game.houses;
@@ -134,6 +140,13 @@ function loadGame(id) {
   game.dirty = false;
   game.started = true;
   return true;
+}
+
+function renameSave(id, name) {
+  const list = readSaves(), e = list.find(s => s.id === id);
+  if (!e || !name || !name.trim()) return false;
+  e.name = name.trim().slice(0, 40);
+  return writeSaves(list);
 }
 
 function deleteSave(id) {

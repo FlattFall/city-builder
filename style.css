@@ -331,3 +331,7 @@ canvas { display: block; }
 .key-fixed { min-width: 84px; text-align: center; color: #94b0c2; }
 .m-small { font: inherit; font-size: 12px; padding: 4px 10px; margin: 0 auto 10px; display: block; cursor: pointer; background: #262b44; color: #c9d2dc; border: 2px solid #44486b; border-radius: 3px; }
 .m-small:hover { border-color: #ffd966; }
+
+/* Nome della partita salvata */
+.save-name, .save-rename { font: inherit; font-size: 15px; width: 100%; box-sizing: border-box; padding: 8px 10px; margin: 4px 0 10px; color: #1a1c2c; background: #f4f4f4; border: 2px solid #ffd966; border-radius: 3px; }
+.save-rename { font-size: 13px; padding: 3px 6px; margin: 0; }

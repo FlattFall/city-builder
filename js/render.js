@@ -39,6 +39,7 @@ function poly(c, pts, color) {
 let DETAIL = true;
 let animT = 0;      // tempo (secondi) per le animazioni (acqua)
 let waterSeen = false;   // nell'ultimo fotogramma si vedeva acqua (allora si anima)
+let animSeen = false;    // si vedevano pale eoliche, pompe, fumo o navi: si ridisegna più spesso (movimento fluido)
 let FINE = true;    // dettagli minuti (ciuffi, sassi, alberi elaborati): solo da zoom 2 in su
 
 // linea sottile (mezzo pixel del mondo = 1 pixel dello schermo a zoom normale) con trasparenza
@@ -1346,7 +1347,7 @@ function drawFrame() {
   ctx.setTransform(z, 0, 0, z, Math.round(cam.x), Math.round(cam.y));
   ctx.imageSmoothingEnabled = false;
   DETAIL = z >= 1; FINE = z >= 2;
-  animT = performance.now() / 1000; waterSeen = false;
+  animT = performance.now() / 1000; waterSeen = false; animSeen = false;
 
   const r = visibleRange();
   const detail = z >= 1;
@@ -1403,8 +1404,31 @@ function drawFrame() {
     }
     return pk;
   };
+  // zona dei campi della fattoria (modalità campi, o fattoria in mano): si colora tile per tile alla
+  // quota di ogni tile, così segue il terreno (prima una linea sola alla quota della fattoria sembrava
+  // sollevata e non si capiva quali tile ne facevano parte)
+  const fArea = (() => {
+    const f = game.fieldMode ? game.buildings.get(game.fieldMode) : (game.tool === 'farm' && game.hover ? { ax: game.hover.x, ay: game.hover.y } : null);
+    if (!f) return null;
+    const R = FARM.fieldRadius;
+    return { x0: f.ax - R, y0: f.ay - R, x1: f.ax + 1 + R, y1: f.ay + 1 + R };
+  })();
+  const inArea = (x, y) => fArea && x >= fArea.x0 && x <= fArea.x1 && y >= fArea.y0 && y <= fArea.y1;
+  const drawAreaTile = (x, y) => {
+    const h = cornerHeights(x, y), P = k => iso(x, y, CORNERS[k][0], CORNERS[k][1], h[k]);
+    const pts = [0, 1, 2, 3].map(P);
+    ctx.fillStyle = 'rgba(255, 217, 102, 0.16)';
+    ctx.beginPath(); ctx.moveTo(...pts[0]); for (const p of pts.slice(1)) ctx.lineTo(...p); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#ffd966'; ctx.lineWidth = 1.4;
+    for (let d = 0; d < 4; d++) {
+      if (inArea(x + DIRS[d].dx, y + DIRS[d].dy)) continue;   // bordo solo verso fuori
+      const [a, b] = EDGES[d];
+      ctx.beginPath(); ctx.moveTo(...pts[a]); ctx.lineTo(...pts[b]); ctx.stroke();
+    }
+  };
   const drawNode = (x, y) => {
     drawTile(ctx, x, y, detail);
+    if (inArea(x, y) && !game.map[y][x].building) drawAreaTile(x, y);
     if (oilView) drawOilSpot(ctx, x, y);
     if (pv && inPreview(x, y)) {
       ctx.globalAlpha = 0.75;
@@ -1448,10 +1472,23 @@ function drawFrame() {
     const xa = rowA(y), xb = rowB(y);
     for (let x = xa; x <= xb; x++) if (visible(x, y)) run(y * N + x);
   }
-  if (game.fieldMode) drawFieldArea(ctx);
-  else if (game.tool === 'farm' && game.hover) drawFieldArea(ctx, { ax: game.hover.x, ay: game.hover.y });   // con la fattoria in mano: dove si potranno mettere i campi
   drawWorkerIcons(ctx);
+  if (sel) drawOwnVehicles(ctx, sel);
   DETAIL = true; FINE = true;   // icone e altri disegni fuori dal fotogramma: sempre dettagliati
+}
+
+// Edificio selezionato: sopra i suoi furgoni (e le sue navi) una freccia gialla che dondola, così si
+// vede quali sono (richiesta dell'utente)
+function drawOwnVehicles(c, b) {
+  for (const v of vehicles) {
+    if (v.from !== b.id || !v.pos) continue;
+    const p = v.pos, ship = v.kind === 'ship';
+    const [sx, sy] = iso(0, 0, p.mx, p.my, p.h + (ship ? 14 : 7) / STEP);
+    const y = sy - 3 - Math.sin(animT * 5) * 1.5;
+    c.fillStyle = '#ffd966'; c.strokeStyle = '#1a1c2c'; c.lineWidth = 1;
+    c.beginPath(); c.moveTo(sx - 4, y - 6); c.lineTo(sx + 4, y - 6); c.lineTo(sx, y); c.closePath(); c.fill(); c.stroke();
+    animSeen = true;
+  }
 }
 
 // Contorno giallo dell'edificio selezionato (pannello aperto)

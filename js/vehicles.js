@@ -755,7 +755,7 @@ function drawShip(c, v) {
       const t = (ph * 1.1 + i / 4) % 1, a1 = L * 0.55 - t * (L * 1.5);
       c.beginPath(); c.moveTo(...LP(a1, s2 * W * 1.2, 0)); c.lineTo(...LP(a1 - 0.07, s2 * W * (1.3 + t * 0.4), 0)); c.stroke();
     }
-    waterSeen = true;   // così il gioco continua a ridisegnare e l'acqua si vede muovere
+    animSeen = true;   // così il gioco continua a ridisegnare (30 volte al secondo) e l'acqua si vede muovere
   }
   // scafo: contorno con la prua a punta e la poppa squadrata
   const out = [[-L, -W], [L * 0.5, -W], [L * 0.82, -W * 0.62], [L, 0], [L * 0.82, W * 0.62], [L * 0.5, W], [-L, W]];

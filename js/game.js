@@ -354,6 +354,7 @@ function newGame(seed, size) {
   game.map = generateTerrain(seed, game.size);
   game.money = START_MONEY;
   game.grid = null;
+  game.undoStack = []; game.undoStroke = null;   // niente da annullare in una mappa nuova
   game.speed = 1;   // velocità normale
   if (typeof refreshSpeed === 'function') refreshSpeed();
   if (typeof resetUnlocks === 'function') resetUnlocks();   // mappa nuova: si parte con poco (progress.js)
@@ -423,7 +424,7 @@ function updateJobs() {
     b.workers = 0;
     for (const h of houses) {
       if (b.workers >= JOBS[b.kind]) break;
-      if (distToBuilding(b, h.ax, h.ay) > JOB_RADIUS) continue;
+      if (distToBuilding(b, h.ax, h.ay) > jobRadiusOf(b.kind)) continue;
       const take = Math.min((h.residents || 0) - h.employed, JOBS[b.kind] - b.workers);
       if (take <= 0) continue;
       h.employed += take; b.workers += take; total += take;
@@ -595,6 +596,7 @@ function useTool(tool, x, y) {
     if (tool === 'farm' && typeof onFarmPlaced === 'function') onFarmPlaced(b);
   } else if (tool === 'raise' || tool === 'lower' || tool === 'level') {
     const target = tool === 'raise' ? t.elev + 1 : tool === 'lower' ? t.elev - 1 : game.levelTarget;
+    noteTerrainUndo(x, y, toolCost(tool, x, y));
     setElevation(x, y, target);
   } else if (tool === 'demolish') {
     // priorità: ponte > edificio > percorso > campo > alberi > tunnel sotto
@@ -616,6 +618,7 @@ function useTool(tool, x, y) {
       game.fields--;
       if (farm) farm.fields = farmFieldCount(farm);
     } else if (t.type === T.FOREST || !tun) {
+      if (t.type === T.FOREST) noteTerrainUndo(x, y, toolCost(tool, x, y));   // anche gli alberi tolti si rimettono con Ctrl+Z
       t.type = t.type === T.FOREST ? T.GRASS : t.type;
     } else removeBridge(tun);
   }
@@ -641,6 +644,33 @@ function removeBuilding(b) {
 }
 
 // Cambia la quota di un tile: sotto il livello del mare diventa acqua, l'acqua alzata diventa sabbia
+// ---------- Annulla (Ctrl+Z) per il terreno ----------
+// Ogni passata di Alza / Abbassa / Livella è un passo che si può annullare: si ricorda com'era ogni
+// tile prima (tipo, quota, campo) e quanto è costato, e Ctrl+Z rimette tutto e ridà i soldi.
+// Solo il terreno (richiesta dell'utente); i tile dove nel frattempo c'è una strada o un edificio restano.
+const UNDO_MAX = 30;
+function startTerrainStroke() { game.undoStroke = null; }
+function noteTerrainUndo(x, y, cost) {
+  game.undoStack = game.undoStack || [];
+  if (!game.undoStroke) { game.undoStroke = { tiles: new Map(), cost: 0 }; game.undoStack.push(game.undoStroke); if (game.undoStack.length > UNDO_MAX) game.undoStack.shift(); }
+  const k = y * game.size + x, t = game.map[y][x];
+  if (!game.undoStroke.tiles.has(k)) game.undoStroke.tiles.set(k, { type: t.type, elev: t.elev, field: t.field, farm: t.farm });
+  game.undoStroke.cost += cost;
+}
+function undoTerrain() {
+  const st = game.undoStack && game.undoStack.pop();
+  game.undoStroke = null;
+  if (!st) return false;
+  for (const [k, o] of st.tiles) {
+    const x = k % game.size, y = (k - x) / game.size, t = game.map[y][x];
+    if (t.path || t.building) continue;
+    if (o.field && !t.field) game.fields++;
+    Object.assign(t, o);
+  }
+  game.money += st.cost;
+  recount();
+  return true;
+}
 function setElevation(x, y, e) {
   const t = game.map[y][x];
   e = Math.max(0, Math.min(MAX_ELEV, e));

@@ -16,7 +16,10 @@ function loop(now) {
   while (left > 1e-6) { const st = Math.min(left, 0.1); simUpdate(st); left -= st; }
   panelUpdate(dt);
   // l'acqua si anima ~8 volte al secondo (solo se si vede e lo zoom è vicino: da lontano costerebbe troppo)
-  if (waterSeen && zoomLevel() >= 1 && lastTime - lastWaterFrame > 125) { lastWaterFrame = lastTime; needsDraw = true; }
+  // pale eoliche, pompe, fumo e navi: ~30 volte al secondo, così girano lisce anche con il mouse fermo
+  // (prima andavano insieme all'acqua a 8 volte al secondo e sembravano a scatti)
+  const every = animSeen ? 33 : 125;
+  if ((waterSeen || animSeen) && zoomLevel() >= 1 && lastTime - lastWaterFrame > every) { lastWaterFrame = lastTime; needsDraw = true; }
   if (needsDraw) { needsDraw = false; drawFrame(); }
   requestAnimationFrame(loop);
 }

@@ -112,6 +112,7 @@ function destSection(box, b) {
   box.appendChild(list);
   if (!choices.length) box.appendChild(el('div', 'pnote', TR('Costruisci {list}.', { list: destKindsOf(b).map(k => BUILDINGS[k].name.toLowerCase()).join(', ') })));
   if (b.dests.length) box.appendChild(liveText('div', 'pnote', () => b.status || (b.van ? TR('Furgone in viaggio') : TR('Il furgone parte con almeno {n} unità', { n: VAN_MIN_LOAD }))));
+  box.appendChild(liveText('div', 'pnote', () => { const n = vehicles.filter(v => v.from === b.id).length; return n ? TR('In giro adesso: {n} (sulla mappa hanno la freccia gialla)', { n }) : ''; }));
   splitSection(box, b);
 }
 
@@ -302,7 +303,7 @@ function renderPanel() {
     box.appendChild(liveText('div', 'prow', () => TR('Lavoratori: {a} / {b}', { a: b.workers || 0, b: JOBS[b.kind] })));
     box.appendChild(bar(() => b.workers || 0, JOBS[b.kind]));
     box.appendChild(liveText('div', 'pwarn', () => (b.workers || 0) >= JOBS[b.kind] ? '' :
-      TR('Servono abitanti che vivano entro {n} tile per lavorare qui.', { n: JOB_RADIUS })));
+      TR('Servono abitanti che vivano entro {n} tile per lavorare qui.', { n: jobRadiusOf(b.kind) })));
     if (!accessTiles(b).length) box.appendChild(el('div', 'pwarn', TR("L'entrata non è collegata a una strada.")));
   }
 

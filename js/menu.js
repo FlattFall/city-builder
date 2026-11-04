@@ -121,8 +121,18 @@ function drawMapPreview(cv, n, seed, scale) {
     if (t.type === T.FOREST) { c.fillStyle = '#2f6b2a'; c.beginPath(); c.arc(cx, cy + th / 2 - tw * 0.18, tw * 0.22, 0, Math.PI * 2); c.fill(); }
   }
 }
+// Salva: prima si sceglie il nome della partita (richiesta dell'utente)
 function saveFromMenu() {
-  menuMessage(saveGame() ? TR('Partita salvata.') : TR('Impossibile salvare: spazio pieno o non disponibile.'));
+  showMenuPage('save');
+  const inp = $('save-name');
+  inp.value = currentSaveName();
+  $('save-new').hidden = !game.saveId;   // "Salva come nuova" solo se la partita viene già da un salvataggio
+  inp.focus(); inp.select();
+}
+function doSave(asNew) {
+  const ok = saveGame($('save-name').value, asNew);
+  showMenuPage('main');
+  menuMessage(ok ? TR('Partita salvata: "{n}".', { n: currentSaveName() }) : TR('Impossibile salvare: spazio pieno o non disponibile.'));
   updateHud();
 }
 
@@ -153,6 +163,17 @@ function renderSaveList() {
     meta.textContent = formatDate(s.date) + ' - ' + (s.size || 128) + 'x' + (s.size || 128) + ', ' +
       TR('{r} strade, {h} case', { r: s.roads, h: s.houses });
     info.append(name, meta);
+    const ren = document.createElement('button');
+    ren.textContent = '✎';
+    ren.title = TR('Cambia nome');
+    ren.addEventListener('click', () => {   // il nome diventa un campo da scrivere
+      const inp = document.createElement('input');
+      inp.className = 'save-rename'; inp.value = s.name; inp.maxLength = 40;
+      const done = ok => { if (ok && renameSave(s.id, inp.value)) s.name = inp.value.trim(); renderSaveList(); };
+      inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') done(true); if (e.key === 'Escape') done(false); });
+      inp.addEventListener('blur', () => done(true));
+      name.replaceWith(inp); inp.focus(); inp.select();
+    });
     const load = document.createElement('button');
     load.textContent = TR('Carica');
     load.addEventListener('click', () => {
@@ -165,7 +186,7 @@ function renderSaveList() {
     del.addEventListener('click', () => {
       if (confirm(TR('Eliminare "{n}"?', { n: s.name }))) { deleteSave(s.id); renderSaveList(); }
     });
-    row.append(info, load, del);
+    row.append(info, ren, load, del);
     box.appendChild(row);
   }
 }
@@ -179,6 +200,9 @@ function exitGame() {
 function initMenu() {
   $('m-resume').addEventListener('click', closeMenu);
   $('m-save').addEventListener('click', saveFromMenu);
+  $('save-ok').addEventListener('click', () => doSave(false));
+  $('save-new').addEventListener('click', () => doSave(true));
+  $('save-name').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') doSave(false); if (e.key === 'Escape') showMenuPage('main'); });
   $('m-new').addEventListener('click', () => showMenuPage('new'));
   buildSizeChoices();
   $('m-load').addEventListener('click', () => showMenuPage('load'));
