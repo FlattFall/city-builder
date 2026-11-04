@@ -90,7 +90,7 @@ function receive(b, g, q) {
   else addTo(b.store, g, q);
 }
 
-function buildingLabel(b) { return b.name ? '"' + b.name + '"' : BUILDINGS[b.kind].name.toLowerCase() + ' #' + b.id; }
+function buildingLabel(b) { return b.name ? '"' + b.name + '"' : BUILDINGS[b.kind].name.toLowerCase(); }
 
 const VAN_STRIPES = { farm: '#3fa34d', warehouse: '#3f6fd9', goodsWarehouse: '#e07b39', textileMill: '#d94f8a', clothingFactory: '#8e5bd1', factory: '#e07b39', bakery: '#8a5a3a',
   dairy: '#8fc6e8', slaughterhouse: '#c83232', charcoalKiln: '#3a3a40', oilWell: '#2b2b33', port: '#2f6fa8', refinery: '#e8c23a', oilPlatform: '#d94141', forestry: '#2f6b2a', sawmill: '#c9a25a', furnitureFactory: '#8a5a3a', cowFarm: '#2b2b33', chickenFarm: '#e8c23a', pigFarm: '#e8899a', sheepFarm: '#c9c4b8' };
@@ -104,7 +104,7 @@ function vanHome(b) { b.van = Math.max(0, (b.van || 0) - 1); }
 
 // Il furgone di "from" porta q unità di g a "to" e poi torna indietro
 function sendGoods(from, to, g, q) {
-  if (BUILDINGS[from.kind].water) return sendByShip(from, to, g, q);   // dal mare: in nave (vehicles.js)
+  if (bySea(from, to)) return sendByShip(from, to, g, q);   // dal mare o da porto a porto: in nave (vehicles.js)
   const route = findRoute(accessTiles(from), accessTiles(to));
   if (!route) { from.status = TR('Nessuna strada verso {b}', { b: buildingLabel(to) }); from.retry = 3; return false; }
   addTo(from.store, g, -q);

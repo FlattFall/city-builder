@@ -18,6 +18,8 @@ DICT.es = {
   'Equilibrata: spazio per tutte le industrie': 'Equilibrado: sitio para todas las industrias',
   'Tanto spazio per grandi città': 'Mucho sitio para grandes ciudades',
   'Gigantesca: serve un computer potente': 'Gigantesco: necesita un ordenador potente',
+  '{n} tile': '{n} casillas',
+  " - nessuna via d'acqua": ' - sin vía de agua',
   'Città {n}': 'Ciudad {n}', 'Piccola': 'Pequeño', 'Media': 'Mediano', 'Grande': 'Grande', 'Enorme': 'Enorme',
   // grupos de la barra y terreno
   'Mano': 'Mano', 'Strade': 'Carreteras', 'Case': 'Casas', 'Agroalimentare': 'Agroalimentario', 'Legno': 'Madera', 'Tessile': 'Textil', 'Energia': 'Energía', 'Demolisci': 'Demoler',
@@ -96,7 +98,7 @@ DICT.es = {
   "L'entrata non è collegata a una strada.": 'La entrada no está conectada a una carretera.', 'Scorte: {a} / {b}': 'Existencias: {a} / {b}', 'Vuoto.': 'Vacío.',
   'Cosa accetta (clic per cambiare)': 'Qué acepta (clic para cambiar)', ': accettato': ': aceptado', ': rifiutato': ': rechazado',
   "Dietro il porto non c'è acqua: le navi non possono attraccare.": 'Detrás del puerto no hay agua: los barcos no pueden atracar.',
-  'Magazzino marittimo: petrolio, carbone e carburanti. Le navi delle piattaforme scaricano qui; i furgoni portano la merce alla raffineria.': 'Almacén portuario: petróleo, carbón y combustibles. Los barcos de las plataformas descargan aquí; las furgonetas llevan la mercancía a la refinería.',
+  'Magazzino marittimo: tutte le merci. Le navi arrivano dalle piattaforme e dagli altri porti; scegli un altro porto come destinazione per mandarci la merce in nave.': 'Almacén portuario: todas las mercancías. Los barcos llegan de las plataformas y de otros puertos; elige otro puerto como destino para enviarle la mercancía en barco.',
   'Solo cibo e animali. Fabbrica, panificio, caseificio, macello e supermercato prendono da qui quello che gli serve.': 'Solo comida y animales. La fábrica, la panadería, la quesería, el matadero y el supermercado recogen aquí lo que necesitan.',
   'Solo merci (legno, mobili, cotone, lana, tessuti, vestiti, energia). Segheria, fabbriche e negozi prendono da qui quello che gli serve.': 'Solo mercancías (madera, muebles, algodón, lana, telas, ropa, energía). El aserradero, las fábricas y las tiendas recogen aquí lo que necesitan.',
   'Cosa coltivare': 'Qué cultivar', 'Campi: {n}': 'Campos: {n}', 'Aggiungi campi': 'Añadir campos', 'Senza campi la fattoria non produce.': 'Sin campos la granja no produce.',
@@ -157,7 +159,7 @@ DICT.es = {
   'da {a} (in pianura) fino a {b} (in montagna).': 'de {a} (en llano) hasta {b} (en la montaña).', 'Petrolio': 'Petróleo',
   "Il petrolio sta nei <b>giacimenti</b> sotto terra e sotto il mare: quando prendi in mano il pozzo o la piattaforma, le zone dove ce n'è diventano scure (più scure = più petrolio).":
     'El petróleo está en <b>yacimientos</b> bajo tierra y bajo el mar: cuando coges el pozo o la plataforma, las zonas con petróleo se vuelven oscuras (más oscuras = más petróleo).',
-  "Le navi viaggiano sull'acqua collegata dalla piattaforma alle caselle d'acqua dietro al porto.": 'Los barcos navegan por el agua conectada desde la plataforma hasta las casillas de agua detrás del puerto.',
+  "Le navi viaggiano sull'acqua collegata fino alle caselle d'acqua dietro al porto. Il porto prende tutte le merci e le può mandare in nave ad altri porti: petroliera per petrolio, carbone e carburanti, portacontainer per tutto il resto.": 'Los barcos navegan por el agua conectada hasta las casillas de agua detrás del puerto. El puerto acepta todas las mercancías y puede enviarlas en barco a otros puertos: petrolero para petróleo, carbón y combustibles, portacontenedores para todo lo demás.',
   'nave': 'barco', 'furgone': 'furgoneta',
   "Ogni attività ha un furgone (i magazzini {w}). Il furgone parte quando ci sono almeno <b>{a} unità</b> e ne porta fino a <b>{b}</b>, poi torna indietro. Le destinazioni si scelgono nel pannello dell'edificio: se ne scegli più di una, ogni merce va alla prima che la accetta e ha posto.":
     'Cada negocio tiene una furgoneta (los almacenes {w}). La furgoneta sale cuando hay al menos <b>{a} unidades</b> y lleva hasta <b>{b}</b>, luego vuelve. Los destinos se eligen en el panel del edificio: si eliges más de uno, cada mercancía va al primero que la acepta y tiene sitio.',
@@ -214,7 +216,7 @@ TOOL_TEXT.es = {
   windPlant: { label: 'Parque eólico (2x2)', desc: 'Aerogeneradores: energía sin materias primas. Cuanto más alto lo construyas, más viento hay y más energía produce.' },
   oilWell: { label: 'Pozo petrolífero', desc: 'Extrae petróleo crudo de un yacimiento en tierra (con la herramienta en la mano ves las zonas oscuras donde hay).' },
   oilPlatform: { label: 'Plataforma petrolífera (2x2)', desc: 'Se construye en el agua sobre un yacimiento. El personal vive a bordo; un barco lleva el petróleo al puerto.' },
-  port: { label: 'Puerto (2x2)', desc: 'Puerto con almacén portuario: delante la carretera, detrás el agua (R para girarlo). Los barcos descargan aquí el petróleo, las furgonetas lo llevan a la refinería.' },
+  port: { label: 'Puerto (2x2)', desc: 'Puerto con almacén portuario para todas las mercancías: delante la carretera, detrás el agua (R para girarlo). Los barcos llevan la mercancía a otros puertos (petroleros para petróleo y combustibles, portacontenedores para el resto), las furgonetas a almacenes, fábricas y tiendas.' },
   refinery: { label: 'Refinería de petróleo (2x2)', desc: 'Transforma el petróleo crudo en gasolina y gasóleo.' },
   gasStation: { label: 'Gasolinera', desc: 'Vende gasolina y gasóleo a los habitantes cercanos: cobras impuestos en cada venta.' },
   demolish: { label: 'Demoler', desc: 'Quita edificios, carreteras, puentes, túneles, campos y árboles. Al arrastrar solo quita cosas del mismo tipo que el primer clic.' },

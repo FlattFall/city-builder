@@ -465,7 +465,7 @@ function check(cond, msg) {
   check(fm.fieldMode, 'dopo la fattoria si scelgono i campi');
   check(fm.fields === 12 && fm.far, `campi assegnati alla fattoria: ${fm.fields}, lontano rifiutato`);
   await page.click('#panel .pchoice:has-text("Patate")');
-  await page.click('#panel .pchoice:text("Magazzino alimenti #")');
+  await page.click('#panel .pchoice:text("Magazzino alimenti (")');
   const del = await page.evaluate(() => {
     const farm = [...game.buildings.values()].find(b => b.kind === 'farm');
     const wh = [...game.buildings.values()].find(b => b.kind === 'warehouse');
@@ -1396,6 +1396,44 @@ function check(cond, msg) {
   check(lgEs.group === 'Carreteras' && lgEs.good === 'Trigo' && lgEs.title === 'Opciones', 'lingua spagnola');
   check(!cover.en.length && !cover.es.length, 'nessuna frase senza traduzione' + (cover.en.length || cover.es.length ? ': ' + JSON.stringify(cover) : ''));
   check(kept && back, 'la lingua scelta resta dopo il riavvio; si torna all\'italiano');
+
+  // 48. porti: tutte le merci, da porto a porto in nave portacontainer
+  const pp = await page.evaluate(() => {
+    clearVehicles(); newGame(11, 128); unlockAll(); game.started = true; closeMenu();   // (dopo il riavvio del test 47 il menu è aperto)
+    const N = game.size, c = N / 2, r = {};
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, rb: null, elev: 2, bridge: null });
+    game.bridges = new Map(); rebuildBridgeIndex(); recount(); game.money = 1e7;
+    for (let y = c + 3; y <= c + 12; y++) for (let x = 0; x < N; x++) Object.assign(game.map[y][x], { type: T.WATER, elev: 0 });   // canale
+    for (let x = 0; x < N; x++) { useTool('road', x, c); game.map[c][x].main = true; useTool('road', x, c + 15); }
+    game.entries = [{ x: 0, y: c }, { x: N - 1, y: c }];
+    game.rotation = 2; const ra = useTool('port', c - 20, c + 1); r.a = ra.ok; r.am = ra.msg;    // retro verso il canale (sotto)
+    game.rotation = 0; const rb = useTool('port', c + 20, c + 13); r.b = rb.ok; r.bm = rb.msg;   // dall'altra parte del canale
+    game.rotation = 2; useTool('farm', c - 26, c + 1); exitFieldMode();
+    for (let hx = c - 34; hx <= c + 30; hx++) { useTool('house', hx, c - 1); useTool('house', hx, c + 16); }
+    for (const h of game.buildings.values()) if (h.kind === 'house') h.residents = HOUSE_CAPACITY;
+    recount();
+    const B = k => [...game.buildings.values()].filter(b => b.kind === k);
+    const [pa, pb] = B('port').sort((x, y) => x.ax - y.ax), fa = B('farm')[0];
+    r.ids = !!(pa && pb && fa);
+    if (!r.ids) return r;
+    r.accepts = freeFor(pa, 'wheat') > 0 && freeFor(pa, 'tables') > 0 && freeFor(pa, 'crude') > 0;
+    r.destOpts = destChoices(pa).some(o => o.w === pb && o.ok && o.sea) && destChoices(fa).some(o => o.w === pa && o.ok);
+    fa.crop = 'wheat'; fa.store = { wheat: 60 }; fa.dests = [pa.id]; pa.dests = [pb.id];
+    let cargo = false, tanker = false, landed = 0;
+    for (let i = 0; i < 400 * 10; i++) {
+      simUpdate(0.1);
+      for (const v of vehicles) if (v.kind === 'ship' && v.load > 0) { if (v.shipType === 'cargo') cargo = true; else tanker = true; }
+      landed = Math.max(landed, pb.store.wheat || 0);
+    }
+    Object.assign(r, { cargo, tanker, landed });
+    // panello: senza numeri accanto al nome
+    openBuildingPanel(pa); r.noNum = !/#\d/.test(document.getElementById('panel').textContent); closePanel();
+    return r;
+  });
+  check(pp.a && pp.b && pp.ids && pp.accepts, 'porto: accetta tutte le merci (grano, mobili, petrolio)' + (pp.ids ? '' : ' ' + JSON.stringify(pp)));
+  check(pp.destOpts, 'porto: tra le destinazioni l\'altro porto (via mare) e i produttori possono mandare al porto');
+  check(pp.cargo && !pp.tanker && pp.landed > 0, `da porto a porto: nave portacontainer, ${pp.landed} grano arrivato`);
+  check(pp.noNum, 'pannello senza numeri accanto ai nomi');
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();

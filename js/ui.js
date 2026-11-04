@@ -33,7 +33,7 @@ const TOOL_INFO = {
   windPlant: { label: 'Centrale eolica (2x2)', cost: BUILDINGS.windPlant.cost, desc: "Pale eoliche: energia senza materie prime. Più in alto la costruisci, più vento c'è e più energia fa." },
   oilWell:   { label: 'Pozzo petrolifero', cost: BUILDINGS.oilWell.cost, desc: 'Estrae il petrolio grezzo da un giacimento a terra (con lo strumento in mano vedi le zone scure dove ce n\'è).' },
   oilPlatform: { label: 'Piattaforma petrolifera (2x2)', cost: BUILDINGS.oilPlatform.cost, desc: "Si costruisce sull'acqua sopra un giacimento. Il personale vive a bordo; una nave porta il petrolio al porto." },
-  port:      { label: 'Porto (2x2)', cost: BUILDINGS.port.cost, desc: "Porto con magazzino marittimo: davanti la strada, dietro l'acqua (R per ruotarlo). Le navi scaricano qui il petrolio, i furgoni lo portano alla raffineria." },
+  port:      { label: 'Porto (2x2)', cost: BUILDINGS.port.cost, desc: "Porto con magazzino marittimo per tutte le merci: davanti la strada, dietro l'acqua (R per ruotarlo). Le navi portano la merce agli altri porti (petroliere per petrolio e carburanti, portacontainer per il resto), i furgoni a magazzini, fabbriche e negozi." },
   refinery:  { label: 'Raffineria di petrolio (2x2)', cost: BUILDINGS.refinery.cost, desc: 'Trasforma il petrolio grezzo in benzina e gasolio.' },
   gasStation: { label: 'Distributore di carburante', cost: BUILDINGS.gasStation.cost, desc: 'Vende benzina e gasolio agli abitanti vicini: per ogni vendita incassi le tasse.' },
   demolish:  { label: 'Demolisci', desc: 'Toglie edifici, strade, ponti, tunnel, campi e alberi. Trascinando toglie solo cose dello stesso tipo del primo clic.' },

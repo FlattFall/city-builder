@@ -250,7 +250,7 @@ const CAPS = {
   furnitureStore: { store: 150 }, goodsWarehouse: { store: WAREHOUSE_CAPACITY },
   textileMill: { input: 80, store: 50 }, clothingFactory: { input: 80, store: 40 }, clothingStore: { store: 150 },
   charcoalKiln: { input: 40, store: 40 }, coalPlant: { input: 80 }, refinery: { input: 100, store: 60 },
-  oilWell: { store: 60 }, oilPlatform: { store: 160 }, port: { store: 600 }, gasStation: { store: 120 },
+  oilWell: { store: 60 }, oilPlatform: { store: 160 }, port: { store: 800 }, gasStation: { store: 120 },
 };
 // Centrali elettriche: out = energia prodotta (con tutto il personale). La centrale a carbone
 // brucia 1 carbone ogni "burn" secondi; l'eolica rende di più in alto (perLevel per livello di quota).
@@ -266,7 +266,7 @@ const GRID = { perResident: 1, perBusiness: 4, bill: 0.4, billEvery: 20, boost: 
 const WAREHOUSE_CATS = {
   warehouse: ['raw', 'animal', 'food', 'bakery', 'dairy', 'meat'],
   goodsWarehouse: ['wood', 'lumber', 'furniture', 'fiber', 'textile', 'clothing', 'energy', 'fuel'],
-  port: ['energy', 'fuel'],   // porto: magazzino marittimo (petrolio, carbone, carburanti)
+  port: [...new Set(Object.values(GOODS).map(g => g.cat))],   // porto: magazzino marittimo, tutte le merci
 };
 // Dove può mandare la merce ogni attività (se ne possono scegliere più di una:
 // ogni merce va alla prima destinazione che la accetta)
@@ -293,6 +293,10 @@ const DEST_KINDS = {
   // allevamento: dipende dall'animale (destKindsOf)
   cowFarm: ANIMAL_DESTS, chickenFarm: ANIMAL_DESTS, pigFarm: ANIMAL_DESTS, sheepFarm: ['goodsWarehouse', 'textileMill'],
 };
+// Il porto prende tutte le merci: tutti possono mandargliele, e lui le manda (in nave) agli altri
+// porti o (in furgone) a magazzini, fabbriche e negozi
+for (const list of Object.values(DEST_KINDS)) if (!list.includes('port')) list.push('port');
+DEST_KINDS.port = [...new Set(['port', ...DEST_KINDS.warehouse, ...DEST_KINDS.goodsWarehouse, 'refinery', 'coalPlant', 'gasStation'])];
 
 // ---------- Supermercato e tasse ----------
 // Negozi: ogni "tick" secondi una parte (buyRate) degli abitanti entro "radius" compra qualcosa

@@ -506,10 +506,16 @@ function waterRoute(starts, goals) {
 }
 function shipPoints(tiles) { return tiles.map(([x, y]) => [x + 0.5, y + 0.5, 0, 1, 0]); }
 function platformTiles(b) { return footprint(b.kind, b.ax, b.ay).map(p => [p.x, p.y]); }
+// Da dove parte una nave: la piattaforma (è nell'acqua) o le caselle d'acqua dietro al porto
+function shipStarts(b) { return BUILDINGS[b.kind].water ? platformTiles(b) : b.kind === 'port' ? dockTiles(b) : []; }
+// La merce va in nave: dalla piattaforma al porto, oppure da un porto a un altro porto
+function bySea(from, to) { return BUILDINGS[from.kind].water || (from.kind === 'port' && to.kind === 'port'); }
+// Petroliera per petrolio, carbone e carburanti; nave portacontainer per tutto il resto
+function shipTypeFor(g) { return ['energy', 'fuel'].includes(GOODS[g].cat) ? 'tanker' : 'cargo'; }
 
 function sendByShip(from, to, g, q) {
   const goals = to.kind === 'port' ? dockTiles(to) : [];
-  const route = goals.length && waterRoute(platformTiles(from), goals);
+  const route = goals.length && waterRoute(shipStarts(from), goals);
   if (!route) { from.status = TR("Nessuna via d'acqua verso {b}", { b: buildingLabel(to) }); from.retry = 3; return false; }
   q = Math.min(from.store[g] || 0, SHIP_CAPACITY, Math.max(0, roomFor(to, g)));   // la nave porta più di un furgone
   if (q <= 0) return false;
@@ -517,12 +523,12 @@ function sendByShip(from, to, g, q) {
   to.expect = to.expect || {};
   addTo(to.expect, g, q);
   from.status = TR('Nave in viaggio verso {b}', { b: buildingLabel(to) });
-  const fid = from.id, tid = to.id;
+  const fid = from.id, tid = to.id, shipType = shipTypeFor(g);
   vanOut(from);
-  const back = path => spawnVehicle({ kind: 'ship', from: fid, load: 0, tiles: path, pts: shipPoints(path), speed: SHIP_SPEED,
+  const back = path => spawnVehicle({ kind: 'ship', shipType, from: fid, load: 0, tiles: path, pts: shipPoints(path), speed: SHIP_SPEED,
     arrive() { const f = game.buildings.get(fid); if (f) { vanHome(f); f.status = ''; } },
     cancel() { const f = game.buildings.get(fid); if (f) vanHome(f); } });
-  spawnVehicle({ kind: 'ship', from: fid, to: tid, good: g, load: q, tiles: route, pts: shipPoints(route), speed: SHIP_SPEED,
+  spawnVehicle({ kind: 'ship', shipType, from: fid, to: tid, good: g, load: q, tiles: route, pts: shipPoints(route), speed: SHIP_SPEED,
     arrive() {
       const t = game.buildings.get(tid), f = game.buildings.get(fid);
       if (t) { addTo(t.expect, g, -q); receive(t, g, Math.min(q, Math.max(0, freeFor(t, g)))); }
@@ -544,18 +550,19 @@ function redirectShip(v) {
   const p = vehiclePos(v), here = [[Math.floor(p.mx), Math.floor(p.my)]];
   const home = game.buildings.get(v.from);
   const g = v.good, q = v.load, fid = v.from;
-  const path = home && waterRoute(here, platformTiles(home));
+  const path = home && waterRoute(here, shipStarts(home));
   vehicles = vehicles.filter(o => o !== v);
   if (!path) { if (home) { vanHome(home); if (q) addTo(home.store, g, q); } return; }
   const pts = [[p.mx, p.my, 0, 1, 0], ...shipPoints(path.slice(1))];
-  spawnVehicle({ kind: 'ship', from: fid, load: q, good: g, tiles: path, pts, speed: SHIP_SPEED,
+  spawnVehicle({ kind: 'ship', shipType: v.shipType, from: fid, load: q, good: g, tiles: path, pts, speed: SHIP_SPEED,
     arrive() { const f = game.buildings.get(fid); if (f) { vanHome(f); if (q) addTo(f.store, g, q); f.status = ''; } },
     cancel() { const f = game.buildings.get(fid); if (f) vanHome(f); } });
 }
 
-// Nave: petroliera disegnata come gli edifici. Scafo blu scuro con la fascia rossa sotto la linea
-// di galleggiamento e la prua a punta, ponte verde con il tubo e i boccaporti, albero a prua,
-// ponte di comando bianco a poppa (due piani con le finestre) e fumaiolo con la striscia colorata.
+// Nave disegnata come gli edifici: scafo con la fascia rossa sotto la linea di galleggiamento e la
+// prua a punta, albero a prua, castello a poppa alto due piani (bianco, azzurro, bianco) e il fumaiolo.
+// Petroliera (petrolio, carbone, carburanti): ponte verde con il tubo e i boccaporti.
+// Portacontainer (tutte le altre merci): fiancata verde scura e container colorati su due piani.
 // Dondola un po' sull'acqua; scia e onde alla prua.
 function drawShip(c, v) {
   const { mx, my } = v.pos;
@@ -570,16 +577,6 @@ function drawShip(c, v) {
     return [Math.min(...us), Math.min(...vs), Math.max(...us), Math.max(...vs)];
   };
   const vbox = (rc, z0, hp, col) => box(c, 0, 0, h + z0 * K / STEP, rc[0], rc[1], rc[2], rc[3], hp * K, Object.assign({ plain: true }, col));
-  // finestre su un box: fascia sulle due facce che si vedono (v = v1 e u = u1)
-  const windows = (rc, z0, z1, n) => {
-    const [u0, v0, u1, v1] = rc, P = (u, vv, z) => iso(0, 0, u, vv, h + z * K / STEP);
-    for (let k = 0; k < n; k++) {
-      const a0 = u0 + (u1 - u0) * (k + 0.3) / n, a1 = u0 + (u1 - u0) * (k + 0.7) / n;
-      poly(c, [P(a0, v1, z0), P(a1, v1, z0), P(a1, v1, z1), P(a0, v1, z1)], '#2f4f72');
-      const b0 = v0 + (v1 - v0) * (k + 0.3) / n, b1 = v0 + (v1 - v0) * (k + 0.7) / n;
-      poly(c, [P(u1, b0, z0), P(u1, b1, z0), P(u1, b1, z1), P(u1, b0, z1)], '#25415e');
-    }
-  };
   if (DETAIL) {   // scia dietro e onde ai lati della prua
     const wake = 0.35 + 0.15 * Math.sin(animT * 3);
     c.fillStyle = 'rgba(255,255,255,' + wake.toFixed(2) + ')';
@@ -600,28 +597,55 @@ function drawShip(c, v) {
       poly(c, [lo[i], lo[j], hi[j], hi[i]], wu > wv ? shadeC(col, -0.3) : col);
     }
   };
+  const cargo = v.shipType === 'cargo';     // nave portacontainer (le altre merci); altrimenti petroliera
   sides(-0.6, 1.2, '#b5473a', 0.96, 1);      // opera viva rossa, un po' rientrata sotto
-  sides(1.2, DECK, '#24324a', 1, 1);         // fiancata blu scuro
+  sides(1.2, DECK, cargo ? '#2f5f4a' : '#24324a', 1, 1);   // fiancata: verde scuro (container) o blu scuro (petroliera)
   const deck = ring(DECK);
-  poly(c, deck, '#4f7a52');                  // ponte verde
+  poly(c, deck, cargo ? '#8a8f96' : '#4f7a52');
   if (DETAIL) {
     c.strokeStyle = '#f2f2f2'; c.lineWidth = 0.45;   // bordo bianco del ponte
     c.beginPath(); c.moveTo(...deck[0]); for (const p of deck.slice(1)) c.lineTo(...p); c.closePath(); c.stroke();
-    c.strokeStyle = '#c9ced4'; c.lineWidth = 0.7;    // tubo lungo il ponte
-    c.beginPath(); c.moveTo(...LP(-0.12, 0, DECK + 0.6)); c.lineTo(...LP(L * 0.7, 0, DECK + 0.6)); c.stroke();
+    if (!cargo) {                                    // petroliera: tubo lungo il ponte
+      c.strokeStyle = '#c9ced4'; c.lineWidth = 0.7;
+      c.beginPath(); c.moveTo(...LP(-0.12, 0, DECK + 0.6)); c.lineTo(...LP(L * 0.7, 0, DECK + 0.6)); c.stroke();
+    }
   }
   // pezzi sul ponte, dal fondo dello schermo verso il davanti
-  const stripe = v.stripe || '#d94141';
-  const parts = [
-    ...[-0.12, -0.01, 0.1, 0.21].map(a => ({ rc: R(a - 0.03, a + 0.03, -W * 0.45, W * 0.45), z: DECK, hp: 0.8, col: { l: '#6b8f6a', r: '#4f6f4e', t: '#86a884' } })),   // boccaporti
-    { rc: R(-L + 0.03, -L + 0.17, -W * 0.8, W * 0.8), z: DECK, hp: 4.4, col: { l: '#f4f4f2', r: '#cfd1d4', t: '#e8e8e6' }, win: [1.6, 4] },   // cabine
-    { rc: R(-L + 0.08, -L + 0.17, -W * 0.95, W * 0.95), z: DECK + 4.4, hp: 2.4, col: { l: '#f4f4f2', r: '#cfd1d4', t: '#9aa1aa' }, win: [0.6, 3] },   // ponte di comando (con le alette)
-    { rc: R(-L + 0.035, -L + 0.075, -0.028, 0.028), z: DECK + 4.4, hp: 4.2, col: { l: stripe, r: shadeC(stripe, -0.25), t: '#1f1f24' }, funnel: true },
-    { rc: R(L * 0.72, L * 0.74, -0.01, 0.01), z: DECK, hp: 5, col: { l: '#e8e8e8', r: '#bfc3c8', t: '#ffffff' } },   // albero a prua
-  ].sort((p, q) => (p.rc[0] + p.rc[1] + p.rc[2] + p.rc[3]) - (q.rc[0] + q.rc[1] + q.rc[2] + q.rc[3]));
+  const stripe = v.stripe || (cargo ? '#3f6fd9' : '#d94141');
+  const WHITE = { l: '#f4f4f2', r: '#cfd1d4', t: '#ffffff' }, AZURE = { l: '#7cc4ea', r: '#5aa3cc', t: '#9fd8f2' };
+  const CONT = ['#d94141', '#3f6fd9', '#e8c23a', '#3fa34d', '#e07b39', '#8e5bd1'];
+  const parts = [];
+  if (cargo) {   // file di container colorati, due piani
+    const fill = [[0, 0], [0, 1], [1, 0], [1, 1], [2, 0], [2, 1], [3, 0]];
+    for (const [k, lvl] of fill) {
+      const a = -0.14 + k * 0.11, col = CONT[(k * 2 + lvl + (v.from || 0)) % CONT.length];
+      for (const side of [-1, 1]) {
+        const w0 = side < 0 ? -W * 0.8 : 0.005, w1 = side < 0 ? -0.005 : W * 0.8;
+        parts.push({ rc: R(a - 0.05, a + 0.05, w0, w1), z: DECK + lvl * 2.4, hp: 2.4, col: { l: col, r: shadeC(col, -0.25), t: shadeC(col, 0.2) } });
+      }
+    }
+  } else {
+    for (const a of [-0.12, -0.01, 0.1, 0.21])   // boccaporti
+      parts.push({ rc: R(a - 0.03, a + 0.03, -W * 0.45, W * 0.45), z: DECK, hp: 0.8, col: { l: '#6b8f6a', r: '#4f6f4e', t: '#86a884' } });
+  }
+  // castello di poppa: due piani, bianco - azzurro (le finestre) - bianco, e il fumaiolo
+  const cab = R(-L + 0.03, -L + 0.17, -W * 0.8, W * 0.8);
+  parts.push({ rc: cab, z: DECK, hp: 1.6, col: WHITE, stack: true },
+    { rc: cab, z: DECK + 1.6, hp: 1.6, col: AZURE, stack: true },
+    { rc: cab, z: DECK + 3.2, hp: 1.6, col: WHITE, stack: true },
+    { rc: R(-L + 0.07, -L + 0.12, -0.03, 0.03), z: DECK + 4.8, hp: 3.6, col: { l: stripe, r: shadeC(stripe, -0.25), t: '#1f1f24' }, funnel: true },
+    { rc: R(L * 0.72, L * 0.74, -0.01, 0.01), z: DECK, hp: 5, col: { l: '#e8e8e8', r: '#bfc3c8', t: '#ffffff' } });   // albero a prua
+  // ordine: dal fondo; i pezzi uno sopra l'altro (castello, fumaiolo) dal basso verso l'alto
+  const depth = p => p.rc[0] + p.rc[1] + p.rc[2] + p.rc[3];
+  parts.sort((p, q) => {
+    const sameSpot = p.stack && q.stack;
+    if (sameSpot) return p.z - q.z;
+    if (p.funnel && q.stack) return 1;
+    if (q.funnel && p.stack) return -1;
+    return depth(p) - depth(q) || p.z - q.z;
+  });
   for (const p of parts) {
     vbox(p.rc, p.z, p.hp, p.col);
-    if (p.win && DETAIL) windows(p.rc, p.z + p.win[0], p.z + p.win[0] + 0.9, p.win[1]);
     if (p.funnel && DETAIL) {   // fascia nera in cima al fumaiolo e un filo di fumo
       const [u0, v0, u1, v1] = p.rc, P = (u, vv, z) => iso(0, 0, u, vv, h + z * K / STEP), z0 = p.z + p.hp - 0.9, z1 = p.z + p.hp;
       poly(c, [P(u0, v1, z0), P(u1, v1, z0), P(u1, v1, z1), P(u0, v1, z1)], '#1f1f24');

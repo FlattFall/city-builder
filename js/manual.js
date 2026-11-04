@@ -182,7 +182,7 @@ const MANUAL = [
     b.appendChild(mEl('p', null, TR("Il petrolio sta nei <b>giacimenti</b> sotto terra e sotto il mare: quando prendi in mano il pozzo o la piattaforma, le zone dove ce n'è diventano scure (più scure = più petrolio).")));
     b.appendChild(item('oilWell'));
     b.appendChild(item('oilPlatform'));
-    b.appendChild(item('port', TR("Le navi viaggiano sull'acqua collegata dalla piattaforma alle caselle d'acqua dietro al porto.")));
+    b.appendChild(item('port', TR("Le navi viaggiano sull'acqua collegata fino alle caselle d'acqua dietro al porto. Il porto prende tutte le merci e le può mandare in nave ad altri porti: petroliera per petrolio, carbone e carburanti, portacontainer per tutto il resto.")));
     const sr = mEl('div', 'chain-row');
     sr.append(buildingChip('oilPlatform'), arrow(), mEl('span', 'pr', '🚢 ' + TR('nave')), arrow(), buildingChip('port'), arrow(), mEl('span', 'pr', '🚚 ' + TR('furgone')), arrow(), buildingChip('refinery'));
     b.appendChild(sr);

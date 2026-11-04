@@ -18,6 +18,8 @@ DICT.en = {
   'Equilibrata: spazio per tutte le industrie': 'Balanced: room for every industry',
   'Tanto spazio per grandi città': 'Lots of room for big cities',
   'Gigantesca: serve un computer potente': 'Gigantic: needs a powerful computer',
+  '{n} tile': '{n} tiles',
+  " - nessuna via d'acqua": ' - no waterway',
   'Città {n}': 'City {n}', 'Piccola': 'Small', 'Media': 'Medium', 'Grande': 'Large', 'Enorme': 'Huge',
   // toolbar groups and terrain
   'Mano': 'Hand', 'Strade': 'Roads', 'Case': 'Houses', 'Agroalimentare': 'Agrifood', 'Legno': 'Wood', 'Tessile': 'Textile', 'Energia': 'Energy', 'Demolisci': 'Demolish',
@@ -96,7 +98,7 @@ DICT.en = {
   "L'entrata non è collegata a una strada.": 'The entrance is not connected to a road.', 'Scorte: {a} / {b}': 'Stock: {a} / {b}', 'Vuoto.': 'Empty.',
   'Cosa accetta (clic per cambiare)': 'What it accepts (click to change)', ': accettato': ': accepted', ': rifiutato': ': refused',
   "Dietro il porto non c'è acqua: le navi non possono attraccare.": 'There is no water behind the port: ships cannot dock.',
-  'Magazzino marittimo: petrolio, carbone e carburanti. Le navi delle piattaforme scaricano qui; i furgoni portano la merce alla raffineria.': 'Harbour warehouse: oil, coal and fuels. Ships from the platforms unload here; vans take the goods to the refinery.',
+  'Magazzino marittimo: tutte le merci. Le navi arrivano dalle piattaforme e dagli altri porti; scegli un altro porto come destinazione per mandarci la merce in nave.': 'Harbour warehouse: all goods. Ships arrive from platforms and other ports; choose another port as a destination to send goods there by ship.',
   'Solo cibo e animali. Fabbrica, panificio, caseificio, macello e supermercato prendono da qui quello che gli serve.': 'Food and animals only. The food factory, bakery, dairy, slaughterhouse and supermarket collect what they need from here.',
   'Solo merci (legno, mobili, cotone, lana, tessuti, vestiti, energia). Segheria, fabbriche e negozi prendono da qui quello che gli serve.': 'Goods only (wood, furniture, cotton, wool, fabrics, clothes, energy). The sawmill, factories and shops collect what they need from here.',
   'Cosa coltivare': 'What to grow', 'Campi: {n}': 'Fields: {n}', 'Aggiungi campi': 'Add fields', 'Senza campi la fattoria non produce.': 'Without fields the farm produces nothing.',
@@ -157,7 +159,7 @@ DICT.en = {
   'da {a} (in pianura) fino a {b} (in montagna).': 'from {a} (lowlands) up to {b} (mountains).', 'Petrolio': 'Oil',
   "Il petrolio sta nei <b>giacimenti</b> sotto terra e sotto il mare: quando prendi in mano il pozzo o la piattaforma, le zone dove ce n'è diventano scure (più scure = più petrolio).":
     'Oil is in <b>oil fields</b> under the ground and under the sea: when you pick up the well or the platform, the areas with oil turn dark (darker = more oil).',
-  "Le navi viaggiano sull'acqua collegata dalla piattaforma alle caselle d'acqua dietro al porto.": 'Ships travel on connected water from the platform to the water tiles behind the port.',
+  "Le navi viaggiano sull'acqua collegata fino alle caselle d'acqua dietro al porto. Il porto prende tutte le merci e le può mandare in nave ad altri porti: petroliera per petrolio, carbone e carburanti, portacontainer per tutto il resto.": 'Ships travel on connected water to the water tiles behind the port. The port takes all goods and can send them by ship to other ports: tankers for oil, coal and fuels, container ships for everything else.',
   'nave': 'ship', 'furgone': 'van',
   "Ogni attività ha un furgone (i magazzini {w}). Il furgone parte quando ci sono almeno <b>{a} unità</b> e ne porta fino a <b>{b}</b>, poi torna indietro. Le destinazioni si scelgono nel pannello dell'edificio: se ne scegli più di una, ogni merce va alla prima che la accetta e ha posto.":
     'Every business has one van (warehouses have {w}). The van leaves when there are at least <b>{a} units</b>, carries up to <b>{b}</b>, then comes back. Destinations are chosen in the building panel: if you choose more than one, each good goes to the first one that accepts it and has room.',
@@ -215,7 +217,7 @@ TOOL_TEXT.en = {
   windPlant: { label: 'Wind farm (2x2)', desc: 'Wind turbines: energy without raw materials. The higher you build it, the more wind and the more energy.' },
   oilWell: { label: 'Oil well', desc: 'Pumps crude oil from an oil field on land (with the tool in hand you see the dark areas where there is oil).' },
   oilPlatform: { label: 'Oil platform (2x2)', desc: 'Built on water above an oil field. The crew lives on board; a ship carries the oil to the port.' },
-  port: { label: 'Port (2x2)', desc: 'Port with a harbour warehouse: road in front, water behind (R to rotate it). Ships unload oil here, vans take it to the refinery.' },
+  port: { label: 'Port (2x2)', desc: 'Port with a harbour warehouse for all goods: road in front, water behind (R to rotate it). Ships carry goods to other ports (tankers for oil and fuels, container ships for the rest), vans to warehouses, factories and shops.' },
   refinery: { label: 'Oil refinery (2x2)', desc: 'Turns crude oil into petrol and diesel.' },
   gasStation: { label: 'Fuel station', desc: 'Sells petrol and diesel to nearby residents: you collect taxes on every sale.' },
   demolish: { label: 'Demolish', desc: 'Removes buildings, roads, bridges, tunnels, fields and trees. When dragging it only removes things of the same kind as the first click.' },

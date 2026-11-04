@@ -81,7 +81,7 @@ function onBuildingRemoved(b) { if (game.selected === b.id) closePanel(); }
 function destChoices(b) {
   const from = accessTiles(b);
   return [...game.buildings.values()].filter(w => w !== b && destKindsOf(b).includes(w.kind))
-    .map(w => ({ w, ok: !!findRoute(from, accessTiles(w)) }));
+    .map(w => bySea(b, w) ? { w, ok: !!waterRoute(shipStarts(b), dockTiles(w)), sea: true } : { w, ok: !!findRoute(from, accessTiles(w)) });
 }
 
 // Destinazioni: se ne possono accendere più di una (clic per accendere/spegnere);
@@ -90,10 +90,12 @@ function destSection(box, b) {
   box.appendChild(el('div', 'plabel', (b.kind === 'farm' ? TR('Dove portare il raccolto (anche più di una)') : isWarehouse(b) ? TR('Uscita: dove mandare le scorte (anche più di una)') : TR('Dove mandare la merce (anche più di una)'))));
   const list = el('div', 'plist');
   const choices = destChoices(b);
-  for (const { w, ok } of choices) {
+  for (const { w, ok, sea } of choices) {
     const on = b.dests.includes(w.id);
-    const name = w.name || BUILDINGS[w.kind].name + ' #' + w.id;
-    const btn = el('button', 'pchoice' + (on ? ' active' : ''), (on ? '✔ ' : '') + name + (ok ? '' : TR(' - nessuna strada')));
+    // niente numeri: il nome e la distanza (così due edifici uguali si distinguono)
+    const dist = Math.round(Math.hypot(w.ax - b.ax, w.ay - b.ay));
+    const name = buildingName(w) + ' (' + TR('{n} tile', { n: dist }) + ')' + (sea ? ' 🚢' : '');
+    const btn = el('button', 'pchoice' + (on ? ' active' : ''), (on ? '✔ ' : '') + name + (ok ? '' : sea ? TR(" - nessuna via d'acqua") : TR(' - nessuna strada')));
     if (!ok) btn.classList.add('bad');
     btn.addEventListener('click', () => {
       b.dests = on ? b.dests.filter(id => id !== w.id) : b.dests.concat(w.id);
@@ -135,7 +137,7 @@ function renderPanel() {
   };
   title.addEventListener('click', startRename);
   pen.addEventListener('click', startRename);
-  head.append(title, el('span', 'pdim', ' #' + b.id), pen);
+  head.append(title, pen);
   const x = el('button', 'pclose', '✕');
   x.addEventListener('click', closePanel);
   head.appendChild(x);
@@ -175,7 +177,7 @@ function renderPanel() {
     }
     box.appendChild(grid);
     if (b.kind === 'port' && !dockTiles(b).length) box.appendChild(el('div', 'pwarn', TR("Dietro il porto non c'è acqua: le navi non possono attraccare.")));
-    box.appendChild(el('div', 'pnote', b.kind === 'port' ? TR('Magazzino marittimo: petrolio, carbone e carburanti. Le navi delle piattaforme scaricano qui; i furgoni portano la merce alla raffineria.') : b.kind === 'warehouse' ? TR('Solo cibo e animali. Fabbrica, panificio, caseificio, macello e supermercato prendono da qui quello che gli serve.')
+    box.appendChild(el('div', 'pnote', b.kind === 'port' ? TR('Magazzino marittimo: tutte le merci. Le navi arrivano dalle piattaforme e dagli altri porti; scegli un altro porto come destinazione per mandarci la merce in nave.') : b.kind === 'warehouse' ? TR('Solo cibo e animali. Fabbrica, panificio, caseificio, macello e supermercato prendono da qui quello che gli serve.')
       : TR('Solo merci (legno, mobili, cotone, lana, tessuti, vestiti, energia). Segheria, fabbriche e negozi prendono da qui quello che gli serve.')));
     destSection(box, b);   // uscita: dove mandare le scorte
   }
@@ -322,7 +324,7 @@ function enterFieldMode(farm) {
   const fb = document.getElementById('fieldbar');
   fb.hidden = false;
   document.getElementById('fieldbar-text').textContent =
-    buildingName(farm) + ' #' + farm.id + ': ' + TR('trascina sul terreno per mettere i campi (dentro il riquadro tratteggiato).');
+    buildingName(farm) + ': ' + TR('trascina sul terreno per mettere i campi (dentro il riquadro tratteggiato).');
   requestDraw();
 }
 

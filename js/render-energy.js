@@ -220,26 +220,33 @@ function drawOilPlatform(c, ax, ay, base, r) {
 
 // Porto 2x2: banchina con la gru verso l'acqua (retro), magazzino marittimo, container e serbatoi
 function drawPort(c, ax, ay, base, r) {
-  groundRect(c, ax, ay, base, [0.06, 0.04, 1.94, 0.4], r, '#b0aca2');      // banchina sul retro
+  // banchina chiara sul retro (verso l'acqua) con il bordo giallo, vialetto verso l'entrata
+  groundRect(c, ax, ay, base, [0.02, 0.02, 1.98, 0.46], r, '#c8c3b6');
+  groundRect(c, ax, ay, base, [0.02, 0.02, 1.98, 0.07], r, '#e8c23a');
   groundRect(c, ax, ay, base, [0.28, 1.45, 0.72, 2.0], r, '#7b7f86');
+  if (DETAIL) for (const u of [0.25, 1.0, 1.75]) groundRect(c, ax, ay, base, [u - 0.035, 0.1, u + 0.035, 0.17], r, '#3a3a40');   // bitte
   const crate = col => ({ l: col, r: shade(col, -0.25), t: shade(col, 0.15) });
   drawParts2(c, ax, ay, base, r, [
-    { box: [0.12, 0.55, 1.05, 1.4], h: 14, col: { l: '#7fa6c9', r: '#5f86a9', t: '#7fa6c9' },
+    { box: [0.12, 0.62, 1.0, 1.4], h: 13, col: { l: '#7fa6c9', r: '#5f86a9', t: '#7fa6c9' },              // magazzino marittimo
       roof: { rh: 5, back: '#3a4f66', roof: '#4a6280', gable: '#5f86a9' },
-      doors: [{ face: '+v', a: 0.3, b: 0.8, z1: 10, color: '#3a4250' }, { face: '+v', a: 0.86, b: 0.98, z0: 10, z1: 13, color: '#ffd966' }] },
-    { box: [1.25, 0.6, 1.6, 0.95], h: 8, cyl: true, col: TANK },
-    { box: [1.25, 1.05, 1.6, 1.4], h: 8, cyl: true, col: TANK },
-    { box: [1.3, 1.55, 1.85, 1.8], h: 5, col: crate('#d94141') },
-    { box: [1.3, 1.55, 1.85, 1.8], z: 5, h: 5, col: crate('#3f6fd9') },
-    // gru a portale sulla banchina: 4 gambe, telaio in cima e il braccio che sporge sull'acqua
-    ...[[0.5, 0.06], [1.42, 0.06], [0.5, 0.3], [1.42, 0.3]].map(([u, v]) => ({ box: [u, v, u + 0.07, v + 0.07], h: 24, col: CRANE })),
-    { box: [0.5, 0.06, 1.49, 0.37], z: 24, h: 3, col: CRANE },
-    { box: [0.93, -0.75, 1.06, 0.37], z: 27, h: 2, col: CRANE },
-    { box: [0.95, -0.55, 1.04, -0.46], z: 14, h: 4, col: { l: '#3a3a40', r: '#2b2b30', t: '#4a4a52' } },   // gancio
+      doors: [{ face: '+v', a: 0.3, b: 0.8, z1: 9, color: '#3a4250' }, { face: '+v', a: 0.86, b: 0.96, z0: 9, z1: 12, color: '#ffd966' }] },
+    { box: [1.2, 0.62, 1.85, 0.88], h: 5, col: crate('#d94141') },                                         // container
+    { box: [1.2, 0.62, 1.85, 0.88], z: 5, h: 5, col: crate('#3f6fd9') },
+    { box: [1.2, 0.98, 1.85, 1.24], h: 5, col: crate('#3fa34d') },
+    { box: [1.38, 1.38, 1.78, 1.78], h: 8, cyl: true, col: TANK },                                         // serbatoio del carburante
+    // gru: due gambe, la trave in cima e il braccio corto che sporge sull'acqua
+    { box: [0.55, 0.14, 0.63, 0.22], h: 22, col: CRANE },
+    { box: [1.37, 0.14, 1.45, 0.22], h: 22, col: CRANE },
+    { box: [0.55, 0.14, 1.45, 0.22], z: 22, h: 3, col: CRANE },
+    { box: [0.94, -0.3, 1.06, 0.3], z: 25, h: 2, col: CRANE,
+      after(b) {   // fune con il gancio
+        if (!DETAIL) return;
+        const [hu, hv] = rotUV(1.0, -0.2, r), top = iso(ax, ay, hu, hv, base + 25 / STEP), bot = iso(ax, ay, hu, hv, base + 15 / STEP);
+        line(c, top, bot, '#2b2b30');
+        c.fillStyle = '#2b2b30'; c.fillRect(bot[0] - 1, bot[1], 2, 1.5);
+        void b;
+      } },
   ]);
-  if (DETAIL) for (const u of [0.2, 0.95, 1.75]) {   // bitte d'ormeggio
-    const [bu, bv] = rotUV(u, 0.08, r); box(c, ax, ay, base, bu - 0.03, bv - 0.03, bu + 0.03, bv + 0.03, 2, { l: '#3a3a40', r: '#2b2b30', t: '#5a5a62' });
-  }
 }
 
 // Raffineria 2x2: serbatoi bianchi, colonne di distillazione, tubazioni e torcia
