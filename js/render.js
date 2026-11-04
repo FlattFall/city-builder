@@ -1480,12 +1480,23 @@ function drawFrame() {
 // Edificio selezionato: sopra i suoi furgoni (e le sue navi) una freccia gialla che dondola, così si
 // vede quali sono (richiesta dell'utente)
 function drawOwnVehicles(c, b) {
+  const d = BUILDINGS[b.kind], e = game.map[b.ay][b.ax].elev;
+  const [bx, by] = iso(b.ax, b.ay, d.w / 2, d.h / 2, e + (d.height || 20) * 0.6 / STEP);   // dal centro dell'edificio
   for (const v of vehicles) {
     if (v.from !== b.id || !v.pos) continue;
     const p = v.pos, ship = v.kind === 'ship';
     const [sx, sy] = iso(0, 0, p.mx, p.my, p.h + (ship ? 14 : 7) / STEP);
     const y = sy - 3 - Math.sin(animT * 5) * 1.5;
-    c.fillStyle = '#ffd966'; c.strokeStyle = '#1a1c2c'; c.lineWidth = 1;
+    // linea tratteggiata che scorre dall'edificio al veicolo (richiesta dell'utente: si vede meglio)
+    // ad arco sopra la mappa e azzurra, così non si confonde con le strisce gialle della strada
+    const mx = (bx + sx) / 2, my = (by + y - 6) / 2 - 18 - Math.hypot(sx - bx, y - by) * 0.18;
+    const path = () => { c.beginPath(); c.moveTo(bx, by); c.quadraticCurveTo(mx, my, sx, y - 6); };
+    c.save();
+    c.strokeStyle = 'rgba(16, 18, 32, 0.6)'; c.lineWidth = 3; path(); c.stroke();
+    c.setLineDash([5, 3]); c.lineDashOffset = -animT * 14;
+    c.strokeStyle = '#6fe3ff'; c.lineWidth = 1.5; path(); c.stroke();
+    c.restore();
+    c.fillStyle = '#6fe3ff'; c.strokeStyle = '#1a1c2c'; c.lineWidth = 1;
     c.beginPath(); c.moveTo(sx - 4, y - 6); c.lineTo(sx + 4, y - 6); c.lineTo(sx, y); c.closePath(); c.fill(); c.stroke();
     animSeen = true;
   }

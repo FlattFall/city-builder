@@ -1197,6 +1197,7 @@ function check(cond, msg) {
         if (isWarehouse(b)) d = d.filter(o => !isWarehouse(o));
         b.dests = d.sort((p, q) => rank(p) - rank(q)).map(o => o.id);
       }
+      for (const b of all) if (isWarehouse(b)) b.vans = VANS_MAX;   // i magazzini della prova hanno comprato tutti i furgoni
       const shops = all.filter(b => SHOPS[b.kind]), sold = {}, prev = new Map(shops.map(s => [s.id, { ...s.store }]));
       for (let i = 0; i < 2000 * 10; i++) {
         for (const b of all) if (b.kind === 'farm' && sumOf(b.store) < 30) addTo(b.store, b.crop, 20);
@@ -1705,6 +1706,23 @@ function check(cond, msg) {
   });
   check(un.changed && un.one && un.two && un.empty, "Ctrl+Z: il terreno torna com'era passo per passo e i soldi tornano: " + JSON.stringify(un));
   check(un.far, 'fattoria: lavoratori anche da case oltre 12 tile (fino a 22)');
+
+  // 61. furgoni: si parte con 2, se ne comprano fino a 4 (pannello)
+  const vb = await page.evaluate(() => {
+    clearVehicles(); newGame(20, 128); unlockAll(); game.started = true; if (menuIsOpen()) closeMenu();
+    const N = game.size, c = N / 2;
+    for (let y = c - 6; y < c + 6; y++) for (let x = c - 6; x < c + 6; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, elev: 2, bridge: null });
+    game.money = 1e6; useTool('warehouse', c, c); const w = game.map[c][c].building;
+    const r = { start: vanCount(w) === 2 };
+    openBuildingPanel(w);
+    const m0 = game.money;
+    document.querySelector('#panel .pbuy').click(); document.querySelector('#panel .pbuy').click();
+    r.four = vanCount(w) === 4 && game.money === m0 - 2 * VAN_PRICE && !document.querySelector('#panel .pbuy');
+    r.max = !buyVan(w).ok;
+    closePanel();
+    return r;
+  });
+  check(vb.start && vb.four && vb.max, 'furgoni: 2 all\'inizio, se ne comprano fino a 4: ' + JSON.stringify(vb));
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();

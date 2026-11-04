@@ -335,3 +335,5 @@ canvas { display: block; }
 /* Nome della partita salvata */
 .save-name, .save-rename { font: inherit; font-size: 15px; width: 100%; box-sizing: border-box; padding: 8px 10px; margin: 4px 0 10px; color: #1a1c2c; background: #f4f4f4; border: 2px solid #ffd966; border-radius: 3px; }
 .save-rename { font-size: 13px; padding: 3px 6px; margin: 0; }
+#panel .pvans { flex-wrap: wrap; justify-content: space-between; }
+#panel .pbuy { flex: 0 0 auto; padding: 3px 8px; font-size: 12px; }

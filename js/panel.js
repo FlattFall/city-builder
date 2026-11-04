@@ -57,7 +57,7 @@ function panelShapeOf(b) {
   const others = [...game.buildings.values()].filter(w => w.kind !== 'house').map(w => w.id).join(',');
   return [b.id, b.crop, b.animal, b.name, JSON.stringify(b.dests || []), b.fields, others, b.residents >= HOUSE_CAPACITY, !!b.unreachable, accessTiles(b).length,
     !!b.incoming, Object.keys(b.store || {}).join(), Object.keys(b.input || {}).join(),
-    JSON.stringify(b.accept || {}), JSON.stringify(b.recipes || {}), JSON.stringify(b.split || {})].join('|');
+    JSON.stringify(b.accept || {}), JSON.stringify(b.recipes || {}), JSON.stringify(b.split || {}), b.vans || 0].join('|');
 }
 
 function openBuildingPanel(b) {
@@ -112,7 +112,17 @@ function destSection(box, b) {
   box.appendChild(list);
   if (!choices.length) box.appendChild(el('div', 'pnote', TR('Costruisci {list}.', { list: destKindsOf(b).map(k => BUILDINGS[k].name.toLowerCase()).join(', ') })));
   if (b.dests.length) box.appendChild(liveText('div', 'pnote', () => b.status || (b.van ? TR('Furgone in viaggio') : TR('Il furgone parte con almeno {n} unità', { n: VAN_MIN_LOAD }))));
-  box.appendChild(liveText('div', 'pnote', () => { const n = vehicles.filter(v => v.from === b.id).length; return n ? TR('In giro adesso: {n} (sulla mappa hanno la freccia gialla)', { n }) : ''; }));
+  box.appendChild(liveText('div', 'pnote', () => { const n = vehicles.filter(v => v.from === b.id).length; return n ? TR('In giro adesso: {n} (sulla mappa collegati con una linea azzurra)', { n }) : ''; }));
+  // furgoni: si parte con 2, se ne comprano altri fino a 4
+  const ship = BUILDINGS[b.kind].water;
+  const vr = el('div', 'prow pvans');
+  vr.appendChild(el('span', null, TR(ship ? 'Navi: {a} / {b}' : 'Furgoni: {a} / {b}', { a: vanCount(b), b: VANS_MAX })));
+  if (vanCount(b) < VANS_MAX) {
+    const buy = el('button', 'pchoice pbuy', TR(ship ? '+ Compra una nave ({m})' : '+ Compra un furgone ({m})', { m: money(VAN_PRICE) }));
+    buy.addEventListener('click', () => { const r = buyVan(b); if (r.msg) toast(r.msg); b.retry = 0; renderPanel(); });
+    vr.appendChild(buy);
+  }
+  box.appendChild(vr);
   splitSection(box, b);
 }
 

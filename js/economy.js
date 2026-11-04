@@ -100,9 +100,19 @@ const VAN_STRIPES = { farm: '#3fa34d', warehouse: '#3f6fd9', goodsWarehouse: '#e
 // Furgoni per edificio (richiesta dell'utente: con la merce pronta ne devono uscire di più, uno dopo
 // l'altro): magazzini e porto 4 (uno resta per le richieste), le altre attività 2. La piattaforma
 // manda le navi. Escono distanziati (sendGoods) e il secondo solo se c'è un altro carico pronto.
-const VANS = { warehouse: 4, goodsWarehouse: 4, port: 4 };
-const VANS_DEFAULT = 2;
-function vansBusy(b) { return (b.van || 0) >= (VANS[b.kind] || VANS_DEFAULT); }
+// Ogni edificio parte con 2 furgoni e se ne possono comprare altri fino a 4 (richiesta dell'utente):
+// b.vans = quanti ne ha (salvato con l'edificio). Nei magazzini uno resta per le richieste.
+const VANS_START = 2, VANS_MAX = 4, VAN_PRICE = 400;
+function vanCount(b) { return Math.min(VANS_MAX, b.vans || VANS_START); }
+function vansBusy(b) { return (b.van || 0) >= vanCount(b); }
+function buyVan(b) {
+  if (vanCount(b) >= VANS_MAX) return { msg: TR('Ha già il massimo di {n} furgoni', { n: VANS_MAX }) };
+  if (!spend(VAN_PRICE)) return { msg: TR('Fondi insufficienti') };
+  b.vans = vanCount(b) + 1;
+  game.dirty = true;
+  updateHud();
+  return { ok: true };
+}
 function vanOut(b) { b.van = (b.van || 0) + 1; }
 function vanHome(b) { b.van = Math.max(0, (b.van || 0) - 1); }
 
@@ -207,7 +217,7 @@ function cleanSplit(b) {
 function pushGoods(b) {
   b.dests = b.dests.filter(id => game.buildings.has(id));
   if (vansBusy(b) || !b.dests.length || b.retry > 0) return;
-  if (isWarehouse(b) && (b.van || 0) >= VANS[b.kind] - 1) return;   // un furgone resta per le richieste (pullGoods)
+  if (isWarehouse(b) && vanCount(b) > 1 && (b.van || 0) >= vanCount(b) - 1) return;   // un furgone resta per le richieste (pullGoods)
   if (sumOf(b.store) < VAN_MIN_LOAD) return;   // aspetta di avere un carico
   const loop = to => isWarehouse(b) && isWarehouse(to) && to.dests.includes(b.id);
   let why = '';
