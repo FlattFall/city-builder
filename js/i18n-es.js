@@ -107,6 +107,10 @@ DICT.es = {
   // panel del edificio
   'Dove portare il raccolto (anche più di una)': 'Adónde llevar la cosecha (puede ser más de uno)', 'Uscita: dove mandare le scorte (anche più di una)': 'Salida: adónde enviar las existencias (puede ser más de uno)',
   'Dove mandare la merce (anche più di una)': 'Adónde enviar la mercancía (puede ser más de uno)', ' - nessuna strada': ' - sin carretera', 'Costruisci {list}.': 'Construye: {list}.',
+  'Distribuzione per merce': 'Distribución por mercancía', 'Personalizzata': 'Personalizada', 'Automatica': 'Automática',
+  'Clic per tornare alla distribuzione automatica': 'Clic para volver a la distribución automática', 'Clic per scegliere quanto mandare a ogni destinazione': 'Clic para elegir cuánto enviar a cada destino',
+  'Questa merce non va da nessuna parte: metti almeno una percentuale.': 'Esta mercancía no va a ninguna parte: pon al menos un porcentaje.', 'Va alla destinazione che ne ha bisogno.': 'Va al destino que la necesita.',
+  "<b>Distribuzione per merce</b>: con due o più destinazioni che accettano la stessa merce, nel pannello puoi passare da <b>Automatica</b> a <b>Personalizzata</b> e decidere la percentuale per ognuna con + e − (es. 50% e 50%, oppure 100% a una sola).": "<b>Distribución por mercancía</b>: con dos o más destinos que aceptan la misma mercancía, en el panel puedes pasar de <b>Automática</b> a <b>Personalizada</b> y decidir el porcentaje de cada uno con + y − (p. ej. 50% y 50%, o 100% a uno solo).",
   'Furgone in viaggio': 'Furgoneta en camino', 'Il furgone parte con almeno {n} unità': 'La furgoneta sale con al menos {n} unidades', 'Clic per cambiare il nome': 'Clic para cambiar el nombre',
   'Cambia nome': 'Cambiar nombre', 'Abitanti: {a} / {b}': 'Habitantes: {a} / {b}', 'In arrivo: {n}': 'Llegando: {n}', 'Nessuna strada accanto alla casa.': 'No hay carretera junto a la casa.',
   'Non è collegata alla strada principale.': 'No está conectada a la carretera principal.', 'Casa piena.': 'Casa llena.', 'Lavorano: {a} - disoccupati: {b}': 'Trabajan: {a} - desempleados: {b}',

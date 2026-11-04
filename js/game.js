@@ -224,7 +224,16 @@ function sameRoundabout(x, y, nx, ny) {
 function houseVariant(x, y) { return Math.floor(hash(x, y, 3) * 3); }
 
 // Nome dell'edificio: quello scelto dal giocatore o quello del tipo
-function buildingName(b) { return b.name || BUILDINGS[b.kind].name; }
+// Nome: quello scelto dal giocatore, altrimenti il tipo con il numero (il primo senza: "Fattoria", "Fattoria 2", ...)
+function buildingName(b) { return b.name || BUILDINGS[b.kind].name + (b.num > 1 ? ' ' + b.num : ''); }
+// Numero libero più basso per un tipo di edificio (demolendo il 2, il prossimo riprende il 2)
+function nextBuildingNum(kind) {
+  const used = new Set();
+  for (const o of game.buildings.values()) if (o.kind === kind && o.num) used.add(o.num);
+  let n = 1;
+  while (used.has(n)) n++;
+  return n;
+}
 
 function buildingAt(x, y) { return inMap(x, y) ? game.map[y][x].building : null; }
 
@@ -382,6 +391,8 @@ function recount() {
     }
   updateRoundabouts();
   for (const b of game.buildings.values()) if (b.kind === 'farm') b.fields = farmFieldCount(b);
+  // salvataggi di prima senza numeri: si numerano nell'ordine in cui sono stati costruiti
+  for (const b of [...game.buildings.values()].sort((a, c) => a.id - c.id)) if (!b.num) b.num = nextBuildingNum(b.kind);
   updateJobs();
 }
 
@@ -558,6 +569,7 @@ function useTool(tool, x, y) {
     if (farm) farm.fields = farmFieldCount(farm);
   } else if (BUILDINGS[tool]) {
     const b = newBuilding(tool, x, y);
+    b.num = nextBuildingNum(tool);
     for (const p of footprint(tool, x, y)) {
       const q = game.map[p.y][p.x];
       if (q.type === T.FOREST) q.type = T.GRASS;

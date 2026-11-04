@@ -107,6 +107,10 @@ DICT.en = {
   // building panel
   'Dove portare il raccolto (anche più di una)': 'Where to take the harvest (more than one is fine)', 'Uscita: dove mandare le scorte (anche più di una)': 'Output: where to send the stock (more than one is fine)',
   'Dove mandare la merce (anche più di una)': 'Where to send the goods (more than one is fine)', ' - nessuna strada': ' - no road', 'Costruisci {list}.': 'Build: {list}.',
+  'Distribuzione per merce': 'Distribution per good', 'Personalizzata': 'Custom', 'Automatica': 'Automatic',
+  'Clic per tornare alla distribuzione automatica': 'Click to go back to automatic distribution', 'Clic per scegliere quanto mandare a ogni destinazione': 'Click to choose how much to send to each destination',
+  'Questa merce non va da nessuna parte: metti almeno una percentuale.': 'This good goes nowhere: set at least one percentage.', 'Va alla destinazione che ne ha bisogno.': 'It goes to the destination that needs it.',
+  "<b>Distribuzione per merce</b>: con due o più destinazioni che accettano la stessa merce, nel pannello puoi passare da <b>Automatica</b> a <b>Personalizzata</b> e decidere la percentuale per ognuna con + e − (es. 50% e 50%, oppure 100% a una sola).": "<b>Distribution per good</b>: with two or more destinations that accept the same good, in the panel you can switch from <b>Automatic</b> to <b>Custom</b> and set the percentage for each one with + and − (e.g. 50% and 50%, or 100% to just one).",
   'Furgone in viaggio': 'Van on its way', 'Il furgone parte con almeno {n} unità': 'The van leaves with at least {n} units', 'Clic per cambiare il nome': 'Click to change the name',
   'Cambia nome': 'Rename', 'Abitanti: {a} / {b}': 'Residents: {a} / {b}', 'In arrivo: {n}': 'Arriving: {n}', 'Nessuna strada accanto alla casa.': 'No road next to the house.',
   'Non è collegata alla strada principale.': 'It is not connected to the main road.', 'Casa piena.': 'House full.', 'Lavorano: {a} - disoccupati: {b}': 'Working: {a} - unemployed: {b}',

@@ -2,7 +2,7 @@
 // Il giocatore scrive cosa è successo; il gioco aggiunge da solo alcune informazioni utili
 // (versione, lingua, mappa, browser, ultimi errori). "Invia" apre su GitHub una nuova segnalazione
 // (issue) già compilata nel repository del gioco: lì arrivano tutte, e GitHub avvisa lo sviluppatore.
-const GAME_VERSION = '2026-11-04';
+const GAME_VERSION = '2026-11-04b';
 const BUG_REPO = 'FlattFall/city-builder';
 const recentErrors = [];   // ultimi errori della pagina (si allegano alla segnalazione)
 addEventListener('error', e => { recentErrors.push(String(e.message || e.error || e).slice(0, 200)); if (recentErrors.length > 8) recentErrors.shift(); });

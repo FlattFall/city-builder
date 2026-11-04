@@ -260,3 +260,15 @@ canvas { display: block; }
 #bug-send { background: #3f7a4a; border-color: #5fa36a; }
 #bug-send:hover { background: #4a8f57; }
 .menu-note.small { font-size: 11px; color: #94b0c2; margin-top: 8px; }
+
+/* Distribuzione per merce (pannello) */
+#panel .psplit { background: #2b3050; border: 1px solid #44486b; border-radius: 4px; padding: 6px; margin: 4px 0; }
+#panel .psplit-head { display: flex; align-items: center; gap: 6px; }
+#panel .psplit-head span { flex: 1; }
+#panel .psplit-mode { flex: 0 0 auto; padding: 2px 8px; font-size: 11px; }
+#panel .psplit-row { display: flex; align-items: center; gap: 4px; margin-top: 5px; }
+#panel .psplit-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+#panel .psplit-pct { min-width: 38px; text-align: center; color: #ffd966; }
+#panel .pstep { width: 22px; height: 20px; padding: 0; background: #3a3f63; color: #f4f4f4; border: 1px solid #5a5f8a; border-radius: 3px; cursor: pointer; font: inherit; }
+#panel .pstep:hover { background: #4a4f78; }
+#panel .psplit-bar { height: 4px; margin-top: 2px; }

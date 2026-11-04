@@ -1465,6 +1465,46 @@ function check(cond, msg) {
   check(bug.url === 'https://github.com/FlattFall/city-builder/issues/new' && bug.title === '[Bug] Il porto non riceve la merce', 'segnalazione: apre GitHub con il titolo giusto');
   check(bug.body && bug.body.includes('provato due volte') && bug.body.includes('Tester') && bug.body.includes('Versione:') && bug.msg.length > 0, 'segnalazione: testo, nome e informazioni del gioco allegati');
 
+  // 51. nomi con numero (il primo senza) e distribuzione per merce in percentuale
+  const sp = await page.evaluate(() => {
+    clearVehicles(); newGame(13, 128); unlockAll(); game.started = true;
+    const N = game.size, c = N / 2;
+    for (let y = c - 10; y < c + 10; y++) for (let x = c - 10; x < c + 10; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, elev: 2, bridge: null });
+    game.rotation = 0;
+    useTool('farm', c, c); game.fieldMode = null;
+    useTool('warehouse', c + 4, c); useTool('warehouse', c - 4, c); useTool('warehouse', c, c + 4);
+    const f = game.map[c][c].building, w1 = game.map[c][c + 4].building, w2 = game.map[c][c - 4].building, w3 = game.map[c + 4][c].building;
+    const r = { names: [buildingName(w1), buildingName(w2), buildingName(w3)] };
+    removeBuilding(w2); useTool('warehouse', c - 4, c);
+    const w4 = game.map[c][c - 4].building; r.reuse = buildingName(w4);
+    removeBuilding(w3);
+    f.dests = [w1.id, w4.id];
+    for (const w of [w1, w4]) w.workers = 2;
+    f.workers = 4;
+    openBuildingPanel(f);
+    const btn = [...document.querySelectorAll('#panel .psplit-mode')][0];
+    r.ui = !!btn; btn.click();
+    r.half = JSON.stringify(f.split.wheat);
+    document.querySelectorAll('#panel .psplit-row')[0].querySelectorAll('.pstep')[1].click();   // + sulla prima: 60 / 40
+    r.sixty = f.split.wheat[w1.id] === 60 && f.split.wheat[w4.id] === 40;
+    closePanel();
+    // si prova la scelta: sendGoods finto che conta dove va
+    const real = sendGoods, sent = {};
+    sendGoods = (from, to, g, q) => { addTo(from.store, g, -q); sent[to.id] = (sent[to.id] || 0) + q; return true; };
+    const run = () => { for (let i = 0; i < 200; i++) { f.store = { wheat: 10 }; f.van = 0; f.retry = 0; pushGoods(f); } };
+    f.split.wheat = { [w1.id]: 50, [w4.id]: 50 }; delete f.sent; run();
+    r.fifty = [sent[w1.id], sent[w4.id]];
+    for (const k in sent) delete sent[k];
+    f.split.wheat = { [w1.id]: 100, [w4.id]: 0 }; delete f.sent; run();
+    r.all = [sent[w1.id] || 0, sent[w4.id] || 0];
+    sendGoods = real;
+    return r;
+  });
+  check(sp.names.join('|') === 'Magazzino alimenti|Magazzino alimenti 2|Magazzino alimenti 3' && sp.reuse === 'Magazzino alimenti 2', 'nomi: il primo senza numero, poi 2, 3 (demolito il 2, il nuovo riprende il 2): ' + sp.names.join(', ') + ' / ' + sp.reuse);
+  check(sp.ui && sp.half.includes('50') && sp.sixty, 'distribuzione: pannello con Automatica/Personalizzata, 50/50 e + porta a 60/40');
+  check(Math.abs(sp.fifty[0] - sp.fifty[1]) <= 10 && sp.fifty[0] > 0, `distribuzione 50/50: ${sp.fifty.join(' / ')}`);
+  check(sp.all[0] > 0 && sp.all[1] === 0, `distribuzione 100/0: ${sp.all.join(' / ')}`);
+
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();
 })();

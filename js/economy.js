@@ -90,7 +90,7 @@ function receive(b, g, q) {
   else addTo(b.store, g, q);
 }
 
-function buildingLabel(b) { return b.name ? '"' + b.name + '"' : BUILDINGS[b.kind].name.toLowerCase(); }
+function buildingLabel(b) { return b.name ? '"' + b.name + '"' : buildingName(b).toLowerCase(); }
 
 const VAN_STRIPES = { farm: '#3fa34d', warehouse: '#3f6fd9', goodsWarehouse: '#e07b39', textileMill: '#d94f8a', clothingFactory: '#8e5bd1', factory: '#e07b39', bakery: '#8a5a3a',
   dairy: '#8fc6e8', slaughterhouse: '#c83232', charcoalKiln: '#3a3a40', oilWell: '#2b2b33', port: '#2f6fa8', refinery: '#e8c23a', oilPlatform: '#d94141', forestry: '#2f6b2a', sawmill: '#c9a25a', furnitureFactory: '#8a5a3a', cowFarm: '#2b2b33', chickenFarm: '#e8c23a', pigFarm: '#e8899a', sheepFarm: '#c9c4b8' };
@@ -139,28 +139,86 @@ function sendGoods(from, to, g, q) {
 
 // Manda la merce pronta: prova le destinazioni scelte, in ordine, e manda la merce più
 // abbondante che la destinazione accetta (con personale e posto libero)
+// Un edificio accetta questo tipo di merce? (senza guardare se è pieno)
+function takesGood(b, g) {
+  if (isWarehouse(b)) return warehouseTakes(b.kind, g) && b.accept[g] !== false;
+  if (isProcessor(b)) return usesInput(b, g);
+  if (SHOPS[b.kind]) return shopOf(g) === b.kind;
+  if (POWER[b.kind]) return POWER[b.kind].fuel === g;
+  return false;
+}
+
+// ---------- Distribuzione per merce ----------
+// b.split[g] = { idDestinazione: percentuale } (somma 100). Senza split la merce va a chi la
+// accetta (come prima). Con lo split va solo alle destinazioni con percentuale > 0, in proporzione:
+// b.sent[g][id] conta quanto è già partito (con un po' di oblio, così conta il periodo recente).
+function splitOf(b, g) {
+  const sp = b.split && b.split[g];
+  if (!sp) return null;
+  const ids = Object.keys(sp).map(Number).filter(id => sp[id] > 0 && b.dests.includes(id));
+  return ids.length ? { sp, ids } : null;
+}
+// A quale destinazione tocca adesso la merce g (tra quelle che la possono ricevere ora)
+function splitTarget(b, g, canNow) {
+  const s = splitOf(b, g);
+  if (!s) return null;
+  const sent = (b.sent && b.sent[g]) || {};
+  const tot = s.ids.reduce((a, id) => a + (sent[id] || 0), 0);
+  let best = null, bd = -Infinity;
+  for (const id of s.ids) {
+    const to = game.buildings.get(id);
+    if (!to || !canNow(to)) continue;
+    const d = s.sp[id] / 100 * tot - (sent[id] || 0) + s.sp[id] / 1000;   // chi è più indietro; a parità la parte più grande
+    if (d > bd) { best = id; bd = d; }
+  }
+  return best === null ? -1 : best;   // -1 = nessuna delle sue destinazioni può ricevere adesso
+}
+function noteSent(b, g, id, q) {
+  b.sent = b.sent || {};
+  const m = b.sent[g] = b.sent[g] || {};
+  for (const k of Object.keys(m)) m[k] *= 0.9;
+  m[id] = (m[id] || 0) + q;
+}
+// Pulizia quando cambia l'elenco delle destinazioni
+function cleanSplit(b) {
+  if (!b.split) return;
+  for (const [g, sp] of Object.entries(b.split)) {
+    const ws = b.dests.filter(id => { const w = game.buildings.get(id); return w && takesGood(w, g); });
+    if (ws.length < 2) { delete b.split[g]; continue; }   // con una sola destinazione non c'è niente da dividere
+    for (const id of Object.keys(sp)) if (!ws.includes(+id)) delete sp[id];
+    for (const id of ws) if (sp[id] === undefined) sp[id] = 0;   // destinazione nuova: 0%, la si alza con +
+    const tot = ws.reduce((t, id) => t + sp[id], 0);
+    if (tot > 0 && tot !== 100) {   // tolta una destinazione: si riproporziona a 100
+      let left = 100;
+      ws.forEach((id, i) => { const v = i === ws.length - 1 ? left : Math.round(sp[id] * 100 / tot); sp[id] = v; left -= v; });
+    }
+  }
+}
+
 function pushGoods(b) {
   b.dests = b.dests.filter(id => game.buildings.has(id));
   if (vansBusy(b) || !b.dests.length || b.retry > 0) return;
   if (isWarehouse(b) && (b.van || 0) >= VANS[b.kind] - 1) return;   // un furgone resta per le richieste (pullGoods)
   if (sumOf(b.store) < VAN_MIN_LOAD) return;   // aspetta di avere un carico
+  const loop = to => isWarehouse(b) && isWarehouse(to) && to.dests.includes(b.id);
   let why = '';
   for (const id of b.dests) {
     const to = game.buildings.get(id);
     // due magazzini che si mandano la merce a vicenda la farebbero girare all'infinito
-    if (isWarehouse(b) && isWarehouse(to) && to.dests.includes(b.id)) {
-      why = why || TR('Due magazzini non possono mandarsi la merce a vicenda'); continue;
-    }
+    if (loop(to)) { why = why || TR('Due magazzini non possono mandarsi la merce a vicenda'); continue; }
     // a un negozio si porta quello che gli manca di più, agli altri la merce più abbondante
     let best = null, bq = 0, bs = -Infinity;
     for (const [g, q] of Object.entries(b.store)) {
       if (q <= 0 || roomFor(to, g) <= 0) continue;
+      const t = splitTarget(b, g, w => !loop(w) && w.workers && roomFor(w, g) > 0);
+      if (t !== null && t !== to.id) continue;   // questa merce ha la sua distribuzione: adesso tocca a un'altra destinazione
       const score = SHOPS[to.kind] ? -((to.store[g] || 0) + ((to.expect || {})[g] || 0)) * 1000 + q : q;
       if (score > bs) { best = g; bq = q; bs = score; }
     }
     if (!best) { why = why || TR('Le destinazioni non accettano questa merce o sono piene'); continue; }
     if (!to.workers) { why = TR('{b} non ha personale', { b: buildingLabel(to) }); continue; }
-    if (sendGoods(b, to, best, Math.min(bq, VAN_CAPACITY, roomFor(to, best)))) return;
+    const q = Math.min(bq, VAN_CAPACITY, roomFor(to, best));
+    if (sendGoods(b, to, best, q)) { if (splitOf(b, best)) noteSent(b, best, to.id, q); return; }
     why = b.status;
   }
   b.status = why;
@@ -228,7 +286,7 @@ function treesNear(b, radius) {
 function oilAt(x, y) {
   if (!inMap(x, y)) return 0;
   const v = fbm(x / 11, y / 11, (game.seed || 0) * 7 + 31);
-  const thr = game.map[y][x].type === T.WATER ? 0.55 : 0.61;
+  const thr = game.map[y][x].type === T.WATER ? 0.63 : 0.69;   // più alta = più raro (richiesta dell'utente: prima c'era petrolio quasi ovunque)
   return Math.max(0, Math.min(1, (v - thr) / 0.12));
 }
 function oilUnder(kind, ax, ay) {

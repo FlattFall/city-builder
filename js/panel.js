@@ -57,7 +57,7 @@ function panelShapeOf(b) {
   const others = [...game.buildings.values()].filter(w => w.kind !== 'house').map(w => w.id).join(',');
   return [b.id, b.crop, b.animal, b.name, JSON.stringify(b.dests || []), b.fields, others, b.residents >= HOUSE_CAPACITY, !!b.unreachable, accessTiles(b).length,
     !!b.incoming, Object.keys(b.store || {}).join(), Object.keys(b.input || {}).join(),
-    JSON.stringify(b.accept || {}), JSON.stringify(b.recipes || {})].join('|');
+    JSON.stringify(b.accept || {}), JSON.stringify(b.recipes || {}), JSON.stringify(b.split || {})].join('|');
 }
 
 function openBuildingPanel(b) {
@@ -75,7 +75,10 @@ function closePanel() {
 
 function panelIsOpen() { return !document.getElementById('panel').hidden; }
 
-function onBuildingRemoved(b) { if (game.selected === b.id) closePanel(); }
+function onBuildingRemoved(b) {
+  if (game.selected === b.id) closePanel();
+  for (const o of game.buildings.values()) if (o.split && o.dests) { o.dests = o.dests.filter(id => game.buildings.has(id)); cleanSplit(o); }
+}
 
 // Destinazioni possibili per la merce di un edificio, con raggiungibilità su strada
 function destChoices(b) {
@@ -99,6 +102,7 @@ function destSection(box, b) {
     if (!ok) btn.classList.add('bad');
     btn.addEventListener('click', () => {
       b.dests = on ? b.dests.filter(id => id !== w.id) : b.dests.concat(w.id);
+      cleanSplit(b);
       b.retry = 0; b.status = ''; game.dirty = true; renderPanel();
     });
     list.appendChild(btn);
@@ -106,6 +110,80 @@ function destSection(box, b) {
   box.appendChild(list);
   if (!choices.length) box.appendChild(el('div', 'pnote', TR('Costruisci {list}.', { list: destKindsOf(b).map(k => BUILDINGS[k].name.toLowerCase()).join(', ') })));
   if (b.dests.length) box.appendChild(liveText('div', 'pnote', () => b.status || (b.van ? TR('Furgone in viaggio') : TR('Il furgone parte con almeno {n} unità', { n: VAN_MIN_LOAD }))));
+  splitSection(box, b);
+}
+
+// Merci che escono da un edificio (per la distribuzione)
+function goodsOut(b) {
+  const set = new Set(Object.keys(b.store || {}));
+  if (b.kind === 'farm' && b.crop) set.add(b.crop);
+  const N = natureOf(b);
+  if (N && N.out) for (const g of Object.keys(N.out)) set.add(g);
+  for (const r of RECIPES[b.kind] || []) if (b.recipes[r.out] !== false) set.add(r.out);
+  for (const g of Object.keys(b.split || {})) set.add(g);
+  return [...set].filter(g => GOODS[g]);
+}
+
+// Distribuzione per merce: per ogni merce che può andare a più destinazioni accese si sceglie
+// "Automatica" (come prima) o la percentuale per ogni destinazione (es. 50% e 50%, o 100% a una).
+function splitSection(box, b) {
+  const rows = goodsOut(b).map(g => ({ g, ws: b.dests.map(id => game.buildings.get(id)).filter(w => w && takesGood(w, g)) }))
+    .filter(r => r.ws.length >= 2);
+  if (!rows.length) return;
+  box.appendChild(el('div', 'plabel', TR('Distribuzione per merce')));
+  for (const { g, ws } of rows) {
+    const sp = b.split && b.split[g];
+    const card = el('div', 'psplit');
+    const head = el('div', 'psplit-head');
+    head.append(goodImg(g), el('span', null, GOODS[g].name));
+    const mode = el('button', 'pchoice psplit-mode' + (sp ? ' active' : ''), sp ? TR('Personalizzata') : TR('Automatica'));
+    mode.title = sp ? TR('Clic per tornare alla distribuzione automatica') : TR('Clic per scegliere quanto mandare a ogni destinazione');
+    mode.addEventListener('click', () => {
+      b.split = b.split || {};
+      if (sp) delete b.split[g];
+      else {   // si parte con parti uguali
+        const o = {}; let left = 100;
+        ws.forEach((w, i) => { const v = i === ws.length - 1 ? left : Math.floor(100 / ws.length); o[w.id] = v; left -= v; });
+        b.split[g] = o;
+      }
+      if (b.sent) delete b.sent[g];
+      b.retry = 0; game.dirty = true; renderPanel();
+    });
+    head.appendChild(mode);
+    card.appendChild(head);
+    if (sp) {
+      for (const w of ws) {
+        const v = sp[w.id] || 0;
+        const r = el('div', 'psplit-row');
+        const minus = el('button', 'pstep', '−'), plus = el('button', 'pstep', '+');
+        // la somma resta 100: quello che si aggiunge qui si toglie agli altri (e viceversa)
+        const change = d => {
+          const others = ws.filter(o => o !== w);
+          if (d > 0) {
+            let need = Math.min(d, 100 - v);
+            for (const o of others.slice().sort((a, c) => (sp[c.id] || 0) - (sp[a.id] || 0))) {
+              const take = Math.min(need, sp[o.id] || 0); sp[o.id] = (sp[o.id] || 0) - take; sp[w.id] = (sp[w.id] || 0) + take; need -= take;
+              if (!need) break;
+            }
+          } else {
+            const give = Math.min(-d, v);
+            if (!give) return;
+            const o = others.slice().sort((a, c) => (sp[a.id] || 0) - (sp[c.id] || 0))[0];
+            sp[o.id] = (sp[o.id] || 0) + give; sp[w.id] = v - give;
+          }
+          b.retry = 0; game.dirty = true; renderPanel();
+        };
+        minus.addEventListener('click', () => change(-10));
+        plus.addEventListener('click', () => change(10));
+        const fill = el('div', 'pbar-fill'); fill.style.width = v + '%';
+        const barEl = el('div', 'pbar psplit-bar'); barEl.appendChild(fill);
+        r.append(el('span', 'psplit-name', buildingName(w)), minus, el('b', 'psplit-pct', v + '%'), plus);
+        card.append(r, barEl);
+      }
+      if (ws.every(w => !sp[w.id])) card.appendChild(el('div', 'pwarn', TR('Questa merce non va da nessuna parte: metti almeno una percentuale.')));
+    } else card.appendChild(el('div', 'pnote', TR('Va alla destinazione che ne ha bisogno.')));
+    box.appendChild(card);
+  }
 }
 
 function renderPanel() {
@@ -127,7 +205,7 @@ function renderPanel() {
     const finish = save => {
       if (done) return; done = true;
       const v = inp.value.trim();
-      if (save) { if (v && v !== BUILDINGS[b.kind].name) b.name = v; else delete b.name; game.dirty = true; }
+      if (save) { delete b.name; if (v && v !== buildingName(b)) b.name = v; game.dirty = true; }   // uguale al nome automatico = nessun nome
       renderPanel(); requestDraw();
     };
     inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') finish(true); if (e.key === 'Escape') finish(false); });

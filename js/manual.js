@@ -195,6 +195,7 @@ const MANUAL = [
     b.appendChild(item('warehouse'));
     b.appendChild(item('goodsWarehouse'));
     b.appendChild(mEl('p', null, TR("Ogni attività ha un furgone (i magazzini {w}). Il furgone parte quando ci sono almeno <b>{a} unità</b> e ne porta fino a <b>{b}</b>, poi torna indietro. Le destinazioni si scelgono nel pannello dell'edificio: se ne scegli più di una, ogni merce va alla prima che la accetta e ha posto.", { w: VANS.warehouse, a: VAN_MIN_LOAD, b: VAN_CAPACITY })));
+    b.appendChild(mEl('p', null, TR("<b>Distribuzione per merce</b>: con due o più destinazioni che accettano la stessa merce, nel pannello puoi passare da <b>Automatica</b> a <b>Personalizzata</b> e decidere la percentuale per ognuna con + e − (es. 50% e 50%, oppure 100% a una sola).")));
     b.appendChild(mEl('p', null, TR('Fabbriche e negozi vanno anche da soli a prendere nei magazzini quello che gli serve. Il supermercato lascia la precedenza alle fabbriche per le merci che loro trasformano (es. la farina va prima al panificio).')));
     b.appendChild(mEl('div', 'man-tip', TR("Nel pannello del magazzino puoi scegliere cosa accetta (clic sulle merci) e un'uscita verso altri edifici. Due magazzini non possono mandarsi la merce a vicenda.")));
   } },
