@@ -21,7 +21,7 @@ function check(cond, msg) {
   await page.waitForTimeout(300);
   // i test più vecchi provano tutti gli strumenti: le mappe nuove hanno tutto sbloccato
   // (i progressi si provano alla fine con la newGame vera, __newGame)
-  await page.evaluate(() => { window.__newGame = newGame; newGame = (...a) => { __newGame(...a); unlockAll(); }; });
+  await page.evaluate(() => { window.__oilAt = oilAt; window.__newGame = newGame; newGame = (...a) => { __newGame(...a); unlockAll(); }; });
   await page.screenshot({ path: process.env.SHOTS + '/1-start.png' });
 
   // 0. all'avvio c'è il menu principale, senza "Riprendi"; Esc non lo chiude
@@ -98,6 +98,7 @@ function check(cond, msg) {
 
   // 3. strumento strada (tasto 2): trascina lungo la fila
   await page.keyboard.press('2');
+  await page.keyboard.press('Escape');   // chiude il sottomenu (copre una parte della mappa)
   const a = await screenOf(run.x, run.y), b = await screenOf(run.x + 5, run.y);
   await page.mouse.move(a.x, a.y);
   await page.mouse.down();
@@ -137,9 +138,9 @@ function check(cond, msg) {
   await page.waitForTimeout(150);
   await page.screenshot({ path: process.env.SHOTS + '/3-zoom.png' });
 
-  // 8. demolizione (tasto 7): casa e strade
-  await page.keyboard.press('7');
-  await page.keyboard.press('Escape'); // chiude il sottomenu che si apre col tasto 7
+  // 8. demolizione (tasto 8): casa e strade
+  await page.keyboard.press('8');
+  await page.keyboard.press('Escape'); // chiude il sottomenu che si apre col tasto 8
   const roadsBefore = await page.evaluate(() => game.roads);
   const a2 = await screenOf(run.x, run.y), b2 = await screenOf(run.x + 5, run.y);
   await page.mouse.move(a2.x, a2.y);
@@ -1075,7 +1076,7 @@ function check(cond, msg) {
   check(rn.name === 'Filanda 1' && rn.title === 'Filanda 1' && rn.tool === 'hand', 'cambio nome dal pannello: ' + JSON.stringify(rn));
   await page.evaluate(() => closePanel());
   const bar = await page.evaluate(() => [...document.querySelectorAll('#toolbar .lbl')].map(e => e.textContent).join(','));
-  check(bar === 'Mano,Strade,Case,Agroalimentare,Legno,Tessile,Demolisci', 'barra: ' + bar);
+  check(bar === 'Mano,Strade,Case,Agroalimentare,Legno,Tessile,Energia,Demolisci', 'barra: ' + bar);
 
   // 34. allevamento unico: scelta dell'animale dal pannello, vecchi salvataggi convertiti
   const lvs = await page.evaluate(() => {
@@ -1146,7 +1147,7 @@ function check(cond, msg) {
   // 41. finestre: P progressi, M manuale (tutti i capitoli), Esc chiude
   await page.evaluate(() => { game.money = 50000; closePanel && panelIsOpen() && closePanel(); });
   await page.keyboard.press('p');
-  const w1 = await page.evaluate(() => ({ open: !document.getElementById('progress').hidden, cards: document.querySelectorAll('#progress .pg-card').length }));
+  const w1 = await page.evaluate(() => ({ open: !document.getElementById('progress').hidden, cards: document.querySelectorAll('#progress .pg-card').length === UNLOCKS.length }));
   await page.click('#unlock-oneway');
   const w2 = await page.evaluate(() => !toolLocked('oneway') && document.querySelector('#progress [data-unlock="oneway"]').classList.contains('owned'));
   await page.keyboard.press('Escape');
@@ -1165,7 +1166,7 @@ function check(cond, msg) {
   await page.click('#submenu .sub[data-tool="sawmill"]');
   const w5 = await page.evaluate(() => !document.getElementById('progress').hidden && !!document.querySelector('#progress .pg-card.focus[data-unlock="sawmill"]') && game.tool !== 'sawmill');
   await page.keyboard.press('Escape');
-  check(w1.open && w1.cards === 18 && w2 && w3, 'tasto P: finestra progressi, sblocco con il clic, Esc chiude');
+  check(w1.open && w1.cards && w2 && w3, 'tasto P: finestra progressi, sblocco con il clic, Esc chiude');
   check(manOk && w4 && pages.length >= 10, 'tasto M: manuale con ' + pages.length + ' capitoli, M chiude');
   check(w5, 'clic su uno strumento bloccato: si apre lo sblocco giusto');
 
@@ -1178,7 +1179,9 @@ function check(cond, msg) {
       recount(); game.money = 1e7;
       for (let x = 0; x < N; x++) { useTool('road', x, c); game.map[c][x].main = true; useTool('road', x, c - 3); }
       game.entries = [{ x: 0, y: c }, { x: N - 1, y: c }];
+      oilAt = () => 1;   // petrolio ovunque per la prova
       const list = [...Object.keys(CROPS).map(k => ['farm', k]), ...Object.keys(LIVESTOCK).map(k => ['livestock', k]),
+        ['oilWell'], ['charcoalKiln'], ['coalPlant'], ['refinery'], ['gasStation'],
         ['forestry'], ['factory'], ['bakery'], ['dairy'], ['slaughterhouse'], ['supermarket'], ['furnitureStore'], ['clothingStore'],
         ['warehouse'], ['goodsWarehouse'], ['sawmill'], ['furnitureFactory'], ['textileMill'], ['clothingFactory']];
       game.rotation = 2;
@@ -1235,6 +1238,124 @@ function check(cond, msg) {
     return { main, hwy, keep };
   });
   check(hw.main > 50 && hw.hwy === hw.main && hw.keep, `strada principale = autostrada (${hw.hwy}/${hw.main} tile), non si declassa`);
+
+  // 44. ponti autostrada: quelli della strada principale e quelli costruiti con lo strumento
+  const hb = await page.evaluate(() => {
+    const r = {};
+    let found = null;
+    for (let seed = 1; seed < 80 && !found; seed++) {
+      clearVehicles(); __newGame(seed, 128); unlockAll();
+      found = [...game.bridges.values()].find(b => b.main && b.kind === 'bridge');
+    }
+    r.found = !!found;
+    if (found) {
+      const heads = [0, found.n].map(i => game.map[bridgeTile(found, i)[1]][bridgeTile(found, i)[0]].path);
+      r.main = found.path === 'highway' && heads.every(p => p === 'highway');
+      const tiles = []; for (let i = 0; i <= found.n; i++) { const [x, y] = bridgeTile(found, i); tiles.push([x, y, i > 0 && i < found.n ? 1 : 0]); }
+      r.speed = routePoints(tiles).filter(p => p[4] === 1).every(p => p[3] === PATHS.highway.speed);
+    }
+    clearVehicles(); newGame(3, 128);
+    const N = game.size, c = N / 2;
+    for (let y = c - 8; y < c + 8; y++) for (let x = c - 8; x < c + 8; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, building: null, elev: 2, bridge: null });
+    for (let x = c - 3; x <= c + 3; x++) Object.assign(game.map[c][x], { type: T.WATER, elev: 0 });
+    const plan = planBridge({ x: c - 4, y: c }, { x: c + 4, y: c }, 'highway');
+    const roadCost = planBridge({ x: c - 4, y: c }, { x: c + 4, y: c }, 'road').cost;
+    const m0 = game.money;
+    r.built = plan.ok && buildBridge(plan).ok && m0 - game.money === plan.cost && plan.cost > roadCost;
+    const b = bridgeAt(c, c);
+    r.hw = b && b.path === 'highway' && game.map[c][c - 4].path === 'highway';
+    game.saveId = null; saveGame(); const id = game.saveId; loadGame(id); deleteSave(id);
+    r.saved = bridgeAt(c, c) && bridgeAt(c, c).path === 'highway';
+    r.tool = !toolLocked('hwBridge') && TOOL_GROUPS[1].tools.includes('hwBridge');
+    return r;
+  });
+  check(hb.found && hb.main && hb.speed, 'il ponte della strada principale è un ponte autostrada (teste autostrada, auto veloci)');
+  check(hb.built && hb.hw && hb.saved && hb.tool, 'strumento Ponte autostrada: costa di più, si salva '+ '');
+
+  // 45. energia e petrolio: carbonaia -> centrale a carbone, solare, eolica, bollette;
+  //     pozzo e piattaforma -> nave -> porto -> raffineria -> distributore
+  const en = await page.evaluate(() => {
+    clearVehicles(); newGame(5, 128);
+    const N = game.size, c = N / 2, r = {};
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, rb: null, elev: 2, bridge: null });
+    game.bridges = new Map(); rebuildBridgeIndex(); recount(); game.money = 1e7;
+    // senza petrolio non si costruisce il pozzo
+    const realOil = window.__oilAt;
+    oilAt = () => 0; r.noOil = !useTool('oilWell', 10, 10).ok;
+    oilAt = () => 1;
+    r.platformLand = !useTool('oilPlatform', 10, 20).ok;
+    for (let y = c + 6; y < N; y++) for (let x = 0; x < N; x++) Object.assign(game.map[y][x], { type: T.WATER, elev: 0 });
+    for (let x = 0; x < N; x++) { useTool('road', x, c); game.map[c][x].main = true; }
+    game.entries = [{ x: 0, y: c }, { x: N - 1, y: c }];
+    game.rotation = 0; r.portWrong = !useTool('port', c + 10, c + 4).ok;   // davanti all'acqua, non dietro
+    const place = [];
+    game.rotation = 2;
+    let x = c - 30;
+    for (const k of ['forestry', 'charcoalKiln', 'coalPlant', 'solarPlant', 'windPlant', 'oilWell', 'refinery', 'gasStation']) {
+      const ok = useTool(k, x, c + 1); place.push(k + ':' + ok.ok);
+      if (k === 'forestry') for (let xx = x - 2; xx <= x + 3; xx++) for (const yy of [c + 3, c + 4]) game.map[yy][xx].type = T.FOREST;
+      x += BUILDINGS[k].w + 1;
+    }
+    game.rotation = 0;
+    r.port = useTool('port', c + 10, c + 4).ok === false;   // ancora sbagliato
+    game.rotation = 2; r.port = useTool('port', c + 10, c + 4).ok;   // entrata verso la strada (c+3? no): retro verso l'acqua
+    game.rotation = 0; r.platform = useTool('oilPlatform', c + 10, c + 12).ok;
+    r.placed = place.every(p => p.endsWith('true')) ? 'ok' : place.join(',');
+    game.rotation = 0;
+    for (let hx = c - 34; hx <= c + 16; hx++) { useTool('house', hx, c - 1); useTool('house', hx, c - 2); }
+    for (let hx = 0; hx < N; hx++) useTool('road', hx, c - 3);
+    for (const h of game.buildings.values()) if (h.kind === 'house') h.residents = HOUSE_CAPACITY;
+    recount();
+    const B = k => [...game.buildings.values()].find(b => b.kind === k);
+    const fo = B('forestry'), ki = B('charcoalKiln'), cp = B('coalPlant'), so = B('solarPlant'), wi = B('windPlant'), we = B('oilWell'),
+      re = B('refinery'), gs = B('gasStation'), po = B('port'), pl = B('oilPlatform');
+    r.ids = [fo, ki, cp, so, wi, we, re, gs, po, pl].map(b => b ? 1 : 0).join('');
+    if (r.ids !== '1111111111') return r;
+    fo.dests = [ki.id]; ki.dests = [cp.id]; we.dests = [re.id]; pl.dests = [po.id]; po.dests = [re.id]; re.dests = [gs.id];
+    updateJobs = (orig => () => { orig(); for (const b of [po, re, gs, cp, ki, fo, we, so, wi]) b.workers = JOBS[b.kind]; })(updateJobs);
+    const money0 = game.money;
+    let coal = 0, power = 0, ship = false, portCrude = 0, gen = 0;
+    const gsPrev = {}; const sold = {};
+    for (let i = 0; i < 1500 * 10; i++) {
+      simUpdate(0.1);
+      coal = Math.max(coal, (ki.store.coal || 0) + ((cp.input || {}).coal || 0));
+      power = Math.max(power, cp.power || 0);
+      ship = ship || vehicles.some(v => v.kind === 'ship' && v.load > 0);
+      portCrude = Math.max(portCrude, po.store.crude || 0);
+      gen = Math.max(gen, (game.grid || {}).gen || 0);
+      for (const [g, q] of Object.entries(gsPrev)) if (q > (gs.store[g] || 0)) sold[g] = true;
+      Object.assign(gsPrev, gs.store); for (const g of Object.keys(gsPrev)) if (!gs.store[g]) gsPrev[g] = 0;
+    }
+    Object.assign(r, { coal, power, ship, portCrude, gen, sold: Object.keys(sold).sort().join(','), bills: game.grid.bills, solar: so.power, wind: wi.power });
+    r.windHigh = (() => { const lvl = wi.power; game.map[wi.ay][wi.ax].elev += 4; updatePower(wi, 0.1); const hi = wi.power; game.map[wi.ay][wi.ax].elev -= 4; return hi > lvl; })();
+    // porto demolito mentre la nave viaggia: la nave torna alla piattaforma, il petrolio non sparisce
+    pl.store = { crude: 40 }; pl.van = 0; pl.retry = 0; po.store = {}; po.expect = {};
+    for (let i = 0; i < 50 && !vehicles.some(v => v.kind === 'ship' && v.load > 0); i++) simUpdate(0.1);
+    const sh = vehicles.find(v => v.kind === 'ship' && v.load > 0);
+    r.dbg = ['noship', pl.status, pl.van];
+    if (sh) {
+      for (let i = 0; i < 10; i++) simUpdate(0.1);
+      useTool('demolish', po.ax, po.ay);
+      const back = vehicles.find(v => v.kind === 'ship');
+      for (let i = 0; i < 600 && vehicles.some(v => v.kind === 'ship'); i++) simUpdate(0.1);
+      r.dbg = [!!back, pl.store.crude, vehicles.filter(v => v.kind === 'ship').length, back && back.load];
+      r.shipBack = !!back && (pl.store.crude || 0) >= 40 - 0.001 && !vehicles.some(v => v.kind === 'ship');
+    }
+    oilAt = realOil;
+    let rich = 0, n = 0;
+    for (let y = 0; y < 128; y += 2) for (let x = 0; x < 128; x += 2) { n++; if (oilAt(x, y) > 0) rich++; }
+    r.oilShare = rich / n;
+    return r;
+  });
+  check(en.noOil && en.platformLand && en.portWrong, 'pozzo solo sul petrolio, piattaforma solo sull\'acqua, porto con il retro sull\'acqua');
+  check(en.placed === 'ok' && en.ids === '1111111111', 'edifici dell\'energia costruiti (' + en.placed + ', ' + en.ids + ')');
+  check(en.coal > 0 && en.power > 0, `carbonaia fa carbone (${en.coal}), la centrale lo brucia (${en.power} di energia)`);
+  check(en.solar > 0 && en.wind > 0 && en.windHigh, `solare ${en.solar}, eolica ${en.wind} (di più in alto)`);
+  check(en.gen > 0 && en.bills > 0, `rete elettrica: produzione ${en.gen}, bollette ${en.bills} €`);
+  check(en.ship && en.portCrude > 0, 'la nave porta il petrolio dalla piattaforma al porto');
+  check(en.sold === 'diesel,gasoline', 'raffineria -> distributore: benzina e gasolio venduti (' + en.sold + ')');
+  check(en.shipBack, 'porto demolito: la nave torna alla piattaforma con il petrolio '+ (en.shipBack ? '' : ' ' + JSON.stringify(en.dbg)));
+  check(en.oilShare > 0.05 && en.oilShare < 0.6, 'giacimenti di petrolio: ' + Math.round(en.oilShare * 100) + '% della mappa');
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();

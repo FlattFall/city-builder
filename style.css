@@ -54,7 +54,7 @@ canvas { display: block; }
 #toast.show { opacity: 1; }
 
 #help {
-  position: fixed; bottom: 12px; left: 12px; font-size: 11px; line-height: 1.5; max-width: 330px;
+  position: fixed; top: 44px; left: 12px; font-size: 11px; line-height: 1.5; max-width: 330px;   /* in alto: in basso la barra è larga */
   pointer-events: none; /* i clic passano alla mappa */
   background: rgba(0, 0, 0, .5); padding: 6px 8px; border-radius: 4px;
 }

@@ -106,7 +106,7 @@ function routePoints(tiles, fromOutside, toOutside) {
   const n = tiles.length, pts = [];
   const info = tiles.map(([x, y, L]) => {
     const t = game.map[y][x];
-    if (L) return { L: 1, b: game.bridges.get(t.bridge.id), off: 0.18, speed: BRIDGE.speed };
+    if (L) { const b = game.bridges.get(t.bridge.id); return { L: 1, b, off: 0.18, speed: b.path ? PATHS[b.path].speed : BRIDGE.speed }; }
     return { L: 0, off: t.path === 'oneway' ? 0 : 0.18, speed: (PATHS[t.path] && PATHS[t.path].speed) || 1 };
   });
   const H = (mx, my, a, b) => {   // quota: sul ponte segue l'impalcato, a terra la superficie
@@ -325,6 +325,11 @@ function simUpdate(dt) {
 //  - furgoni diretti lì: tornano a casa con la merce; furgoni senza più casa: escono dalla mappa
 function removeVehiclesFor(id, b) {
   for (const v of vehicles.slice()) {
+    if (v.kind === 'ship') {   // navi: se sparisce il porto tornano alla piattaforma; senza piattaforma vanno via
+      if (v.to === id) { const t = game.buildings.get(id); if (t && v.load) addTo(t.expect || {}, v.good, -v.load); redirectShip(v); }
+      else if (v.from === id && !v.to) { v.from = null; v.arrive = () => {}; v.cancel = () => {}; }
+      continue;
+    }
     if (v.target === id) relocate(v.people || 1, null, v);
     else if (v.kind === 'van' && v.to === id) {
       const home = game.buildings.get(v.from), g = v.good, q = v.load, fid = v.from;
@@ -404,6 +409,7 @@ function vehicleDir(v) {
 // vetri, ruote, fari davanti e luci rosse dietro (sul lato che si vede), ombra a terra.
 // Il furgone ha il cassone bianco con la striscia del colore dell'attività.
 function drawVehicle(c, v) {
+  if (v.kind === 'ship') { drawShip(c, v); return; }
   const { mx, my, h } = v.pos;
   const d = vehicleDir(v), f = DIRS[d], sd = [-f.dy, f.dx];   // avanti e di lato
   const van = v.kind === 'van';
@@ -468,6 +474,130 @@ function drawVehicle(c, v) {
   for (const w of [-W * 0.55, W * 0.55]) {
     const p = iso(0, 0, mx + f.dx * a + sd[0] * w, my + f.dy * a + sd[1] * w, h + 3.2 / STEP);
     c.fillStyle = col; c.fillRect(p[0] - 0.5, p[1] - 0.5, 1, 0.8);
+  }
+}
+
+
+// ---------- Navi (petrolio dalla piattaforma al porto) ----------
+// Viaggiano sui tile d'acqua (4 direzioni) dalla piattaforma alle caselle d'acqua dietro al porto
+// (dockTiles); scaricano nel porto (che fa da magazzino marittimo) e tornano indietro.
+const SHIP_SPEED = 1.1, SHIP_CAPACITY = 40;
+function isWaterFree(x, y) { return inMap(x, y) && game.map[y][x].type === T.WATER; }
+function waterRoute(starts, goals) {
+  const N = game.size, goal = new Set(goals.map(([x, y]) => y * N + x)), prev = new Map(), q = [];
+  for (const [x, y] of starts) { const k = y * N + x; if (!prev.has(k)) { prev.set(k, -1); q.push(k); } }
+  for (let i = 0; i < q.length; i++) {
+    const k = q[i];
+    if (goal.has(k)) {
+      const path = [];
+      for (let c = k; c !== -1; c = prev.get(c)) path.push([c % N, Math.floor(c / N), 0]);
+      return path.reverse();
+    }
+    const x = k % N, y = Math.floor(k / N);
+    for (const D of DIRS) {
+      const nx = x + D.dx, ny = y + D.dy, nk = ny * N + nx;
+      if (!isWaterFree(nx, ny) || prev.has(nk)) continue;
+      const tb = game.map[ny][nx].building;
+      if (tb && !goal.has(nk) && !starts.some(([sx, sy]) => sx === nx && sy === ny)) continue;   // altre piattaforme in mezzo
+      prev.set(nk, k); q.push(nk);
+    }
+  }
+  return null;
+}
+function shipPoints(tiles) { return tiles.map(([x, y]) => [x + 0.5, y + 0.5, 0, 1, 0]); }
+function platformTiles(b) { return footprint(b.kind, b.ax, b.ay).map(p => [p.x, p.y]); }
+
+function sendByShip(from, to, g, q) {
+  const goals = to.kind === 'port' ? dockTiles(to) : [];
+  const route = goals.length && waterRoute(platformTiles(from), goals);
+  if (!route) { from.status = 'Nessuna via d\'acqua verso ' + buildingLabel(to); from.retry = 3; return false; }
+  q = Math.min(from.store[g] || 0, SHIP_CAPACITY, Math.max(0, roomFor(to, g)));   // la nave porta più di un furgone
+  if (q <= 0) return false;
+  addTo(from.store, g, -q);
+  to.expect = to.expect || {};
+  addTo(to.expect, g, q);
+  from.status = 'Nave in viaggio verso ' + buildingLabel(to);
+  const fid = from.id, tid = to.id;
+  vanOut(from);
+  const back = path => spawnVehicle({ kind: 'ship', from: fid, load: 0, tiles: path, pts: shipPoints(path), speed: SHIP_SPEED,
+    arrive() { const f = game.buildings.get(fid); if (f) { vanHome(f); f.status = ''; } },
+    cancel() { const f = game.buildings.get(fid); if (f) vanHome(f); } });
+  spawnVehicle({ kind: 'ship', from: fid, to: tid, good: g, load: q, tiles: route, pts: shipPoints(route), speed: SHIP_SPEED,
+    arrive() {
+      const t = game.buildings.get(tid), f = game.buildings.get(fid);
+      if (t) { addTo(t.expect, g, -q); receive(t, g, Math.min(q, Math.max(0, freeFor(t, g)))); }
+      if (!f) return;
+      f.status = 'Nave di ritorno';
+      back(route.slice().reverse());
+    },
+    cancel() {
+      const t = game.buildings.get(tid), f = game.buildings.get(fid);
+      if (t) addTo(t.expect, g, -q);
+      if (f) { vanHome(f); addTo(f.store, g, q); }
+    },
+  });
+  return true;
+}
+
+// Una nave il cui porto (o piattaforma) è stato demolito: torna indietro dal punto dove si trova
+function redirectShip(v) {
+  const p = vehiclePos(v), here = [[Math.floor(p.mx), Math.floor(p.my)]];
+  const home = game.buildings.get(v.from);
+  const g = v.good, q = v.load, fid = v.from;
+  const path = home && waterRoute(here, platformTiles(home));
+  vehicles = vehicles.filter(o => o !== v);
+  if (!path) { if (home) { vanHome(home); if (q) addTo(home.store, g, q); } return; }
+  const pts = [[p.mx, p.my, 0, 1, 0], ...shipPoints(path.slice(1))];
+  spawnVehicle({ kind: 'ship', from: fid, load: q, good: g, tiles: path, pts, speed: SHIP_SPEED,
+    arrive() { const f = game.buildings.get(fid); if (f) { vanHome(f); if (q) addTo(f.store, g, q); f.status = ''; } },
+    cancel() { const f = game.buildings.get(fid); if (f) vanHome(f); } });
+}
+
+// Nave: scafo scuro e rosso con la prua a punta, ponte con le cisterne del petrolio, cabina a poppa
+function drawShip(c, v) {
+  const { mx, my, h } = v.pos;
+  const d = vehicleDir(v), f = DIRS[d], sd = [-f.dy, f.dx];
+  const L = 0.36, W = 0.13;
+  const LP = (a, w, z) => iso(0, 0, mx + f.dx * a + sd[0] * w, my + f.dy * a + sd[1] * w, h + z / STEP);
+  const R = (a0, a1, w0, w1) => {
+    const us = [], vs = [];
+    for (const a of [a0, a1]) for (const w of [w0, w1]) { us.push(mx + f.dx * a + sd[0] * w); vs.push(my + f.dy * a + sd[1] * w); }
+    return [Math.min(...us), Math.min(...vs), Math.max(...us), Math.max(...vs)];
+  };
+  const vbox = (rc, z0, hp, col) => box(c, 0, 0, h + z0 / STEP, rc[0], rc[1], rc[2], rc[3], hp, Object.assign({ plain: true }, col));
+  if (DETAIL) {   // scia bianca dietro
+    c.fillStyle = 'rgba(255,255,255,0.35)';
+    c.beginPath(); c.moveTo(...LP(-L, -W * 0.8, 0)); c.lineTo(...LP(-L - 0.3, 0, 0)); c.lineTo(...LP(-L, W * 0.8, 0)); c.closePath(); c.fill();
+  }
+  // scafo: rosso sotto la linea di galleggiamento, nero sopra, prua a punta
+  const hull = (z0, z1, col) => {
+    const out = [[-L, -W], [L * 0.6, -W], [L, 0], [L * 0.6, W], [-L, W]];
+    const lo = out.map(([a, w]) => LP(a, w, z0)), hi = out.map(([a, w]) => LP(a, w, z1));
+    for (let i = 0; i < out.length; i++) {   // fianchi che guardano lo schermo
+      const j = (i + 1) % out.length;
+      const ax = out[i], bx = out[j];
+      const nx = (bx[1] - ax[1]), ny = -(bx[0] - ax[0]);   // normale nel piano (a, w)
+      const wu = f.dx * nx + sd[0] * ny, wv = f.dy * nx + sd[1] * ny;
+      if (wu + wv <= 0) continue;
+      poly(c, [lo[i], lo[j], hi[j], hi[i]], wu > wv ? shadeC(col, -0.25) : col);
+    }
+    return hi;
+  };
+  hull(-0.5, 1.2, '#b5473a');
+  const deck = hull(1.2, 3.2, '#2b2f38');
+  poly(c, deck, '#8a8f96');
+  // cisterne sul ponte e cabina a poppa (disegnate dal fondo dello schermo verso il davanti)
+  const parts = [
+    { rc: R(-0.04, 0.12, -W * 0.6, W * 0.6), z: 3.2, hp: 2.6, col: { l: '#e8c23a', r: '#c9a42a', t: '#f2d870' } },
+    { rc: R(0.16, 0.32, -W * 0.6, W * 0.6), z: 3.2, hp: 2.6, col: { l: '#e8c23a', r: '#c9a42a', t: '#f2d870' } },
+    { rc: R(-L + 0.02, -0.1, -W * 0.8, W * 0.8), z: 3.2, hp: 6, col: { l: '#f2f2f2', r: '#cfd1d4', t: '#ffffff' } },
+  ].sort((p, q) => (p.rc[0] + p.rc[1]) - (q.rc[0] + q.rc[1]));
+  for (const p of parts) vbox(p.rc, p.z, p.hp, p.col);
+  if (DETAIL) {   // finestre della cabina e fumaiolo
+    const cab = parts.find(p => p.hp === 6).rc;
+    const top = iso(0, 0, (cab[0] + cab[2]) / 2, (cab[1] + cab[3]) / 2, h + 9.2 / STEP);
+    c.fillStyle = '#d94141'; c.fillRect(top[0] - 0.6, top[1] - 2.5, 1.2, 2.5);
+    c.fillStyle = '#2b2b33'; c.fillRect(top[0] - 0.6, top[1] - 2.9, 1.2, 0.5);
   }
 }
 

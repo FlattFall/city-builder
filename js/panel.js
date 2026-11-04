@@ -174,7 +174,8 @@ function renderPanel() {
       grid.appendChild(btn);
     }
     box.appendChild(grid);
-    box.appendChild(el('div', 'pnote', b.kind === 'warehouse' ? 'Solo cibo e animali. Fabbrica, panificio, caseificio, macello e supermercato prendono da qui quello che gli serve.'
+    if (b.kind === 'port' && !dockTiles(b).length) box.appendChild(el('div', 'pwarn', "Dietro il porto non c'è acqua: le navi non possono attraccare."));
+    box.appendChild(el('div', 'pnote', b.kind === 'port' ? 'Magazzino marittimo: petrolio, carbone e carburanti. Le navi delle piattaforme scaricano qui; i furgoni portano la merce alla raffineria.' : b.kind === 'warehouse' ? 'Solo cibo e animali. Fabbrica, panificio, caseificio, macello e supermercato prendono da qui quello che gli serve.'
       : 'Solo merci (legno, mobili, cotone, lana, tessuti, vestiti). Segheria, fabbriche e negozi prendono da qui quello che gli serve.'));
     destSection(box, b);   // uscita: dove mandare le scorte
   }
@@ -228,6 +229,10 @@ function renderPanel() {
 
   if (natureOf(b)) {
     const L = natureOf(b);
+    if (L.oil) {
+      box.appendChild(liveText('div', 'prow', () => 'Giacimento: ' + Math.round((b.oil ?? oilUnder(b.kind, b.ax, b.ay)) * 100) + '% (produce in proporzione)'));
+      if (BUILDINGS[b.kind].water) box.appendChild(el('div', 'pnote', 'Il personale vive a bordo. Scegli un porto come destinazione: una nave porta il petrolio.'));
+    }
     if (L.trees) {
       box.appendChild(liveText('div', 'prow', () => 'Bosco vicino: ' + (b.trees || 0) + ' tile (a pieno ritmo con ' + L.trees + ', entro ' + L.radius + ' tile)'));
       box.appendChild(liveText('div', 'pwarn', () => !b.trees ? 'Nessun bosco vicino: mettila accanto a una foresta.' : ''));
@@ -263,6 +268,21 @@ function renderPanel() {
     box.appendChild(liveText('div', 'pwarn', () => b.full ? 'Deposito prodotti pieno: scegli dove mandarli.' :
       b.noInput ? 'Mancano materie prime: mandale qui da una fattoria o mettile in un magazzino.' : ''));
     destSection(box, b);
+  }
+
+  if (POWER[b.kind]) {
+    const P = POWER[b.kind];
+    box.appendChild(liveText('div', 'prow', () => 'Energia prodotta: ' + (b.power || 0) + (P.perLevel ? ' (quota ' + game.map[b.ay][b.ax].elev + ')' : '')));
+    if (P.fuel) {
+      box.appendChild(liveText('div', 'prow', () => GOODS[P.fuel].name + ': ' + ((b.input || {})[P.fuel] || 0) + ' / ' + CAPS[b.kind].input + ' (1 ogni ' + P.burn + ' s)'));
+      box.appendChild(bar(() => (b.input || {})[P.fuel] || 0, CAPS[b.kind].input));
+      box.appendChild(liveText('div', 'pwarn', () => b.noInput ? 'Senza carbone è spenta: mandalo qui dalla carbonaia o mettilo in un magazzino merci.' : ''));
+    }
+    const g = () => game.grid || { gen: 0, demand: 0, cover: 0, bills: 0 };
+    box.appendChild(el('div', 'plabel', 'Rete elettrica (tutta la città)'));
+    box.appendChild(liveText('div', 'prow', () => 'Produzione ' + g().gen + ' - consumo ' + g().demand + ' - coperto ' + Math.round(g().cover * 100) + '%'));
+    box.appendChild(bar(() => g().cover, 1));
+    box.appendChild(liveText('div', 'pnote', () => 'Bollette incassate: ' + (g().bills || 0).toLocaleString('it-IT') + ' €. Con la corrente le attività lavorano fino al ' + Math.round(GRID.boost * 100) + '% più in fretta.'));
   }
 
   if (SHOPS[b.kind]) {

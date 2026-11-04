@@ -35,7 +35,7 @@ const PATHS = {
 // Ponti: si trascinano da una sponda all'altra (dritti, lunghi quanto si vuole).
 // Salgono di un livello per tile dalle teste del ponte; sotto devono restare almeno
 // clear livelli liberi (clearPath se sotto c'è una strada o un binario).
-const BRIDGE = { costPerTile: 40, clearPath: 2, speed: 1 };
+const BRIDGE = { costPerTile: 40, hwCostPerTile: 70, clearPath: 2, speed: 1 };   // ponte autostrada: più caro, velocità dell'autostrada
 // Tunnel: dritti, dentro colline e montagne; l'uscita si vede in anteprima prima di costruire
 const TUNNEL = { costPerTile: 80 };
 
@@ -60,6 +60,16 @@ const BUILDINGS = {
   textileMill: { name: 'Fabbrica tessile', w: 2, h: 2, cost: 1600, height: 30, group: 'textile' },
   clothingFactory: { name: 'Fabbrica di abbigliamento', w: 2, h: 2, cost: 1700, height: 24, group: 'textile' },
   clothingStore: { name: 'Negozio di abbigliamento', w: 2, h: 2, cost: 1300, height: 20, group: 'textile' },
+  // settore energia e petrolio
+  charcoalKiln: { name: 'Carbonaia', w: 1, h: 1, cost: 600, height: 16, group: 'energy' },
+  coalPlant:  { name: 'Centrale a carbone', w: 2, h: 2, cost: 4000, height: 44, group: 'energy' },
+  solarPlant: { name: 'Centrale solare', w: 2, h: 2, cost: 5000, height: 10, group: 'energy' },
+  windPlant:  { name: 'Centrale eolica', w: 2, h: 2, cost: 4500, height: 60, group: 'energy' },
+  oilWell:    { name: 'Pozzo petrolifero', w: 1, h: 1, cost: 1500, height: 26, group: 'energy', oil: true },
+  oilPlatform: { name: 'Piattaforma petrolifera', w: 2, h: 2, cost: 6000, height: 52, group: 'energy', oil: true, water: true },   // sull'acqua
+  port:       { name: 'Porto', w: 2, h: 2, cost: 3500, height: 30, group: 'energy', coast: true },   // il retro sull'acqua
+  refinery:   { name: 'Raffineria di petrolio', w: 2, h: 2, cost: 6000, height: 44, group: 'energy' },
+  gasStation: { name: 'Distributore di carburante', w: 1, h: 1, cost: 1200, height: 14, group: 'energy' },
 };
 
 // ---------- Abitanti ----------
@@ -141,6 +151,10 @@ const GOODS = {
   jackets:    { name: 'Giacche', cat: 'clothing', price: 35, shop: 'clothingStore' },
   shoes:      { name: 'Scarpe', cat: 'clothing', price: 25, shop: 'clothingStore' },
   coats:      { name: 'Cappotti', cat: 'clothing', price: 45, shop: 'clothingStore' },
+  coal:       { name: 'Carbone', cat: 'energy' },                  // dalla carbonaia: per la centrale a carbone
+  crude:      { name: 'Petrolio grezzo', cat: 'energy' },          // da pozzi e piattaforme: per la raffineria
+  gasoline:   { name: 'Benzina', cat: 'fuel', price: 9, shop: 'gasStation' },
+  diesel:     { name: 'Gasolio', cat: 'fuel', price: 8, shop: 'gasStation' },
 };
 function shopOf(g) { return GOODS[g].price ? (GOODS[g].shop || 'supermarket') : null; }
 
@@ -188,6 +202,13 @@ const RECIPES = {
     { in: { cloth: 1, yarn: 1 }, out: 'shoes' },
     { in: { cloth: 2, yarn: 1 }, out: 'coats' },
   ],
+  charcoalKiln: [   // la legna brucia piano sotto la terra e diventa carbone
+    { in: { firewood: 2 }, out: 'coal' },   // solo la legna da ardere: i tronchi servono alla segheria
+  ],
+  refinery: [
+    { in: { crude: 2 }, out: 'gasoline' },
+    { in: { crude: 2 }, out: 'diesel' },
+  ],
   slaughterhouse: [
     { in: { cattle: 1 }, out: 'freshMeat' },
     { in: { pigs: 1 }, out: 'sausages' },
@@ -195,7 +216,7 @@ const RECIPES = {
     { in: { poultry: 1 }, out: 'packedMeat' },
   ],
 };
-const PRODUCE_TICK = { factory: 4, bakery: 5, dairy: 5, slaughterhouse: 6, sawmill: 5, furnitureFactory: 8, textileMill: 5, clothingFactory: 7 };   // secondi per ciclo con tutto il personale
+const PRODUCE_TICK = { factory: 4, bakery: 5, dairy: 5, slaughterhouse: 6, sawmill: 5, furnitureFactory: 8, textileMill: 5, clothingFactory: 7, charcoalKiln: 6, refinery: 6 };   // secondi per ciclo con tutto il personale
 
 // Allevamenti: ogni "every" secondi (con tutto il personale) producono queste merci
 // Un solo edificio "Allevamento": b.animal sceglie quale (le chiavi sono quelle dei vecchi
@@ -209,7 +230,9 @@ const LIVESTOCK = {
 // Azienda forestale: taglia nei boschi vicini (gli alberi ricrescono, il bosco resta).
 // Lavora a pieno ritmo con almeno "trees" tile di bosco entro "radius" tile.
 const FORESTRY = { forestry: { every: 40, out: { logs: 6, firewood: 3 }, trees: 12, radius: 5 } };
-const NATURE = Object.assign({}, FORESTRY);   // chi produce dalla natura (boschi; gli animali con natureOf)
+// Petrolio: pozzi a terra e piattaforme in mare, in proporzione al giacimento sotto (oilAt)
+const OIL = { oilWell: { every: 30, out: { crude: 6 }, oil: true }, oilPlatform: { every: 30, out: { crude: 16 }, oil: true } };
+const NATURE = Object.assign({}, FORESTRY, OIL);   // chi produce dalla natura (boschi; gli animali con natureOf)
 // Cosa produce un edificio dalla natura: l'animale dell'allevamento o il bosco
 function natureOf(b) { return b.kind === 'livestock' ? LIVESTOCK[b.animal] : NATURE[b.kind]; }
 
@@ -226,19 +249,38 @@ const CAPS = {
   forestry: { store: 80 }, sawmill: { input: 80, store: 50 }, furnitureFactory: { input: 80, store: 40 },
   furnitureStore: { store: 150 }, goodsWarehouse: { store: WAREHOUSE_CAPACITY },
   textileMill: { input: 80, store: 50 }, clothingFactory: { input: 80, store: 40 }, clothingStore: { store: 150 },
+  charcoalKiln: { input: 40, store: 40 }, coalPlant: { input: 80 }, refinery: { input: 100, store: 60 },
+  oilWell: { store: 60 }, oilPlatform: { store: 160 }, port: { store: 600 }, gasStation: { store: 120 },
 };
+// Centrali elettriche: out = energia prodotta (con tutto il personale). La centrale a carbone
+// brucia 1 carbone ogni "burn" secondi; l'eolica rende di più in alto (perLevel per livello di quota).
+const POWER = {
+  coalPlant: { out: 80, fuel: 'coal', burn: 4 },
+  solarPlant: { out: 30 },
+  windPlant: { out: 16, perLevel: 4, max: 60 },
+};
+// Rete elettrica (una sola per tutta la mappa): consumo = abitanti + attività; le case pagano la
+// bolletta, le attività con la corrente lavorano più in fretta (boost)
+const GRID = { perResident: 1, perBusiness: 4, bill: 0.4, billEvery: 20, boost: 0.25 };
 // Due magazzini: alimenti (cibo e animali) e merci (legno, mobili, fibre, tessuti, vestiti)
 const WAREHOUSE_CATS = {
   warehouse: ['raw', 'animal', 'food', 'bakery', 'dairy', 'meat'],
-  goodsWarehouse: ['wood', 'lumber', 'furniture', 'fiber', 'textile', 'clothing'],
+  goodsWarehouse: ['wood', 'lumber', 'furniture', 'fiber', 'textile', 'clothing', 'energy', 'fuel'],
+  port: ['energy', 'fuel'],   // porto: magazzino marittimo (petrolio, carbone, carburanti)
 };
 // Dove può mandare la merce ogni attività (se ne possono scegliere più di una:
 // ogni merce va alla prima destinazione che la accetta)
 const ANIMAL_DESTS = ['warehouse', 'dairy', 'slaughterhouse', 'supermarket'];
 const DEST_KINDS = {
   warehouse: ['warehouse', 'factory', 'bakery', 'dairy', 'slaughterhouse', 'supermarket'],
-  goodsWarehouse: ['goodsWarehouse', 'sawmill', 'furnitureFactory', 'furnitureStore', 'textileMill', 'clothingFactory', 'clothingStore', 'supermarket'],
-  forestry: ['goodsWarehouse', 'sawmill', 'supermarket'],
+  goodsWarehouse: ['goodsWarehouse', 'sawmill', 'furnitureFactory', 'furnitureStore', 'textileMill', 'clothingFactory', 'clothingStore', 'supermarket',
+    'charcoalKiln', 'coalPlant', 'refinery', 'gasStation'],
+  forestry: ['goodsWarehouse', 'sawmill', 'charcoalKiln', 'supermarket'],
+  charcoalKiln: ['coalPlant', 'goodsWarehouse', 'port'],
+  oilWell: ['refinery', 'goodsWarehouse', 'port'],
+  oilPlatform: ['port'],                               // dal mare solo in nave fino al porto
+  port: ['refinery', 'coalPlant', 'goodsWarehouse', 'gasStation'],
+  refinery: ['gasStation', 'goodsWarehouse', 'port'],
   sawmill: ['goodsWarehouse', 'furnitureFactory', 'furnitureStore'],
   furnitureFactory: ['goodsWarehouse', 'furnitureStore'],
   textileMill: ['goodsWarehouse', 'clothingFactory'],
@@ -260,6 +302,7 @@ const SHOPS = {
   supermarket: { tick: 10, radius: 25, buyRate: 0.25 },
   furnitureStore: { tick: 20, radius: 30, buyRate: 0.06 },   // i mobili si comprano di rado
   clothingStore: { tick: 15, radius: 28, buyRate: 0.1 },
+  gasStation: { tick: 15, radius: 30, buyRate: 0.08 },   // le auto degli abitanti fanno benzina
 };
 const SHOP = SHOPS.supermarket;
 const TAX_RATE = 0.3;                                 // tasse sulle vendite che vanno al giocatore
@@ -270,7 +313,9 @@ const TAX_RATE = 0.3;                                 // tasse sulle vendite che
 const JOBS = { farm: 4, warehouse: 2, factory: 6, bakery: 2, supermarket: 3,
   livestock: 3, dairy: 5, slaughterhouse: 5,
   forestry: 3, sawmill: 4, furnitureFactory: 5, furnitureStore: 3, goodsWarehouse: 2,
-  textileMill: 5, clothingFactory: 5, clothingStore: 3 };
+  textileMill: 5, clothingFactory: 5, clothingStore: 3,
+  charcoalKiln: 2, coalPlant: 5, solarPlant: 1, windPlant: 1, oilWell: 2, port: 4, refinery: 6, gasStation: 2 };
+// la piattaforma petrolifera non prende lavoratori dalle case (il personale vive a bordo)
 const JOB_RADIUS = 12;
 
 // ---------- Modellare il terreno ----------

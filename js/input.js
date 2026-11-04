@@ -62,13 +62,13 @@ canvas.addEventListener('mousedown', e => {
     panning = true; lastX = e.clientX; lastY = e.clientY;
     downX = e.clientX; downY = e.clientY; handDown = e.button === 0;
     canvas.style.cursor = 'grabbing';
-  } else if (e.button === 0 && game.tool === 'bridge') {
+  } else if (e.button === 0 && isBridgeTool(game.tool)) {
     // ponte: si preme sulla prima sponda e si trascina fino all'altra (oppure un clic per sponda)
     const tile = pickTile(e.clientX, e.clientY);
     if (!tile) return;
     bridgeDown = true;
     if (!bridgeStart) bridgeStart = tile;
-    game.bridgePlan = planBridge(bridgeStart, tile);
+    game.bridgePlan = planBridge(bridgeStart, tile, game.tool === 'hwBridge' ? 'highway' : 'road');
     requestDraw();
   } else if (e.button === 0 && game.tool === 'tunnel') {
     // tunnel: un clic ai piedi della collina; l'anteprima mostra già da dove esce
@@ -126,7 +126,7 @@ addEventListener('mousemove', e => {
   }
   game.hover = pickTile(e.clientX, e.clientY);
   if (painting && game.hover) paintTo(game.hover);
-  if (bridgeStart && game.hover) game.bridgePlan = planBridge(bridgeStart, game.hover);
+  if (bridgeStart && game.hover) game.bridgePlan = planBridge(bridgeStart, game.hover, game.tool === 'hwBridge' ? 'highway' : 'road');
   if (game.tool === 'tunnel') game.bridgePlan = game.hover ? planTunnel(game.hover, rotationDir()) : null;
   if (bridgeStart) setPlanMsg(game.bridgePlan);
   updateInfo();

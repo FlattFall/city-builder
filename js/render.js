@@ -17,7 +17,8 @@ const SOIL = '#8b5e34';
 const GROUND = { farm: '#b89a5e', warehouse: '#9a9a92', factory: '#8f8f88', supermarket: '#9a9a92',
   cowFarm: '#7cbf5a', chickenFarm: '#c9b07a', pigFarm: '#9a7a52', sheepFarm: '#8fc96a', dairy: '#9a9a92', slaughterhouse: '#8f8f88',
   forestry: '#8a6a40', sawmill: '#a08a64', furnitureFactory: '#8f8f88', furnitureStore: '#9a9a92',
-  goodsWarehouse: '#9a9a92', textileMill: '#8f8f88', clothingFactory: '#8f8f88', clothingStore: '#9a9a92' };   // terreno sotto gli edifici grandi
+  goodsWarehouse: '#9a9a92', textileMill: '#8f8f88', clothingFactory: '#8f8f88', clothingStore: '#9a9a92',
+  charcoalKiln: '#7a6a50', coalPlant: '#7a7a74', solarPlant: '#a9c48a', refinery: '#8f8f88', port: '#9a9a92', oilWell: '#8a7a5a', gasStation: '#8f8f88' };   // terreno sotto gli edifici grandi
 
 // colori delle case: muri (l = lato sinistro, r = destro), tetto, falda dietro, persiane
 const HOUSE_STYLES = [
@@ -821,6 +822,9 @@ function drawBuildingOn(c, x, y, b) {
     return;
   }
   if (b.kind === 'bakery') { drawBakery(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
+  if (b.kind === 'charcoalKiln') { drawCharcoalKiln(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
+  if (b.kind === 'oilWell') { drawOilWell(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
+  if (b.kind === 'gasStation') { drawGasStation(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (x !== b.ax + def.w - 1 || y !== b.ay + def.h - 1) return;
   const base = game.map[b.ay][b.ax].elev;
   if (b.kind === 'farm') drawFarm(c, b.ax, b.ay, base, b.rot || 0);
@@ -838,6 +842,12 @@ function drawBuildingOn(c, x, y, b) {
   else if (b.kind === 'furnitureFactory') drawFurnitureFactory(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'furnitureStore') drawFurnitureStore(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'livestock') drawLivestock(c, b.ax, b.ay, base, b.rot || 0, b.animal || 'cowFarm');
+  else if (b.kind === 'coalPlant') drawCoalPlant(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'solarPlant') drawSolarPlant(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'windPlant') drawWindPlant(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'oilPlatform') drawOilPlatform(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'port') drawPort(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'refinery') drawRefinery(c, b.ax, b.ay, base, b.rot || 0);
 }
 
 // ---------- Allevamenti ----------
@@ -1141,9 +1151,10 @@ function drawBridgeSpan(c, x, y, b, i) {
   // fianco davanti (quello che si vede) e fine dell'impalcato verso le teste
   if (alongU) poly(c, [P(0, 1), P(1, 1), Pd(1, 1, DECK_T), Pd(0, 1, DECK_T)], DECK.l);
   else poly(c, [P(1, 0), P(1, 1), Pd(1, 1, DECK_T), Pd(1, 0, DECK_T)], DECK.r);
-  poly(c, [P(0, 0), P(1, 0), P(1, 1), P(0, 1)], DECK.top);
+  const hw = bridgePath(b) === 'highway';
+  poly(c, [P(0, 0), P(1, 0), P(1, 1), P(0, 1)], hw ? HW_COLORS[0] : DECK.top);
   const links = [0, 1, 2, 3].map(d => d === b.d || d === (b.d + 2) % 4);
-  drawRoad(c, P, links, x, y, true);
+  if (hw) drawHighway(c, P, links, x, y, DETAIL); else drawRoad(c, P, links, x, y, true);
   // ringhiere sui due lati lunghi
   const sides = alongU ? [[[0, 0], [1, 0]], [[0, 1], [1, 1]]] : [[[0, 0], [0, 1]], [[1, 0], [1, 1]]];
   for (const [A, B] of sides) {
@@ -1331,6 +1342,7 @@ function drawFrame() {
   const sel = game.selected && game.buildings.get(game.selected);
   const selFront = sel ? [sel.ax + BUILDINGS[sel.kind].w - 1, sel.ay + BUILDINGS[sel.kind].h - 1] : null;
   const plan = game.bridgePlan;
+  const oilView = game.tool && BUILDINGS[game.tool] && BUILDINGS[game.tool].oil;   // con pozzo o piattaforma si vedono i giacimenti
   const planKeys = plan ? new Map(plan.tiles.map((p, i) => [p.y * game.size + p.x, i])) : null;
 
   // zona visibile in coordinate mondo (con margine per pareti, alberi ed edifici alti)
@@ -1348,6 +1360,7 @@ function drawFrame() {
       const gy = (x + y) * TH / 2; // posizione a quota 0
       if (gy - game.map[y][x].elev * STEP > bottomY || gy + TH < topY) continue;
       drawTile(ctx, x, y, detail);
+      if (oilView) drawOilSpot(ctx, x, y);
       if (pv && inPreview(x, y)) {
         ctx.globalAlpha = 0.75;
         withPreview(pv, () => drawTile(ctx, x, y, detail, true));

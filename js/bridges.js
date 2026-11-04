@@ -1,6 +1,7 @@
 // ---------- Ponti e tunnel ----------
 // Un ponte (o un tunnel) va dritto da una testa all'altra.
-// game.bridges: id -> { id, kind ('bridge' | 'tunnel'), x0, y0, d, n, e, main? }
+// game.bridges: id -> { id, kind ('bridge' | 'tunnel'), x0, y0, d, n, e, main?, path? }
+//   path = strada sopra il ponte: 'road' (se manca) o 'highway' (ponte autostrada: auto più veloci)
 //   (x0, y0) = prima testa, d = direzione verso l'altra testa, n = distanza tra le teste,
 //   e[k] = quota (in livelli) della strada sul bordo tra il tile k e il tile k+1 (k = 0..n-1).
 // Le teste (tile 0 e n) sono strade normali a terra; i tile in mezzo hanno t.bridge = { id, i }.
@@ -15,6 +16,8 @@ function bridgeAt(x, y) {
   return t ? game.bridges.get(t.id) : null;
 }
 function isTunnel(b) { return b && b.kind === 'tunnel'; }
+function isBridgeTool(tool) { return tool === 'bridge' || tool === 'hwBridge'; }
+function bridgePath(b) { return (b && b.path) || 'road'; }
 // sopra il tile c'è un ponte vero (non un tunnel sotto terra)
 function bridgeOver(t) { const b = t.bridge && game.bridges.get(t.bridge.id); return b && !isTunnel(b) ? b : null; }
 
@@ -89,13 +92,15 @@ function planCost(plan, perTile) {
 
 // Prova a progettare un ponte da a a b (sulla stessa fila o colonna: si raddrizza da solo).
 // Restituisce { ok, msg, tiles, x0, y0, d, n, e, cost }
-function planBridge(a, b) {
+function planBridge(a, b, path) {
+  path = path || 'road';
   if (!b || (a.x === b.x && a.y === b.y)) return { ok: false, kind: 'bridge', tiles: [a], msg: "Ora clicca (o trascina) fino all'altra sponda" };
   let dx = b.x - a.x, dy = b.y - a.y;
   if (Math.abs(dx) >= Math.abs(dy)) dy = 0; else dx = 0;   // sempre dritto
   const n = Math.abs(dx + dy);
   const d = DIRS.findIndex(D => D.dx === Math.sign(dx) && D.dy === Math.sign(dy));
   const plan = linePlan('bridge', a, d, n);
+  plan.path = path;
   const fail = msg => Object.assign(plan, { msg });
   if (plan.tiles.some(p => !inMap(p.x, p.y))) return fail('Fuori dalla mappa');
   if (n < 2) return fail('Ponte troppo corto: serve almeno un tile in mezzo');
@@ -121,7 +126,7 @@ function planBridge(a, b) {
     let ok = true;
     for (let i = 1; i < n && ok; i++) if (Math.min(e[i - 1], e[i]) < need[i]) ok = false;
     if (!ok) continue;
-    return Object.assign(plan, { e, ok: true, msg: '', cost: planCost(plan, BRIDGE.costPerTile) });
+    return Object.assign(plan, { e, ok: true, msg: '', cost: planCost(plan, path === 'highway' ? BRIDGE.hwCostPerTile : BRIDGE.costPerTile) });
   }
   // dove non ci sta: il primo tile troppo vicino alle teste per salire abbastanza
   return fail('Il ponte non fa in tempo a salire sopra quello che c\'è sotto: allungalo di qualche tile');
@@ -173,10 +178,11 @@ function buildBridge(plan, opts) {
   if (!opts.free && !spend(plan.cost)) return { ok: false, msg: 'Fondi insufficienti' };
   const b = { id: game.nextBridgeId++, kind: plan.kind || 'bridge', x0: plan.x0, y0: plan.y0, d: plan.d, n: plan.n, e: plan.e.slice() };
   if (opts.main) b.main = true;
+  if (opts.main) b.path = MAIN_PATH; else if (plan.path && plan.path !== 'road') b.path = plan.path;
   for (const i of [0, b.n]) {   // le teste diventano strada se non lo sono già
     const p = plan.tiles[i], t = game.map[p.y][p.x];
     if (t.field) { t.field = false; t.farm = null; game.fields--; }
-    if (!t.path) { if (t.type === T.FOREST) t.type = T.GRASS; setPath(p.x, p.y, opts.main ? MAIN_PATH : 'road'); game.roads++; if (opts.main) t.main = true; }
+    if (!t.path) { if (t.type === T.FOREST) t.type = T.GRASS; setPath(p.x, p.y, b.path || 'road'); game.roads++; if (opts.main) t.main = true; }
   }
   for (let i = 1; i < b.n; i++) {
     const p = plan.tiles[i], t = game.map[p.y][p.x];

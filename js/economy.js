@@ -69,6 +69,7 @@ function freeFor(b, g) {
     return Math.min(caps.input - sumOf(b.input), share - (b.input[g] || 0));
   }
   if (SHOPS[b.kind]) return shopOf(g) === b.kind ? caps.store - sumOf(b.store) : 0;   // ogni negozio vende le sue merci
+  if (POWER[b.kind] && POWER[b.kind].fuel === g) return caps.input - sumOf(b.input);      // centrale a carbone
   return 0;
 }
 
@@ -85,24 +86,25 @@ function roomFor(b, g) {
 }
 
 function receive(b, g, q) {
-  if (isProcessor(b)) addTo(b.input, g, q);
+  if (isProcessor(b) || POWER[b.kind]) addTo(b.input, g, q);
   else addTo(b.store, g, q);
 }
 
 function buildingLabel(b) { return b.name ? '"' + b.name + '"' : BUILDINGS[b.kind].name.toLowerCase() + ' #' + b.id; }
 
 const VAN_STRIPES = { farm: '#3fa34d', warehouse: '#3f6fd9', goodsWarehouse: '#e07b39', textileMill: '#d94f8a', clothingFactory: '#8e5bd1', factory: '#e07b39', bakery: '#8a5a3a',
-  dairy: '#8fc6e8', slaughterhouse: '#c83232', forestry: '#2f6b2a', sawmill: '#c9a25a', furnitureFactory: '#8a5a3a', cowFarm: '#2b2b33', chickenFarm: '#e8c23a', pigFarm: '#e8899a', sheepFarm: '#c9c4b8' };
+  dairy: '#8fc6e8', slaughterhouse: '#c83232', charcoalKiln: '#3a3a40', oilWell: '#2b2b33', port: '#2f6fa8', refinery: '#e8c23a', oilPlatform: '#d94141', forestry: '#2f6b2a', sawmill: '#c9a25a', furnitureFactory: '#8a5a3a', cowFarm: '#2b2b33', chickenFarm: '#e8c23a', pigFarm: '#e8899a', sheepFarm: '#c9c4b8' };
 
 // Furgoni: b.van = quanti furgoni dell'edificio sono in giro. I magazzini ne hanno di più
 // (portano materie prime alle fabbriche e prodotti ai negozi nello stesso momento).
-const VANS = { warehouse: 3, goodsWarehouse: 3 };
+const VANS = { warehouse: 3, goodsWarehouse: 3, port: 3 };
 function vansBusy(b) { return (b.van || 0) >= (VANS[b.kind] || 1); }
 function vanOut(b) { b.van = (b.van || 0) + 1; }
 function vanHome(b) { b.van = Math.max(0, (b.van || 0) - 1); }
 
 // Il furgone di "from" porta q unità di g a "to" e poi torna indietro
 function sendGoods(from, to, g, q) {
+  if (BUILDINGS[from.kind].water) return sendByShip(from, to, g, q);   // dal mare: in nave (vehicles.js)
   const route = findRoute(accessTiles(from), accessTiles(to));
   if (!route) { from.status = 'Nessuna strada verso ' + buildingLabel(to); from.retry = 3; return false; }
   addTo(from.store, g, -q);
@@ -170,6 +172,7 @@ function wantedGoods(b) {
   // il supermercato lascia la precedenza a chi la merce la trasforma (es. la farina al panificio)
   if (SHOPS[b.kind]) return Object.keys(GOODS).filter(g => shopOf(g) === b.kind &&
     ![...game.buildings.values()].some(p => isProcessor(p) && p.workers && roomFor(p, g) >= VAN_MIN_LOAD));
+  if (POWER[b.kind]) return POWER[b.kind].fuel ? [POWER[b.kind].fuel] : [];
   return Object.keys(GOODS).filter(g => usesInput(b, g));
 }
 
@@ -195,7 +198,7 @@ function pullGoods(b) {
 // ---------- Produzione ----------
 function updateFarm(f, dt) {
   // cresce solo se ha campi, personale e posto in inventario; più personale = più veloce
-  const staff = (f.workers || 0) / JOBS.farm;
+  const staff = (f.workers || 0) / JOBS.farm * gridBoost();
   f.full = sumOf(f.store) >= CAPS.farm.store;
   if (f.fields > 0 && staff > 0 && !f.full) {
     const before = Math.floor(f.growth * 4);
@@ -220,9 +223,32 @@ function treesNear(b, radius) {
   return n;
 }
 
+// Giacimento di petrolio sotto il tile: 0 = niente, 1 = ricchissimo (sempre uguale per la mappa).
+// In mare ce n'è di più che a terra.
+function oilAt(x, y) {
+  if (!inMap(x, y)) return 0;
+  const v = fbm(x / 11, y / 11, (game.seed || 0) * 7 + 31);
+  const thr = game.map[y][x].type === T.WATER ? 0.55 : 0.61;
+  return Math.max(0, Math.min(1, (v - thr) / 0.12));
+}
+function oilUnder(kind, ax, ay) {
+  const fp = footprint(kind, ax, ay);
+  return fp.reduce((a, p) => a + oilAt(p.x, p.y), 0) / fp.length;
+}
+
+// Personale: chi non prende lavoratori dalle case (la piattaforma) lavora sempre a pieno.
+// Con la corrente della rete elettrica si lavora più in fretta.
+function staffOf(b) { return JOBS[b.kind] ? (b.workers || 0) / JOBS[b.kind] : 1; }
+function gridBoost() { return 1 + GRID.boost * ((game.grid && game.grid.cover) || 0); }
+
 function updateLivestock(b, dt) {
   const L = natureOf(b), cap = CAPS[b.kind].store;
-  let staff = (b.workers || 0) / JOBS[b.kind];
+  let staff = staffOf(b) * gridBoost();
+  if (L.oil) {   // pozzo e piattaforma: in proporzione al giacimento sotto
+    if (b.oil === undefined) b.oil = oilUnder(b.kind, b.ax, b.ay);
+    staff *= b.oil;
+    b.noInput = !b.oil;
+  }
   if (L.trees) {   // azienda forestale: più bosco vicino = più legno (fino a L.trees tile)
     if (!(b.treeTimer > 0)) { b.trees = treesNear(b, L.radius); b.treeTimer = 5; }
     b.treeTimer -= dt;
@@ -242,7 +268,7 @@ function updateLivestock(b, dt) {
 
 // Trasformatori: a ogni ciclo ogni ricetta attiva con le materie prime fa 1 prodotto
 function updateProducer(b, dt) {
-  const staff = (b.workers || 0) / JOBS[b.kind];
+  const staff = staffOf(b) * gridBoost();
   const cap = CAPS[b.kind].store;
   b.full = sumOf(b.store) >= cap;
   if (staff > 0 && !b.full) {
@@ -298,7 +324,47 @@ function updateShop(b, dt) {
   updateHud();
 }
 
+// Centrali: producono energia per la rete (la centrale a carbone solo se ha carbone da bruciare)
+function updatePower(b, dt) {
+  const P = POWER[b.kind], staff = staffOf(b);
+  let out = 0;
+  if (staff > 0) {
+    if (P.fuel) {
+      b.burnLeft = (b.burnLeft || 0) - dt * staff;
+      if (b.burnLeft <= 0 && (b.input[P.fuel] || 0) >= 1) { addTo(b.input, P.fuel, -1); b.burnLeft += P.burn; }
+      b.burnLeft = Math.max(b.burnLeft, 0);
+      if (b.burnLeft > 0) out = P.out * Math.min(1, staff);
+      b.noInput = !b.burnLeft && !b.input[P.fuel];
+    } else {
+      const lvl = P.perLevel ? Math.min(P.max, P.out + P.perLevel * game.map[b.ay][b.ax].elev) : P.out;   // eolica: in alto c'è più vento
+      out = lvl * Math.min(1, staff);
+    }
+  }
+  b.power = Math.round(out);
+  pullGoods(b);
+  return out;
+}
+
+// Rete elettrica: produzione delle centrali contro consumo di abitanti e attività
+function updateGrid(gen, dt) {
+  let demand = 0;
+  for (const b of game.buildings.values()) {
+    if (b.kind === 'house') demand += (b.residents || 0) * GRID.perResident;
+    else if (!POWER[b.kind]) demand += GRID.perBusiness;
+  }
+  const g = game.grid = game.grid || { billTimer: GRID.billEvery, bills: 0 };
+  g.gen = Math.round(gen); g.demand = demand;
+  g.cover = demand ? Math.min(1, gen / demand) : (gen > 0 ? 1 : 0);
+  g.billTimer -= dt;
+  if (g.billTimer <= 0) {   // bollette: ogni abitante con la corrente paga
+    g.billTimer += GRID.billEvery;
+    const pay = Math.round(game.population * GRID.bill * g.cover);
+    if (pay > 0) { game.money += pay; g.bills += pay; updateHud(); }
+  }
+}
+
 function economyUpdate(dt) {
+  let gen = 0;
   for (const b of game.buildings.values()) {
     if (b.retry > 0) b.retry -= dt;
     if (b.pullTimer > 0) b.pullTimer -= dt;
@@ -306,17 +372,20 @@ function economyUpdate(dt) {
     else if (natureOf(b)) updateLivestock(b, dt);
     else if (isProcessor(b)) updateProducer(b, dt);
     else if (SHOPS[b.kind]) updateShop(b, dt);
+    else if (POWER[b.kind]) gen += updatePower(b, dt);
     else if (isWarehouse(b)) {
       b.full = sumOf(b.store) >= CAPS[b.kind].store;
       if (b.workers) pushGoods(b);   // uscita: manda le scorte alle destinazioni scelte
     }
   }
+  updateGrid(gen, dt);
 }
 
 // Stato da mostrare con un'icona sopra l'edificio (null = tutto bene)
 function buildingStatus(b) {
   // casa senza strada accanto o non raggiungibile dalla strada principale
   if (b.kind === 'house') return (!accessTiles(b).length || b.unreachable) ? 'noRoad' : null;
+  if (BUILDINGS[b.kind].water) return b.full ? 'full' : b.noInput ? 'noInput' : null;   // piattaforma: niente strada né lavoratori dalle case
   const need = JOBS[b.kind];
   if (need && (b.workers || 0) < need) return b.workers ? 'fewWorkers' : 'noWorkers';
   if (!accessTiles(b).length) return 'noRoad';

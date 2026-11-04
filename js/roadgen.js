@@ -128,7 +128,7 @@ function generateMainRoad() {
   for (const [i, j] of runs) {
     if (i === 0 || j === path.length - 1) continue;
     const a = path[i - 1], b = path[j + 1];
-    const plan = planBridge({ x: a[0], y: a[1] }, { x: b[0], y: b[1] });
+    const plan = planBridge({ x: a[0], y: a[1] }, { x: b[0], y: b[1] }, MAIN_PATH);
     if (plan.ok) { buildBridge(plan, { free: true, main: true }); continue; }
     for (let k = i; k <= j; k++) {   // il ponte non va: terrapieno di sabbia come prima
       const [x, y] = path[k], t = game.map[y][x];

@@ -301,6 +301,16 @@ function entranceOf(b) {
   return { x, y, rx, ry, d: DIRS.findIndex(D => D.dx === rx - x && D.dy === ry - y) };
 }
 
+// Porto: le due caselle d'acqua dietro (lato opposto all'entrata) dove attraccano le navi
+function dockTiles(b) {
+  const out = [];
+  for (const u of [0.5, 1.5]) {
+    const p = rotUV(u, -0.5, b.rot || 0), x = b.ax + Math.floor(p[0]), y = b.ay + Math.floor(p[1]);
+    if (inMap(x, y) && game.map[y][x].type === T.WATER && !game.map[y][x].building) out.push([x, y]);
+  }
+  return out;
+}
+
 function footprint(kind, ax, ay) {
   const b = BUILDINGS[kind], out = [];
   for (let y = ay; y < ay + b.h; y++) for (let x = ax; x < ax + b.w; x++) out.push({ x, y });
@@ -322,6 +332,7 @@ function newGame(seed, size) {
   game.size = size || MAP_SIZES[0].size;
   game.map = generateTerrain(seed, game.size);
   game.money = START_MONEY;
+  game.grid = null;
   if (typeof resetUnlocks === 'function') resetUnlocks();   // mappa nuova: si parte con poco (progress.js)
   game.pathKeys = new Set();
   game.buildings = new Map();
@@ -441,6 +452,18 @@ function checkTool(tool, x, y) {
   if (BUILDINGS[tool]) {
     const b = BUILDINGS[tool];
     if (t.building && b.w === 1) return { silent: true };
+    if (b.water) {   // piattaforma petrolifera: tutta sull'acqua, sopra un giacimento
+      for (const p of footprint(tool, x, y)) {
+        if (!inMap(p.x, p.y)) return { msg: 'Fuori dalla mappa' };
+        const q = game.map[p.y][p.x];
+        if (q.type !== T.WATER || q.building || q.bridge) return { msg: 'La piattaforma va costruita sull\'acqua libera (' + b.w + 'x' + b.h + ')' };
+      }
+      if (!oilUnder(tool, x, y)) return { msg: 'Qui sotto non c\'è petrolio (scegli una zona scura)' };
+      return null;
+    }
+    if (b.coast && !dockTiles({ kind: tool, ax: x, ay: y, rot: game.rotation }).length)
+      return { msg: 'Il retro del porto deve dare sull\'acqua (R per ruotarlo): davanti la strada, dietro il mare' };
+    if (b.oil && !oilUnder(tool, x, y)) return { msg: 'Qui sotto non c\'è petrolio (scegli una zona scura)' };
     for (const p of footprint(tool, x, y)) {
       if (!inMap(p.x, p.y)) return { msg: 'Fuori dalla mappa' };
       const q = game.map[p.y][p.x];
@@ -454,8 +477,8 @@ function checkTool(tool, x, y) {
     }
     return null;
   }
-  if (tool === 'bridge' || tool === 'tunnel') {
-    if (t.building || t.bridge || !isBuildable(t) || (t.path && netOf(t.path) !== 'road')) return { msg: 'Qui non può partire un ' + (tool === 'bridge' ? 'ponte' : 'tunnel') };
+  if (isBridgeTool(tool) || tool === 'tunnel') {
+    if (t.building || t.bridge || !isBuildable(t) || (t.path && netOf(t.path) !== 'road')) return { msg: 'Qui non può partire un ' + (tool === 'tunnel' ? 'tunnel' : 'ponte') };
     return null;
   }
   if (tool === 'demolish') {

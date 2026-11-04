@@ -41,7 +41,7 @@ function serializeGame() {
     entries: game.entries, diffs, paths, fields,
     buildings: [...game.buildings.values()].map(buildingData),
     unlocked: game.unlocked ? [...game.unlocked] : undefined,   // assente = tutto sbloccato
-    bridges: [...game.bridges.values()].map(b => ({ id: b.id, kind: b.kind || 'bridge', x0: b.x0, y0: b.y0, d: b.d, n: b.n, e: b.e, main: b.main || undefined })),
+    bridges: [...game.bridges.values()].map(b => ({ id: b.id, kind: b.kind || 'bridge', x0: b.x0, y0: b.y0, d: b.d, n: b.n, e: b.e, main: b.main || undefined, path: b.path || undefined })),
   };
 }
 
@@ -101,6 +101,7 @@ function loadGame(id) {
       for (const p of footprint(b.kind, b.ax, b.ay)) if (inMap(p.x, p.y)) game.map[p.y][p.x].building = b;
     }
     game.entries = d.entries || [];
+    game.grid = null;
     game.unlocked = Array.isArray(d.unlocked) ? new Set(d.unlocked) : null;   // salvataggi di prima: tutto sbloccato
     game.nextId = d.nextId || 1;
   } else {

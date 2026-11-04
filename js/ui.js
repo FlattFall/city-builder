@@ -4,6 +4,7 @@ const TOOL_INFO = {
   road:      { label: 'Strada', cost: PATHS.road.cost, desc: 'Strada a doppio senso. Quattro strade a quadrato diventano una rotonda.' },
   oneway:    { label: 'Senso unico', cost: PATHS.oneway.cost, desc: 'Le auto vanno solo nel verso della freccia: trascina nella direzione di marcia (R per un tile solo). Ripassa al contrario per girarla.' },
   highway:   { label: 'Autostrada', cost: PATHS.highway.cost, desc: 'Le auto vanno più del doppio più veloci. Passaci sopra per trasformare una strada in autostrada.' },
+  hwBridge:  { label: 'Ponte autostrada (per tile)', cost: BRIDGE.hwCostPerTile, desc: "Come il ponte, ma sopra c'è un'autostrada: le auto ci vanno veloci come in autostrada. Clicca una sponda e poi l'altra (o trascina)." },
   bridge:    { label: 'Ponte (per tile)', cost: BRIDGE.costPerTile, desc: "Passa sopra fiumi, valli, strade, binari e case basse. Clicca una sponda e poi l'altra (o trascina): sale da solo quanto serve." },
   tunnel:    { label: 'Tunnel (per tile)', cost: TUNNEL.costPerTile, desc: "Passa sotto colline e montagne, sempre dritto. Metti il mouse ai piedi della collina: vedi già dove esce (in azzurro)." },
   dirt:      { label: 'Strada di terra', cost: PATHS.dirt.cost, desc: 'Costa poco, ma le auto vanno più piano.' },
@@ -26,6 +27,15 @@ const TOOL_INFO = {
   sawmill:   { label: 'Segheria (2x2)', cost: BUILDINGS.sawmill.cost, desc: "Trasforma i tronchi dell'azienda forestale in legname." },
   furnitureFactory: { label: 'Fabbrica di mobili (2x2)', cost: BUILDINGS.furnitureFactory.cost, desc: 'Costruisce mobili con le assi e i pannelli della segheria.' },
   furnitureStore: { label: "Mercato dell'arredamento (2x2)", cost: BUILDINGS.furnitureStore.cost, desc: 'Vende mobili (e legname) agli abitanti vicini: per ogni vendita incassi le tasse. I mobili si comprano più di rado ma costano di più.' },
+  charcoalKiln: { label: 'Carbonaia', cost: BUILDINGS.charcoalKiln.cost, desc: "Fa il carbone bruciando piano la legna sotto la terra: legna da ardere dall'azienda forestale." },
+  coalPlant: { label: 'Centrale a carbone (2x2)', cost: BUILDINGS.coalPlant.cost, desc: 'Brucia il carbone della carbonaia e produce tanta energia per la rete elettrica.' },
+  solarPlant: { label: 'Centrale solare (2x2)', cost: BUILDINGS.solarPlant.cost, desc: 'Pannelli solari: energia pulita senza materie prime, basta un lavoratore.' },
+  windPlant: { label: 'Centrale eolica (2x2)', cost: BUILDINGS.windPlant.cost, desc: "Pale eoliche: energia senza materie prime. Più in alto la costruisci, più vento c'è e più energia fa." },
+  oilWell:   { label: 'Pozzo petrolifero', cost: BUILDINGS.oilWell.cost, desc: 'Estrae il petrolio grezzo da un giacimento a terra (con lo strumento in mano vedi le zone scure dove ce n\'è).' },
+  oilPlatform: { label: 'Piattaforma petrolifera (2x2)', cost: BUILDINGS.oilPlatform.cost, desc: "Si costruisce sull'acqua sopra un giacimento. Il personale vive a bordo; una nave porta il petrolio al porto." },
+  port:      { label: 'Porto (2x2)', cost: BUILDINGS.port.cost, desc: "Porto con magazzino marittimo: davanti la strada, dietro l'acqua (R per ruotarlo). Le navi scaricano qui il petrolio, i furgoni lo portano alla raffineria." },
+  refinery:  { label: 'Raffineria di petrolio (2x2)', cost: BUILDINGS.refinery.cost, desc: 'Trasforma il petrolio grezzo in benzina e gasolio.' },
+  gasStation: { label: 'Distributore di carburante', cost: BUILDINGS.gasStation.cost, desc: 'Vende benzina e gasolio agli abitanti vicini: per ogni vendita incassi le tasse.' },
   demolish:  { label: 'Demolisci', desc: 'Toglie edifici, strade, ponti, tunnel, campi e alberi. Trascinando toglie solo cose dello stesso tipo del primo clic.' },
   raise:     { label: 'Alza terreno', cost: COSTS.terrain, desc: 'Alza il terreno di un livello (solo dove non ci sono strade o edifici).' },
   lower:     { label: 'Abbassa terreno', cost: COSTS.terrain, desc: "Abbassa il terreno di un livello; a quota 0 diventa acqua." },
@@ -35,13 +45,14 @@ const TOOL_INFO = {
 // Gruppi della barra: il tasto numerico sceglie il gruppo (premuto di nuovo passa al prossimo)
 const TOOL_GROUPS = [
   { key: '1', id: 'hand',     label: 'Mano',      tools: ['hand'] },
-  { key: '2', id: 'paths',    label: 'Strade',    tools: ['road', 'oneway', 'highway', 'bridge', 'tunnel', 'dirt', 'rail'] },
+  { key: '2', id: 'paths',    label: 'Strade',    tools: ['road', 'oneway', 'highway', 'bridge', 'hwBridge', 'tunnel', 'dirt', 'rail'] },
   { key: '3', id: 'homes',    label: 'Case',      tools: ['house'] },
   { key: '4', id: 'industry', label: 'Agroalimentare', tools: ['farm', 'livestock',
     'warehouse', 'factory', 'dairy', 'slaughterhouse', 'bakery', 'supermarket'] },
   { key: '5', id: 'wood',     label: 'Legno',     tools: ['forestry', 'sawmill', 'furnitureFactory', 'furnitureStore', 'goodsWarehouse'] },
   { key: '6', id: 'textile',  label: 'Tessile',   tools: ['textileMill', 'clothingFactory', 'clothingStore', 'goodsWarehouse'] },
-  { key: '7', id: 'demolish', label: 'Demolisci', tools: ['demolish', 'raise', 'lower', 'level'] },
+  { key: '7', id: 'energy',   label: 'Energia',   tools: ['charcoalKiln', 'coalPlant', 'solarPlant', 'windPlant', 'oilWell', 'oilPlatform', 'port', 'refinery', 'gasStation', 'goodsWarehouse'] },
+  { key: '8', id: 'demolish', label: 'Demolisci', tools: ['demolish', 'raise', 'lower', 'level'] },
 ];
 const groupChoice = {};   // gruppo -> ultimo strumento scelto
 const ICONS = {};         // strumento -> immagine (data URL)
@@ -61,6 +72,15 @@ function drawGoodIcon(c, g) {
   const wood = '#b07a48', woodD = '#7a5030', woodL = '#e3c48a';
   const cloth = (col, dark) => [col, dark || shade(col, -0.25)];
   switch (g) {
+    case 'coal':
+      for (const [x, y, r] of [[8, 16, 5], [16, 16, 5], [12, 10, 5]]) { circle(x, y, r, '#2b2b30'); circle(x - 1.5, y - 1.5, 1.6, '#5a5a62'); } break;
+    case 'crude':
+      rect(6, 4, 12, 18, '#2b2b30'); rect(6, 4, 12, 2, '#4a4a52'); rect(6, 11, 12, 1.5, '#4a4a52'); rect(6, 18, 12, 1.5, '#4a4a52');
+      shape([[12, 8], [9.5, 13], [12, 15], [14.5, 13]], '#8a6a3a'); break;
+    case 'gasoline': case 'diesel': {
+      const col = g === 'gasoline' ? '#d94141' : '#3fa34d';
+      shape([[5, 8], [10, 3], [19, 3], [19, 21], [5, 21]], col); rect(12, 5, 5, 3, shade(col, -0.3));
+      rect(7, 11, 10, 6, '#f2f2f2'); rect(9, 13, 6, 2, col); rect(3, 4, 4, 2, '#8f959d'); break; }
     case 'cotton':
       rect(11, 12, 2, 10, '#6b8f3a'); for (const [x, y] of [[8, 9], [16, 9], [12, 5]]) { circle(x, y, 4, '#f4f2ea'); circle(x - 1, y - 1, 1.5, '#ffffff'); }
       shape([[9, 13], [12, 11], [15, 13], [12, 15]], '#5a7a2a'); break;
@@ -193,6 +213,8 @@ function chainLines(id) {
   if (RECIPES[id]) out.push(...RECIPES[id].map(r => goodList(r.in) + ' → ' + GOODS[r.out].name.toLowerCase()));
   if (NATURE[id]) out.push('Produce: ' + goodList(NATURE[id].out) + ' (ogni ' + NATURE[id].every + ' s)');
   if (id === 'livestock') for (const A of Object.values(LIVESTOCK)) out.push(A.animal + ': ' + goodList(A.out) + ' (ogni ' + A.every + ' s)');
+  if (POWER[id]) out.push('Energia: ' + POWER[id].out + (POWER[id].perLevel ? ' (+' + POWER[id].perLevel + ' per livello di quota, fino a ' + POWER[id].max + ')' : '') +
+    (POWER[id].fuel ? ', brucia 1 ' + GOODS[POWER[id].fuel].name.toLowerCase() + ' ogni ' + POWER[id].burn + ' s' : ''));
   if (SHOPS[id]) out.push('Vende: ' + Object.keys(GOODS).filter(g => shopOf(g) === id).map(g => GOODS[g].name.toLowerCase()).join(', '));
   if (DEST_KINDS[id]) out.push('Manda la merce a: ' + DEST_KINDS[id].map(k => BUILDINGS[k].name.toLowerCase()).join(', '));
   if (JOBS[id]) out.push('Lavoratori: ' + JOBS[id]);
@@ -261,6 +283,10 @@ function buildIcons() {
     const fake = { d: 1, e: [0.6, 0.6] };
     drawBridgeSpan(c, 0, 0, fake, 1);
   });
+  ICONS.hwBridge = tileIcon((c, P) => {
+    diamond(c, P, COLORS[T.WATER][0]);
+    drawBridgeSpan(c, 0, 0, { d: 1, e: [0.6, 0.6], path: 'highway' }, 1);
+  });
   // tunnel: collina rocciosa nella metà dietro, bocca ad arco sul fianco davanti, strada che ci entra
   ICONS.tunnel = tileIcon((c, P) => {
     diamond(c, P, COLORS[T.GRASS][0]);
@@ -302,6 +328,20 @@ function buildIcons() {
   ICONS.textileMill = bigIcon(c => drawTextileMill(c, 0, 0, 0, 0), GROUND.textileMill);
   ICONS.clothingFactory = bigIcon(c => drawClothingFactory(c, 0, 0, 0, 0), GROUND.clothingFactory);
   ICONS.clothingStore = bigIcon(c => drawClothingStore(c, 0, 0, 0, 0), GROUND.clothingStore);
+  ICONS.charcoalKiln = tileIcon((c, P) => { diamond(c, P, GROUND.charcoalKiln); drawCharcoalKiln(c, 0, 0, 0, 0); });
+  ICONS.oilWell = tileIcon((c, P) => { diamond(c, P, GROUND.oilWell); drawOilWell(c, 0, 0, 0, 0); });
+  ICONS.gasStation = tileIcon((c, P) => { diamond(c, P, GROUND.gasStation); drawGasStation(c, 0, 0, 0, 0); });
+  ICONS.coalPlant = bigIcon(c => drawCoalPlant(c, 0, 0, 0, 0), GROUND.coalPlant);
+  ICONS.solarPlant = bigIcon(c => drawSolarPlant(c, 0, 0, 0, 0), GROUND.solarPlant);
+  ICONS.windPlant = makeIcon(c => {   // più piccola: le torri sono alte
+    const s = 0.52;
+    c.setTransform(s, 0, 0, s, 32, 47 - 2 * TH * s);
+    for (const [u, v] of [[0, 0], [1, 0], [0, 1], [1, 1]]) { const P = (a, b) => iso(0, 0, u + a, v + b, 0); poly(c, [P(0, 0), P(1, 0), P(1, 1), P(0, 1)], COLORS[T.GRASS][0]); }
+    drawWindPlant(c, 0, 0, 0, 0);
+  });
+  ICONS.oilPlatform = bigIcon(c => drawOilPlatform(c, 0, 0, 0, 0), COLORS[T.WATER][0]);
+  ICONS.port = bigIcon(c => drawPort(c, 0, 0, 0, 0), GROUND.port);
+  ICONS.refinery = bigIcon(c => drawRefinery(c, 0, 0, 0, 0), GROUND.refinery);
   ICONS.bakery = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawBakery(c, 0, 0, 0, 0); });
 
   // terreno: blocchetto con freccia su, freccia giù, oppure piano
@@ -466,11 +506,11 @@ function setTool(id, groupId) {
   }
   for (const b of document.querySelectorAll('#submenu .sub')) b.classList.toggle('active', b.dataset.tool === id);
   const rotatable = !!BUILDINGS[id] || id === 'oneway' || id === 'tunnel';
-  if (typeof bridgeStart !== 'undefined' && id !== 'bridge') bridgeStart = null;
+  if (typeof bridgeStart !== 'undefined' && !isBridgeTool(id)) bridgeStart = null;
   game.bridgePlan = null;
   if (id === 'oneway') game.pathDir = rotationDir();
   const hint = id === 'oneway' ? '  |  trascina nel senso di marcia, R: gira la freccia'
-    : id === 'bridge' ? "  |  trascina (o clicca) da una sponda all'altra"
+    : isBridgeTool(id) ? "  |  trascina (o clicca) da una sponda all'altra"
     : id === 'tunnel' ? '  |  clicca ai piedi della collina (R: direzione)' : rotatable ? '  |  R: ruota' : '';
   const tn = document.getElementById('toolname');
   tn.textContent = toolLabel(id) + hint;

@@ -10,6 +10,7 @@ const UNLOCKS = [
   { id: 'oneway', sector: 'Strade', tools: ['oneway'], cost: 1500 },
   { id: 'bridge', sector: 'Strade', tools: ['bridge'], cost: 4000 },
   { id: 'highway', sector: 'Strade', tools: ['highway'], cost: 6000 },
+  { id: 'hwBridge', sector: 'Strade', tools: ['hwBridge'], cost: 6000, needs: ['bridge', 'highway'] },
   { id: 'tunnel', sector: 'Strade', tools: ['tunnel'], cost: 7000, needs: ['bridge'] },
   { id: 'rail', sector: 'Strade', tools: ['rail'], cost: 5000 },
   // agroalimentare
@@ -31,6 +32,16 @@ const UNLOCKS = [
     desc: 'Fabbrica tessile, magazzino merci e la coltura del cotone.' },
   { id: 'clothingFactory', sector: 'Tessile', tools: ['clothingFactory'], cost: 11000, needs: ['textileMill'] },
   { id: 'clothingStore', sector: 'Tessile', tools: ['clothingStore'], cost: 8000, needs: ['clothingFactory'] },
+  // energia e petrolio
+  { id: 'charcoalKiln', sector: 'Energia', tools: ['charcoalKiln'], cost: 3000, needs: ['forestry'] },
+  { id: 'coalPlant', sector: 'Energia', tools: ['coalPlant'], cost: 8000, needs: ['charcoalKiln'] },
+  { id: 'solarPlant', sector: 'Energia', tools: ['solarPlant'], cost: 10000 },
+  { id: 'windPlant', sector: 'Energia', tools: ['windPlant'], cost: 9000 },
+  { id: 'oilWell', sector: 'Energia', tools: ['oilWell', 'goodsWarehouse'], cost: 6000, desc: 'Pozzo petrolifero (e magazzino merci).' },
+  { id: 'refinery', sector: 'Energia', tools: ['refinery'], cost: 12000, needs: ['oilWell'] },
+  { id: 'gasStation', sector: 'Energia', tools: ['gasStation'], cost: 5000, needs: ['refinery'] },
+  { id: 'port', sector: 'Energia', tools: ['port'], cost: 8000 },
+  { id: 'oilPlatform', sector: 'Energia', tools: ['oilPlatform'], cost: 9000, needs: ['port', 'oilWell'] },
 ];
 const UNLOCK_BY_ID = Object.fromEntries(UNLOCKS.map(u => [u.id, u]));
 

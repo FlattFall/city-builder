@@ -86,7 +86,7 @@ const MANUAL = [
 
   { id: 'roads', title: 'Strade', icon: 'road', build(b) {
     b.appendChild(mEl('p', null, 'Le auto e i furgoni si muovono solo sulle strade collegate. Trascina con il mouse per costruire. Le strade salgono da sole sulle colline con le rampe (un livello alla volta, in linea retta).'));
-    for (const id of ['road', 'dirt', 'oneway', 'highway', 'bridge', 'tunnel', 'rail']) b.appendChild(item(id));
+    for (const id of ['road', 'dirt', 'oneway', 'highway', 'bridge', 'hwBridge', 'tunnel', 'rail']) b.appendChild(item(id));
     b.appendChild(mEl('div', 'man-tip', 'Rotonda: costruisci un quadrato 2x2 di strade asfaltate. Si gira solo in senso antiorario. Per trasformare una strada (es. in autostrada) inizia il trascinamento sopra una strada.'));
   } },
 
@@ -163,6 +163,31 @@ const MANUAL = [
     b.appendChild(item('clothingStore'));
   } },
 
+  { id: 'energy', title: 'Energia e petrolio', icon: 'coalPlant', build(b) {
+    b.appendChild(mEl('p', null, 'La città ha una sola <b>rete elettrica</b>: le centrali producono, abitanti e attività consumano (' + GRID.perResident + ' per abitante, ' + GRID.perBusiness + ' per attività). Ogni ' + GRID.billEvery + ' secondi gli abitanti con la corrente pagano la <b>bolletta</b> e le attività con la corrente lavorano fino al <b>' + Math.round(GRID.boost * 100) + '%</b> più in fretta. Nel pannello di ogni centrale vedi produzione, consumo e quanta città è coperta.'));
+    b.appendChild(mEl('h4', null, 'Carbone'));
+    b.appendChild(item('charcoalKiln'));
+    for (const r of RECIPES.charcoalKiln) b.appendChild(recipeRow('charcoalKiln', r));
+    b.appendChild(item('coalPlant'));
+    const cr = mEl('div', 'chain-row');
+    cr.append(goodChip('coal'), arrow(), buildingChip('coalPlant'), arrow(), mEl('span', 'pr', '⚡ ' + POWER.coalPlant.out + ' di energia (1 carbone ogni ' + POWER.coalPlant.burn + ' s)'));
+    b.appendChild(cr);
+    b.appendChild(mEl('h4', null, 'Rinnovabili'));
+    b.appendChild(item('solarPlant', '⚡ ' + POWER.solarPlant.out + ' di energia.'));
+    b.appendChild(item('windPlant', '⚡ da ' + POWER.windPlant.out + ' (in pianura) fino a ' + POWER.windPlant.max + ' (in montagna).'));
+    b.appendChild(mEl('h4', null, 'Petrolio'));
+    b.appendChild(mEl('p', null, 'Il petrolio sta nei <b>giacimenti</b> sotto terra e sotto il mare: quando prendi in mano il pozzo o la piattaforma, le zone dove ce n\'è diventano scure (più scure = più petrolio).'));
+    b.appendChild(item('oilWell'));
+    b.appendChild(item('oilPlatform'));
+    b.appendChild(item('port', 'Le navi viaggiano sull\'acqua collegata dalla piattaforma alle caselle d\'acqua dietro al porto.'));
+    const sr = mEl('div', 'chain-row');
+    sr.append(buildingChip('oilPlatform'), arrow(), mEl('span', 'pr', '🚢 nave'), arrow(), buildingChip('port'), arrow(), mEl('span', 'pr', '🚚 furgone'), arrow(), buildingChip('refinery'));
+    b.appendChild(sr);
+    b.appendChild(item('refinery'));
+    for (const r of RECIPES.refinery) b.appendChild(recipeRow('refinery', r));
+    b.appendChild(item('gasStation'));
+  } },
+
   { id: 'logistics', title: 'Magazzini e furgoni', icon: 'warehouse', build(b) {
     b.appendChild(item('warehouse'));
     b.appendChild(item('goodsWarehouse'));
@@ -213,7 +238,7 @@ const MANUAL = [
       ['Clic sinistro', 'usa lo strumento (trascina per strade, campi, demolizioni)'],
       ['Mano + clic', 'apre il pannello dell\'edificio (merce, lavoratori, destinazioni, nome con ✎)'],
       ['Destro / centrale + trascina', 'sposta la mappa'], ['Rotella', 'zoom'],
-      ['W A S D / frecce', 'sposta la mappa'], ['1 - 7', 'gruppi della barra (premi di nuovo per il prossimo strumento)'],
+      ['W A S D / frecce', 'sposta la mappa'], ['1 - 8', 'gruppi della barra (premi di nuovo per il prossimo strumento)'],
       ['R', 'ruota l\'edificio (o la direzione di senso unico e tunnel)'], ['M', 'manuale'], ['P', 'progressi'], ['Esc', 'chiude le finestre, poi menu e salvataggio'],
     ].map(([k, d]) => '<li><span class="man-key">' + k + '</span> ' + d + '</li>').join('');
     b.appendChild(ul);
