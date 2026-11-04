@@ -301,41 +301,19 @@ function check(cond, msg) {
     await page.screenshot({ path: SHOTS + '/5-preview-covered.png' });
   }
 
-  // 14. rotonde: terreno artificiale con un gradino (quota 3 dietro, quota 2 davanti)
+  // 14. niente rotonde (tolte su richiesta): un 2x2 di strade resta un incrocio normale, tutto collegato
   const rb = await page.evaluate(() => {
     newGame(1);
     const N = game.size, c = N / 2;
     for (const row of game.map) for (const t of row) { t.type = T.GRASS; t.path = null; t.field = false; t.building = null; } game.pathKeys = new Set();
-    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) game.map[y][x].elev = y < c ? 3 : 2;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) game.map[y][x].elev = y < c ? 3 : 2;   // gradino (serve al test dopo)
     recount();
-    const r = {};
-    // in piano, con una strada che entra da ovest
     const fx = c - 8, fy = c + 4;
     for (const [x, y] of [[fx, fy], [fx + 1, fy], [fx, fy + 1], [fx + 1, fy + 1], [fx - 1, fy]]) buildRoad(x, y);
-    r.flat = !!game.map[fy][fx].rb && game.map[fy][fx].rb.slope === -1 && roadLinked(fx - 1, fy, 1);
-    // sul gradino: 2 sopra (y = c-1, quota 3) e 2 sotto (y = c, quota 2), strade che entrano
-    // da sopra, da sotto e dai due lati della parte bassa (con altri due tile dopo le rampe laterali)
-    const sx = c + 2, sy = c - 1;
-    for (const [x, y] of [[sx, sy], [sx + 1, sy], [sx, sy + 1], [sx + 1, sy + 1], [sx, sy - 1], [sx + 1, sy + 2],
-                          [sx + 2, sy + 1], [sx + 3, sy + 1], [sx - 1, sy + 1], [sx - 2, sy + 1]]) buildRoad(x, y);
-    // i 2 tile bassi sono inclinati (nessun terreno aggiunto), quelli alti piani
-    r.slope = rampDir(sx, sy + 1) === 0 && rampDir(sx + 1, sy + 1) === 0 && rampDir(sx, sy) === -1 &&
-              cornerHeights(sx, sy + 1).join() === '3,3,2,2';
-    r.slopeLinks = roadLinked(sx, sy - 1, 2) && roadLinked(sx + 1, sy + 2, 0) && roadLinked(sx, sy + 1, 0);
-    r.sideLinks = roadLinked(sx + 2, sy + 1, 3) && roadLinked(sx + 3, sy + 1, 3) &&
-                  roadLinked(sx - 1, sy + 1, 1) && roadLinked(sx - 2, sy + 1, 1);
-    r.count = game.roundabouts;
-    // demolendo un pezzo la rotonda sparisce
-    demolish(fx, fy);
-    r.removed = !game.map[fy + 1][fx + 1].rb && game.roundabouts === 1;
-    return r;
+    return { none: !game.map[fy][fx].rb && !game.map[fy + 1][fx + 1].rb && game.roundabouts === 0,
+      linked: roadLinked(fx - 1, fy, 1) && roadLinked(fx, fy, 1) && roadLinked(fx, fy, 2) && roadLinked(fx + 1, fy, 2) };
   });
-  check(rb.flat, 'rotonda in piano creata e collegata alla strada che entra');
-  check(rb.slope, 'rotonda sul gradino: i 2 tile bassi inclinati, senza terreno aggiunto');
-  check(rb.slopeLinks, 'rotonda sul gradino collegata sopra, sotto e al suo interno');
-  check(rb.sideLinks, 'rotonda sul gradino collegata anche dai lati della parte inclinata');
-  check(rb.count === 2, `rotonde contate: ${rb.count}`);
-  check(rb.removed, 'demolendo un pezzo, la rotonda torna strada normale');
+  check(rb.none && rb.linked, 'niente rotonde: un 2x2 di strade resta un incrocio collegato');
 
   // 15. binari, strade di terra, campi, fattoria e magazzino
   const more = await page.evaluate(() => {

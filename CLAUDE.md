@@ -98,7 +98,8 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 ## Attenzione (errori già fatti)
 - Mai `open(p, 'w').write(open(p).read()...)` in Python: apre in scrittura prima di leggere e svuota il file. Leggere prima, poi scrivere.
 
-## Rotonde
+## Rotonde (TOLTE)
+- Tolte su richiesta dell'utente: `ROUNDABOUTS = false` in game.js, `updateRoundabouts` azzera `t.rb` e basta (anche nei salvataggi vecchi), un 2x2 di strade resta un incrocio. Il codice qui sotto resta: con `true` tornano.
 - Rotonde circolari (l'utente ha provato quelle quadrate e la piazzola rialzata: non gli piacevano). Un 2x2 di strade asfaltate diventa rotonda (`t.rb = { ax, ay, slope, low }`), in piano o su un gradino di 1 (2 tile sopra, 2 sotto): i tile bassi sono rampe, senza aggiungere terreno.
 - Le strade che entrano di lato nella parte inclinata "si piegano": in `cornerHeights` gli angoli in comune con un tile basso di rotonda prendono la sua altezza (adattatore), così si collegano.
 - `drawRoundabout` disegna isola e corsia per quarti, ritagliati sul rombo del tile (allargato di poco per non lasciare righe).

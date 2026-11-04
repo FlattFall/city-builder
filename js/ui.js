@@ -1,7 +1,7 @@
 // ---------- Interfaccia: barra strumenti, contatori, messaggi ----------
 const TOOL_INFO = {
   hand:      { label: 'Mano', desc: 'Sposta la mappa. Clic su un edificio per aprire il suo pannello (merce, lavoratori, destinazioni).' },
-  road:      { label: 'Strada', cost: PATHS.road.cost, desc: 'Strada a doppio senso. Quattro strade a quadrato diventano una rotonda.' },
+  road:      { label: 'Strada', cost: PATHS.road.cost, desc: 'Strada a doppio senso.' },
   oneway:    { label: 'Senso unico', cost: PATHS.oneway.cost, desc: 'Le auto vanno solo nel verso della freccia: trascina nella direzione di marcia (R per un tile solo). Ripassa al contrario per girarla.' },
   highway:   { label: 'Autostrada', cost: PATHS.highway.cost, desc: 'Le auto vanno più del doppio più veloci. Passaci sopra per trasformare una strada in autostrada.' },
   hwBridge:  { label: 'Ponte autostrada (per tile)', cost: BRIDGE.hwCostPerTile, desc: "Come il ponte, ma sopra c'è un'autostrada: le auto ci vanno veloci come in autostrada. Clicca una sponda e poi l'altra (o trascina)." },

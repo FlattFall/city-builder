@@ -193,11 +193,15 @@ function roundaboutSlope(x, y) {
 // Ricalcola le rotonde (da chiamare quando cambia un percorso).
 // Ogni tile di una rotonda riceve t.rb = { ax, ay, slope, low }: angolo del quadrato,
 // direzione della salita (-1 se in piano) e se è uno dei tile bassi (inclinati).
+// Rotonde tolte (richiesta dell'utente): un 2x2 di strade resta un incrocio normale. Il codice
+// resta: con ROUNDABOUTS = true tornano (anche nei salvataggi, si ricalcolano dalle strade).
+const ROUNDABOUTS = false;
 function updateRoundabouts() {
   const N = game.size;
   const keys = [...game.pathKeys].sort((a, b) => a - b);
   for (const k of keys) game.map[(k / N) | 0][k % N].rb = null;
   let count = 0;
+  if (!ROUNDABOUTS) { game.roundabouts = 0; return; }
   for (const k of keys) {
     const x = k % N, y = (k / N) | 0;
     if (x >= N - 1 || y >= N - 1) continue;

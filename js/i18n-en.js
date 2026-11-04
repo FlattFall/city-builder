@@ -229,7 +229,7 @@ DICT.en = {
     'Every business needs workers who live nearby (within {n} tiles) and a road in front of the entrance. When you place a building you see the entrance: green = there is a road, yellow = it is missing.',
   'Si parte con': 'You start with', "Soldi all'inizio: <b>{m}</b>.": 'Starting money: <b>{m}</b>.',
   'Le auto e i furgoni si muovono solo sulle strade collegate. Trascina con il mouse per costruire. Le strade salgono da sole sulle colline con le rampe (un livello alla volta, in linea retta).': 'Cars and vans only move on connected roads. Drag with the mouse to build. Roads climb hills by themselves with ramps (one level at a time, in a straight line).',
-  'Rotonda: costruisci un quadrato 2x2 di strade asfaltate. Si gira solo in senso antiorario. Per trasformare una strada (es. in autostrada) inizia il trascinamento sopra una strada.': 'Roundabout: build a 2x2 square of paved roads. Traffic goes anticlockwise only. To change a road (e.g. into a highway) start dragging on top of a road.',
+  'Per trasformare una strada (es. in autostrada) inizia il trascinamento sopra una strada.': 'To change a road (e.g. into a highway) start dragging on top of a road.',
   "Gli abitanti arrivano dai bordi della mappa lungo la strada principale. Una casa si riempie solo se è accanto a una strada collegata alla principale. Se demolisci una casa, chi ci abita cerca un'altra casa libera o se ne va dalla mappa.":
     'Residents arrive from the edges of the map along the main road. A house fills up only if it is next to a road connected to the main road. If you demolish a house, the people living there look for another free house or leave the map.',
   'Ogni attività prende i lavoratori dalle case entro <b>{n} tile</b>. Più personale = lavora più in fretta; senza personale si ferma. In alto vedi quanti <b>Disoccupati</b> ci sono: se sono tanti puoi aprire nuove attività.': 'Every business takes its workers from houses within <b>{n} tiles</b>. More staff = faster work; without staff it stops. At the top you can see how many are <b>Unemployed</b>: if there are many you can open new businesses.',
@@ -274,7 +274,7 @@ DICT.en = {
 // Strumenti: etichetta e descrizione (con i numeri del gioco)
 TOOL_TEXT.en = {
   hand: { label: 'Hand', desc: 'Moves the map. Click a building to open its panel (goods, workers, destinations).' },
-  road: { label: 'Road', desc: 'Two-way road. Four roads in a square become a roundabout.' },
+  road: { label: 'Road', desc: 'Two-way road.' },
   oneway: { label: 'One-way', desc: 'Cars only go in the direction of the arrow: drag in the driving direction (R for a single tile). Drag back over it to turn it around.' },
   highway: { label: 'Highway', desc: 'Cars go more than twice as fast. Drag over a road to turn it into a highway.' },
   hwBridge: { label: 'Highway bridge (per tile)', desc: 'Like the bridge, but with a highway on top: cars go as fast as on a highway. Click one bank and then the other (or drag).' },

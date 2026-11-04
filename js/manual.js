@@ -90,7 +90,7 @@ const MANUAL = [
   { id: 'roads', title: 'Strade', icon: 'road', build(b) {
     b.appendChild(mEl('p', null, TR('Le auto e i furgoni si muovono solo sulle strade collegate. Trascina con il mouse per costruire. Le strade salgono da sole sulle colline con le rampe (un livello alla volta, in linea retta).')));
     for (const id of ['road', 'dirt', 'oneway', 'highway', 'bridge', 'hwBridge', 'tunnel', 'rail']) b.appendChild(item(id));
-    b.appendChild(mEl('div', 'man-tip', TR('Rotonda: costruisci un quadrato 2x2 di strade asfaltate. Si gira solo in senso antiorario. Per trasformare una strada (es. in autostrada) inizia il trascinamento sopra una strada.')));
+    b.appendChild(mEl('div', 'man-tip', TR('Per trasformare una strada (es. in autostrada) inizia il trascinamento sopra una strada.')));
   } },
 
   { id: 'homes', title: 'Case, abitanti e lavoro', icon: 'house', build(b) {

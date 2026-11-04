@@ -229,7 +229,7 @@ DICT.es = {
     'Cada negocio necesita trabajadores que vivan cerca (a menos de {n} casillas) y una carretera delante de la entrada. Al colocar un edificio ves la entrada: verde = hay carretera, amarillo = falta.',
   'Si parte con': 'Empiezas con', "Soldi all'inizio: <b>{m}</b>.": 'Dinero inicial: <b>{m}</b>.',
   'Le auto e i furgoni si muovono solo sulle strade collegate. Trascina con il mouse per costruire. Le strade salgono da sole sulle colline con le rampe (un livello alla volta, in linea retta).': 'Los coches y las furgonetas solo circulan por carreteras conectadas. Arrastra con el ratón para construir. Las carreteras suben solas las colinas con rampas (un nivel cada vez, en línea recta).',
-  'Rotonda: costruisci un quadrato 2x2 di strade asfaltate. Si gira solo in senso antiorario. Per trasformare una strada (es. in autostrada) inizia il trascinamento sopra una strada.': 'Rotonda: construye un cuadrado de 2x2 carreteras asfaltadas. Se circula solo en sentido antihorario. Para transformar una carretera (p. ej. en autopista) empieza a arrastrar sobre una carretera.',
+  'Per trasformare una strada (es. in autostrada) inizia il trascinamento sopra una strada.': 'Para transformar una carretera (p. ej. en autopista) empieza a arrastrar encima de una carretera.',
   "Gli abitanti arrivano dai bordi della mappa lungo la strada principale. Una casa si riempie solo se è accanto a una strada collegata alla principale. Se demolisci una casa, chi ci abita cerca un'altra casa libera o se ne va dalla mappa.":
     'Los habitantes llegan desde los bordes del mapa por la carretera principal. Una casa solo se llena si está junto a una carretera conectada a la principal. Si demueles una casa, quien vive en ella busca otra casa libre o se va del mapa.',
   'Ogni attività prende i lavoratori dalle case entro <b>{n} tile</b>. Più personale = lavora più in fretta; senza personale si ferma. In alto vedi quanti <b>Disoccupati</b> ci sono: se sono tanti puoi aprire nuove attività.': 'Cada negocio toma sus trabajadores de las casas a menos de <b>{n} casillas</b>. Más personal = trabaja más rápido; sin personal se para. Arriba ves cuántos <b>Desempleados</b> hay: si son muchos puedes abrir nuevos negocios.',
@@ -273,7 +273,7 @@ DICT.es = {
 
 TOOL_TEXT.es = {
   hand: { label: 'Mano', desc: 'Mueve el mapa. Haz clic en un edificio para abrir su panel (mercancía, trabajadores, destinos).' },
-  road: { label: 'Carretera', desc: 'Carretera de doble sentido. Cuatro carreteras en cuadrado se convierten en una rotonda.' },
+  road: { label: 'Carretera', desc: 'Carretera de doble sentido.' },
   oneway: { label: 'Sentido único', desc: 'Los coches solo van en el sentido de la flecha: arrastra en el sentido de la marcha (R para una sola casilla). Pasa al revés para girarla.' },
   highway: { label: 'Autopista', desc: 'Los coches van más del doble de rápido. Pasa por encima de una carretera para convertirla en autopista.' },
   hwBridge: { label: 'Puente de autopista (por casilla)', desc: 'Como el puente, pero con una autopista encima: los coches van tan rápido como en la autopista. Haz clic en una orilla y luego en la otra (o arrastra).' },
