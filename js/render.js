@@ -33,6 +33,19 @@ function poly(c, pts, color) {
   c.closePath(); c.fill(); c.stroke();
 }
 
+// Livello di dettaglio: falso quando lo zoom è lontano (si disegna più semplice per andare veloci)
+let DETAIL = true;
+let FINE = true;    // dettagli minuti (ciuffi, sassi, alberi elaborati): solo da zoom 2 in su
+
+// linea sottile (mezzo pixel del mondo = 1 pixel dello schermo a zoom normale) con trasparenza
+function aline(c, a, b, color, alpha, w) {
+  const ga = c.globalAlpha;
+  c.globalAlpha = ga * (alpha == null ? 1 : alpha);
+  c.strokeStyle = color; c.lineWidth = w || 0.5;
+  c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke();
+  c.globalAlpha = ga;
+}
+
 function line(c, a, b, color) {
   c.strokeStyle = color; c.lineWidth = 1;
   c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke();
@@ -55,14 +68,82 @@ function surface(x, y) {
   return (u, v) => iso(x, y, u, v, heightIn(h, u, v));
 }
 
+// Alberi: pini e latifoglie (scelti a caso ma sempre uguali per ogni tile), con ombra a terra,
+// luce da sinistra e un po' di variazione di grandezza. Da lontano la versione semplice.
 function drawTree(c, sx, sy, x, y) {
   const ox = Math.round((hash(x, y, 5) - 0.5) * 10);
   const oy = Math.round((hash(x, y, 9) - 0.5) * 4);
   const bx = Math.round(sx) + ox, by = Math.round(sy) + 8 + oy;
-  c.fillStyle = '#5b3a1e'; c.fillRect(bx - 1, by - 3, 2, 4);
-  c.fillStyle = '#1f5a24'; c.fillRect(bx - 4, by - 9, 8, 6);
-  c.fillStyle = '#2f7a30'; c.fillRect(bx - 3, by - 12, 6, 4);
-  c.fillStyle = '#4a9a3c'; c.fillRect(bx - 1, by - 14, 3, 3);
+  if (!FINE) {
+    c.fillStyle = '#5b3a1e'; c.fillRect(bx - 1, by - 3, 2, 4);
+    c.fillStyle = '#1f5a24'; c.fillRect(bx - 4, by - 9, 8, 6);
+    c.fillStyle = '#2f7a30'; c.fillRect(bx - 3, by - 12, 6, 4);
+    c.fillStyle = '#4a9a3c'; c.fillRect(bx - 1, by - 14, 3, 3);
+    return;
+  }
+  const s = 0.85 + hash(x, y, 17) * 0.35;
+  const fillEll = (cx, cy, rx, ry, col) => { c.fillStyle = col; c.beginPath(); c.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); c.fill(); };
+  fillEll(bx + 1.5, by, 5 * s, 2 * s, 'rgba(10,30,10,0.22)');                       // ombra
+  c.fillStyle = '#5b3a1e'; c.fillRect(bx - 1, by - 4 * s, 2, 4 * s);                  // tronco
+  c.fillStyle = '#7a5230'; c.fillRect(bx - 1, by - 4 * s, 0.75, 4 * s);
+  if (hash(x, y, 13) < 0.55) {   // pino: tre piani di rami, metà al sole e metà in ombra
+    for (let i = 0; i < 3; i++) {
+      const w = (6 - i * 1.5) * s, yb = by - (3 + i * 3.6) * s, yt = yb - 6 * s;
+      poly(c, [[bx - w, yb], [bx, yt], [bx, yb + 1]], ['#2f7a35', '#3a8a3e', '#4a9a48'][i]);
+      poly(c, [[bx, yt], [bx + w, yb], [bx, yb + 1]], ['#1f5a28', '#256a2e', '#2f7a35'][i]);
+    }
+    aline(c, [bx - 0.5, by - 15 * s], [bx - 2.5, by - 11 * s], '#7ac06a', 0.6);
+  } else {       // latifoglia: chioma tonda a palle, luce in alto a sinistra
+    const cy = by - 9 * s;
+    fillEll(bx + 0.5, cy + 1, 5.5 * s, 4.8 * s, '#2a6a2c');
+    fillEll(bx - 1.5 * s, cy - 1.5 * s, 3.6 * s, 3.2 * s, '#3f8a3a');
+    fillEll(bx + 2 * s, cy - 2 * s, 3 * s, 2.8 * s, '#367d34');
+    fillEll(bx - 2 * s, cy - 2.8 * s, 1.6 * s, 1.3 * s, '#5aa84a');
+    if (hash(x, y, 19) > 0.7) for (const [fx, fy] of [[-2, 0], [2, -1], [0, -3]])   // frutti o fiori
+      { c.fillStyle = hash(x, y, 23) > 0.5 ? '#e84a4a' : '#f2e66a'; c.fillRect(bx + fx * s, cy + fy * s, 0.8, 0.8); }
+  }
+}
+
+// Piccoli dettagli sul terreno (solo da vicino): ciuffi d'erba e fiori, increspature della sabbia,
+// crepe e sassi sulla roccia, brillii sulla neve, onde sull'acqua
+function terrainDetail(c, x, y, t, P, col) {
+  const H = k => hash(x, y, k);
+  const dot = (u, v, color, w, h) => { const p = P(u, v); c.fillStyle = color; c.fillRect(p[0], p[1], w || 0.5, h || 0.5); };
+  if (t.type === T.GRASS || t.type === T.FOREST) {
+    for (let i = 0; i < 4; i++) {
+      const u = 0.1 + H(20 + i) * 0.8, v = 0.1 + H(40 + i) * 0.8, p = P(u, v);
+      c.fillStyle = i % 2 ? shadeC(col[0], 0.18) : col[1];
+      c.fillRect(p[0], p[1] - 1, 0.5, 1); c.fillRect(p[0] + 0.5, p[1] - 0.5, 0.5, 0.5);
+    }
+    if (H(61) > 0.78) dot(0.2 + H(62) * 0.6, 0.2 + H(63) * 0.6, ['#ffffff', '#f2e66a', '#e87aa8', '#a98ae8'][Math.floor(H(64) * 4)], 1, 1);
+  } else if (t.type === T.SAND) {
+    for (let i = 0; i < 2; i++) {
+      const u = 0.15 + H(30 + i) * 0.6, v = 0.2 + H(50 + i) * 0.6;
+      aline(c, P(u, v), P(u + 0.22, v), shadeC(col[0], 0.15), 0.8);
+    }
+    if (H(66) > 0.7) dot(0.3 + H(67) * 0.4, 0.3 + H(68) * 0.4, '#f6f1e0', 1, 0.5);   // conchiglia
+  } else if (t.type === T.ROCK) {
+    const u = 0.2 + H(31) * 0.5, v = 0.2 + H(32) * 0.5;
+    aline(c, P(u, v), P(u + 0.15, v + 0.1), col[2], 0.7); aline(c, P(u + 0.15, v + 0.1), P(u + 0.2, v + 0.25), col[2], 0.7);
+    for (let i = 0; i < 3; i++) dot(0.1 + H(70 + i) * 0.8, 0.1 + H(75 + i) * 0.8, i ? shadeC(col[0], 0.2) : col[1], 1, 0.5);
+  } else if (t.type === T.SNOW) {
+    for (let i = 0; i < 3; i++) dot(0.1 + H(80 + i) * 0.8, 0.1 + H(85 + i) * 0.8, i ? '#ffffff' : '#c8d8ea');
+  } else if (t.type === T.WATER) {
+    for (let i = 0; i < 2; i++) {
+      const u = 0.1 + H(90 + i) * 0.6, v = 0.15 + H(95 + i) * 0.7;
+      aline(c, P(u, v), P(u + 0.18, v - 0.04), '#5f9bd6', 0.8);
+    }
+  }
+}
+
+// Colore della parete di terra sotto un tile (le scarpate d'erba mostrano la terra sotto)
+const WALL_COLORS = {
+  [T.GRASS]: ['#8a6a44', '#6f5536'], [T.FOREST]: ['#7d6040', '#654c32'],
+};
+function wallColor(t, side, col) {
+  const w = WALL_COLORS[t.type];
+  if (!w) return col[side];
+  return shadeC(w[side - 1], Math.max(-0.3, Math.min(0.2, (t.elev - 3) * 0.04)));
 }
 
 // ---------- Percorsi ----------
@@ -123,7 +204,7 @@ function armLine(c, P, d, s0, s1, o, color) {
 
 // Strada asfaltata
 function drawRoad(c, P, links, x, y, detail) {
-  if (detail) asphaltGrain(c, P, x || 0, y || 0, '#6c6c76', '#4e4e57');
+  if (detail) asphaltGrain(c, P, x || 0, y || 0, '#666670', '#54545d');
   sidewalks(c, P, links, detail);
   const n = links.filter(Boolean).length;
   if (!detail) { if (n <= 2) for (let d = 0; d < 4; d++) if (links[d]) line(c, P(0.5, 0.5), P(...MID_UV[d]), LANE_COLOR); return; }
@@ -136,15 +217,11 @@ function drawRoad(c, P, links, x, y, detail) {
     const at = (s, o) => P(0.5 + dx * s - dy * o, 0.5 + dy * s + dx * o);
     line(c, at(0.36, 0.02), at(0.36, 0.33), '#e8e8e8');
   }
-  if (detail && n <= 2 && hash(x || 0, y || 0, 91) > 0.82) {      // tombino
-    const u = 0.3 + hash(x, y, 92) * 0.4, v = 0.3 + hash(x, y, 93) * 0.4;
-    poly(c, [P(u - 0.05, v), P(u, v - 0.05), P(u + 0.05, v), P(u, v + 0.05)], '#3e3e46');
-  }
 }
 
 // Strada a senso unico: come la strada, con le frecce bianche nella direzione di marcia
 function drawOneway(c, P, links, dir, x, y, detail) {
-  if (detail) asphaltGrain(c, P, x || 0, y || 0, '#6c6c76', '#4e4e57');
+  if (detail) asphaltGrain(c, P, x || 0, y || 0, '#666670', '#54545d');
   sidewalks(c, P, links, detail);
   const { dx, dy } = DIRS[dir ?? 1];
   const at = (s, o) => P(0.5 + dx * s - dy * o, 0.5 + dy * s + dx * o);   // s lungo la freccia, o di lato
@@ -218,8 +295,18 @@ function drawRail(c, P, links) {
     if (dx) rect(Math.min(0.5, 0.5 + dx * 0.5), 0.5 - w, Math.max(0.5, 0.5 + dx * 0.5), 0.5 + w, BALLAST);
     else rect(0.5 - w, Math.min(0.5, 0.5 + dy * 0.5), 0.5 + w, Math.max(0.5, 0.5 + dy * 0.5), BALLAST);
   }
-  for (const d of arms) for (const s of [0.08, 0.25, 0.42]) line(c, at(d, s, -0.24), at(d, s, 0.24), SLEEPER);
-  for (const d of arms) for (const o of [-0.12, 0.12]) line(c, at(d, 0, o), at(d, 0.5, o), STEEL);
+  if (DETAIL) for (let i = 0; i < 10; i++) {                                     // ghiaia della massicciata
+    const p = P(0.22 + ((i * 37) % 10) / 18, 0.22 + ((i * 53) % 10) / 18);
+    c.fillStyle = i % 2 ? '#a59a8a' : '#6f6658'; c.fillRect(p[0], p[1], 0.5, 0.5);
+  }
+  for (const d of arms) for (const s of [0.08, 0.25, 0.42]) {
+    line(c, at(d, s, -0.24), at(d, s, 0.24), SLEEPER);
+    if (DETAIL) aline(c, at(d, s - 0.02, -0.24), at(d, s - 0.02, 0.24), '#8a6440', 0.8);   // luce sulle traversine
+  }
+  for (const d of arms) for (const o of [-0.12, 0.12]) {
+    line(c, at(d, 0, o), at(d, 0.5, o), STEEL);
+    if (DETAIL) aline(c, at(d, 0, o + 0.03), at(d, 0.5, o + 0.03), '#6b7178', 0.8);          // ombra della rotaia
+  }
 }
 
 // Campo coltivabile: terra arata con file di piante. crop = coltura della fattoria (null se il
@@ -344,12 +431,30 @@ function drawHouse(c, sx, sy, variant, rot) {
 }
 
 // Parallelepipedo da (u0, v0) a (u1, v1) rispetto all'angolo (ax, ay), alla quota base, alto hp pixel
+// Con il dettaglio: righe leggere sui muri (mattoni / doghe), spigolo davanti illuminato,
+// ombra alla base e contorno scuro come nella pixel art.
 function box(c, ax, ay, base, u0, v0, u1, v1, hp, col) {
   const top = base + hp / STEP;
   const P = (u, v, h) => iso(ax, ay, u, v, h);
   poly(c, [P(u0, v1, base), P(u1, v1, base), P(u1, v1, top), P(u0, v1, top)], col.l); // lato sinistro
   poly(c, [P(u1, v1, base), P(u1, v0, base), P(u1, v0, top), P(u1, v1, top)], col.r); // lato destro
+  if (DETAIL && hp >= 7 && !col.plain) {
+    for (let z = 3; z < hp - 1.5; z += 3) {
+      const h = base + z / STEP;
+      aline(c, P(u0, v1, h), P(u1, v1, h), '#000000', 0.09);
+      aline(c, P(u1, v1, h), P(u1, v0, h), '#000000', 0.09);
+    }
+  }
   if (col.t) poly(c, [P(u0, v0, top), P(u1, v0, top), P(u1, v1, top), P(u0, v1, top)], col.t);   // sopra
+  if (DETAIL) {
+    aline(c, P(u1, v1, base), P(u1, v1, top), '#ffffff', 0.35);                     // spigolo davanti
+    if (col.t) { aline(c, P(u0, v1, top), P(u1, v1, top), '#ffffff', 0.3); aline(c, P(u1, v1, top), P(u1, v0, top), '#ffffff', 0.2); }
+    aline(c, P(u0, v1, base), P(u1, v1, base), '#000000', 0.45);                    // base
+    aline(c, P(u1, v1, base), P(u1, v0, base), '#000000', 0.45);
+    aline(c, P(u0, v1, base), P(u0, v1, top), '#000000', 0.4);                      // contorno
+    aline(c, P(u1, v0, base), P(u1, v0, top), '#000000', 0.4);
+    if (col.t) { aline(c, P(u0, v1, top), P(u0, v0, top), '#000000', 0.3); aline(c, P(u0, v0, top), P(u1, v0, top), '#000000', 0.3); }
+  }
   return top;
 }
 
@@ -362,12 +467,21 @@ function gableRoof(c, ax, ay, top, u0, v0, u1, v1, rh, col, alongV) {
     poly(c, [P(u0, v0, top), P(u1, v0, top), P(u1, vm, ridge), P(u0, vm, ridge)], col.back);
     poly(c, [P(u1, v1, top), P(u1, v0, top), P(u1, vm, ridge)], col.gable);
     poly(c, [P(u0, v1, top), P(u1, v1, top), P(u1, vm, ridge), P(u0, vm, ridge)], col.roof);
+    if (DETAIL) roofLines(c, P(u0, v1, top), P(u1, v1, top), P(u0, vm, ridge), P(u1, vm, ridge));
   } else { // colmo lungo v (edificio ruotato)
     const um = (u0 + u1) / 2;
     poly(c, [P(u0, v0, top), P(u0, v1, top), P(um, v1, ridge), P(um, v0, ridge)], col.back);
     poly(c, [P(u0, v1, top), P(u1, v1, top), P(um, v1, ridge)], col.gableL || col.gable);
     poly(c, [P(u1, v0, top), P(u1, v1, top), P(um, v1, ridge), P(um, v0, ridge)], col.roof);
+    if (DETAIL) roofLines(c, P(u1, v0, top), P(u1, v1, top), P(um, v0, ridge), P(um, v1, ridge));
   }
+}
+// file di tegole parallele alla gronda (a-b), colmo (c1-c2) chiaro, gronda scura
+function roofLines(c, a, b, c1, c2) {
+  const lerp = (p, q, f) => [p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f];
+  for (const f of [0.22, 0.44, 0.66, 0.88]) aline(c, lerp(a, c1, f), lerp(b, c2, f), '#000000', 0.16);
+  aline(c, c1, c2, '#ffffff', 0.4);
+  aline(c, a, b, '#000000', 0.45);
 }
 
 // ---------- Edifici grandi ruotabili ----------
@@ -383,7 +497,9 @@ function rotBox(bx, r) {
 // quadrilatero piano sul terreno (vialetti)
 function groundRect(c, ax, ay, base, bx, r, color) {
   const [u0, v0, u1, v1] = rotBox(bx, r);
-  poly(c, [iso(ax, ay, u0, v0, base), iso(ax, ay, u1, v0, base), iso(ax, ay, u1, v1, base), iso(ax, ay, u0, v1, base)], color);
+  const q = [iso(ax, ay, u0, v0, base), iso(ax, ay, u1, v0, base), iso(ax, ay, u1, v1, base), iso(ax, ay, u0, v1, base)];
+  poly(c, q, color);
+  if (DETAIL) for (let k = 0; k < 4; k++) aline(c, q[k], q[(k + 1) % 4], '#000000', 0.18);
 }
 // porta/insegna su una faccia (+v o +u) della parte; si vede solo se dopo la rotazione guarda verso di noi
 function drawDoor(c, ax, ay, base, r, bx, d) {
@@ -396,6 +512,15 @@ function drawDoor(c, ax, ay, base, r, bx, d) {
   const q = [iso(ax, ay, A[0], A[1], z0), iso(ax, ay, B[0], B[1], z0), iso(ax, ay, B[0], B[1], z1), iso(ax, ay, A[0], A[1], z1)];
   poly(c, q, d.color);
   if (d.cross) { line(c, q[0], q[2], '#f2f5f8'); line(c, q[1], q[3], '#f2f5f8'); }
+  if (!DETAIL) return;
+  const lerp = (p, r2, f) => [p[0] + (r2[0] - p[0]) * f, p[1] + (r2[1] - p[1]) * f];
+  if (d.color === '#9fd3e8') {                       // vetrate: divisori, riflesso in alto
+    const n = Math.max(1, Math.round(Math.hypot(q[1][0] - q[0][0], q[1][1] - q[0][1]) / 5));
+    for (let k = 1; k < n; k++) aline(c, lerp(q[0], q[1], k / n), lerp(q[3], q[2], k / n), '#e8f4fa', 0.8);
+    aline(c, lerp(q[3], q[0], 0.25), lerp(q[2], q[1], 0.25), '#ffffff', 0.55);
+  }
+  aline(c, q[0], q[1], '#000000', 0.35); aline(c, q[1], q[2], '#000000', 0.35);
+  aline(c, q[2], q[3], '#000000', 0.35); aline(c, q[3], q[0], '#000000', 0.35);
 }
 function drawParts(c, ax, ay, base, r, parts) {
   const items = parts.map(p => { const b = rotBox(p.box, r); return { p, b, depth: b[2] + b[3] }; })
@@ -797,19 +922,50 @@ function drawBakery(c, x, y, base, r) {
 // ---------- Tile ----------
 // Parete sul lato davanti verso la direzione d (1 = destra/SE, 2 = sinistra/SW):
 // va dal bordo del tile fino al bordo del vicino (o al suolo fuori mappa)
-function drawWall(c, x, y, h, d, color) {
+// lip = colore del bordo in cima (l'erba che sporge sopra la terra); con il dettaglio si vedono gli strati
+function drawWall(c, x, y, h, d, color, lip) {
   const [ka, kb] = d === 1 ? [1, 2] : [3, 2];
   const na = neighborCornerHeight(x, y, d, ka), nb = neighborCornerHeight(x, y, d, kb);
   const ba = Math.min(h[ka], na), bb = Math.min(h[kb], nb);
   if (h[ka] <= ba && h[kb] <= bb) return;
   const [ua, va] = CORNERS[ka], [ub, vb] = CORNERS[kb];
   poly(c, [iso(x, y, ua, va, h[ka]), iso(x, y, ub, vb, h[kb]), iso(x, y, ub, vb, bb), iso(x, y, ua, va, ba)], color);
+  if (!DETAIL) return;
+  if (FINE) for (let k = 1; h[ka] - k > ba + 0.1 && h[kb] - k > bb + 0.1; k++)               // strati
+    aline(c, iso(x, y, ua, va, h[ka] - k), iso(x, y, ub, vb, h[kb] - k), '#000000', 0.16);
+  if (FINE) for (let k = 0; k < 3; k++) {                                          // sassi nella parete
+    const f = hash(x * 7 + d, y, 110 + k), z = hash(x, y * 3 + d, 120 + k);
+    const za = ba + (h[ka] - ba) * z, zb = bb + (h[kb] - bb) * z;
+    if (h[ka] - ba < 0.6) break;
+    const p = iso(x, y, ua + (ub - ua) * f, va + (vb - va) * f, za + (zb - za) * f);
+    c.fillStyle = shadeC(color, k % 2 ? 0.2 : -0.25); c.fillRect(p[0], p[1], 1, 0.5);
+  }
+  if (lip) { aline(c, iso(x, y, ua, va, h[ka]), iso(x, y, ub, vb, h[kb]), lip, 1, 1.4); }   // bordo d'erba
+  aline(c, iso(x, y, ua, va, ba), iso(x, y, ub, vb, bb), '#000000', 0.3);         // ombra alla base
 }
 
 // Colore della superficie di un percorso: più chiaro/scuro se è una rampa
 function slopeShade(x, y, colors) {
   const r = rampDir(x, y);
   return r < 0 ? colors[0] : (r === 0 || r === 3 ? colors[1] : colors[2]);
+}
+
+// shade() con la memoria: nei disegni ripetuti (erba, sassi, pareti) non si ricalcola il colore
+const shadeMem = new Map();
+function shadeC(hex, f) {
+  const k = hex + f;
+  let v = shadeMem.get(k);
+  if (!v) { v = shade(hex, f); shadeMem.set(k, v); }
+  return v;
+}
+
+// Tono leggermente diverso per ogni tile (5 gradini, in memoria)
+const varyCache = new Map();
+function varyTone(color, r) {
+  const k = color + ((r * 5) | 0);
+  let v = varyCache.get(k);
+  if (!v) { v = shade(color, (((r * 5) | 0) - 2) * 0.005); varyCache.set(k, v); }
+  return v;
 }
 
 // Colori del terreno un po' più chiari in alto e più scuri in basso: così si capisce la quota
@@ -832,8 +988,9 @@ function drawTile(c, x, y, detail, onlyTop) {
   const P = (u, v) => iso(x, y, u, v, heightIn(h, u, v));
 
   if (!onlyTop) {
-    drawWall(c, x, y, h, 2, col[1]); // sinistra, verso (x, y+1)
-    drawWall(c, x, y, h, 1, col[2]); // destra, verso (x+1, y)
+    const lip = (t.type === T.GRASS || t.type === T.FOREST || t.type === T.SNOW) && !t.path ? col[0] : null;
+    drawWall(c, x, y, h, 2, wallColor(t, 1, col), lip); // sinistra, verso (x, y+1)
+    drawWall(c, x, y, h, 1, wallColor(t, 2, col), lip); // destra, verso (x+1, y)
   }
 
   let top = col[0];
@@ -842,7 +999,16 @@ function drawTile(c, x, y, detail, onlyTop) {
   else if (t.path === 'dirt') top = slopeShade(x, y, DIRT_COLORS);
   else if (t.field) top = SOIL;
   else if (t.building && GROUND[t.building.kind === 'livestock' ? t.building.animal : t.building.kind]) top = GROUND[t.building.kind === 'livestock' ? t.building.animal : t.building.kind];
+  else if (detail && t.type !== T.WATER) top = varyTone(top, hash(x, y, 7));   // un po' di variazione: il prato non sembra una scacchiera
   poly(c, [P(0, 0), P(1, 0), P(1, 1), P(0, 1)], top);
+  if (detail && t.type === T.WATER) {                    // schiuma lungo la riva
+    for (let d = 0; d < 4; d++) {
+      const nx = x + DIRS[d].dx, ny = y + DIRS[d].dy;
+      if (!inMap(nx, ny) || game.map[ny][nx].type === T.WATER) continue;
+      const [A, B] = EDGE_UV[d], inw = [-DIRS[d].dx * 0.08, -DIRS[d].dy * 0.08];
+      aline(c, P(A[0] + inw[0], A[1] + inw[1]), P(B[0] + inw[0], B[1] + inw[1]), '#d8eef8', 0.7, 0.8);
+    }
+  }
 
   // bordo scuro sui lati dietro dove il terreno scende: si vede subito che dietro c'è un salto
   if (!onlyTop && t.type !== T.WATER) {
@@ -870,14 +1036,7 @@ function drawTile(c, x, y, detail, onlyTop) {
 
   const sx = (x - y) * TW / 2;
   const sy = (x + y) * TH / 2 - t.elev * STEP;
-  if (detail && !onlyTop && !t.building) {
-    c.fillStyle = col[1];
-    for (let i = 0; i < 3; i++) {
-      const px = Math.round(sx + (hash(x, y, 20 + i) - 0.5) * 16);
-      const py = Math.round(sy + 5 + (hash(x, y, 40 + i) - 0.5) * 6);
-      c.fillRect(px, py, 1, 1);
-    }
-  }
+  if (detail && FINE && !onlyTop && !t.building) terrainDetail(c, x, y, t, P, col);
 
   if (t.building) { drawBuildingOn(c, x, y, t.building); return; }
   if (t.type === T.FOREST && !onlyTop) drawTree(c, sx, sy, x, y);
@@ -1083,6 +1242,7 @@ function drawFrame() {
   const z = zoomLevel();
   ctx.setTransform(z, 0, 0, z, Math.round(cam.x), Math.round(cam.y));
   ctx.imageSmoothingEnabled = false;
+  DETAIL = z >= 1; FINE = z >= 2;
 
   const r = visibleRange();
   const detail = z >= 1;
@@ -1135,6 +1295,7 @@ function drawFrame() {
   }
   if (game.fieldMode) drawFieldArea(ctx);
   drawWorkerIcons(ctx);
+  DETAIL = true; FINE = true;   // icone e altri disegni fuori dal fotogramma: sempre dettagliati
 }
 
 // Contorno giallo dell'edificio selezionato (pannello aperto)
