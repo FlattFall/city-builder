@@ -35,6 +35,8 @@ function poly(c, pts, color) {
 
 // Livello di dettaglio: falso quando lo zoom è lontano (si disegna più semplice per andare veloci)
 let DETAIL = true;
+let animT = 0;      // tempo (secondi) per le animazioni (acqua)
+let waterSeen = false;   // nell'ultimo fotogramma si vedeva acqua (allora si anima)
 let FINE = true;    // dettagli minuti (ciuffi, sassi, alberi elaborati): solo da zoom 2 in su
 
 // linea sottile (mezzo pixel del mondo = 1 pixel dello schermo a zoom normale) con trasparenza
@@ -128,11 +130,19 @@ function terrainDetail(c, x, y, t, P, col) {
     for (let i = 0; i < 3; i++) dot(0.1 + H(70 + i) * 0.8, 0.1 + H(75 + i) * 0.8, i ? shadeC(col[0], 0.2) : col[1], 1, 0.5);
   } else if (t.type === T.SNOW) {
     for (let i = 0; i < 3; i++) dot(0.1 + H(80 + i) * 0.8, 0.1 + H(85 + i) * 0.8, i ? '#ffffff' : '#c8d8ea');
-  } else if (t.type === T.WATER) {
-    for (let i = 0; i < 2; i++) {
-      const u = 0.1 + H(90 + i) * 0.6, v = 0.15 + H(95 + i) * 0.7;
-      aline(c, P(u, v), P(u + 0.18, v - 0.04), '#5f9bd6', 0.8);
-    }
+  }
+}
+
+// Acqua animata: le increspature scorrono piano e brillano a turno, la schiuma sulle rive pulsa
+function waterDetail(c, x, y, P) {
+  const H = k => hash(x, y, k);
+  for (let i = 0; i < 3; i++) {
+    const ph = animT * 0.9 + H(100 + i) * 6.28;
+    const a = 0.35 + 0.45 * Math.max(0, Math.sin(ph));                 // brilla e si spegne
+    if (a < 0.4) continue;
+    const drift = ((animT * 0.06 + H(90 + i)) % 1) * 0.6;              // scivola lungo il tile
+    const u = 0.1 + drift, v = 0.15 + H(95 + i) * 0.7;
+    aline(c, P(u, v), P(u + 0.16, v - 0.04), i ? '#7fb6e6' : '#cfe6f8', a, 0.8);
   }
 }
 
@@ -522,9 +532,31 @@ function drawDoor(c, ax, ay, base, r, bx, d) {
   aline(c, q[0], q[1], '#000000', 0.35); aline(c, q[1], q[2], '#000000', 0.35);
   aline(c, q[2], q[3], '#000000', 0.35); aline(c, q[3], q[0], '#000000', 0.35);
 }
+// Ordine dei pezzi (dal più lontano al più vicino): A va prima di B se gli sta tutto dietro,
+// cioè dalla parte delle u o delle v più piccole. Prima si usava solo la somma dell'angolo più
+// lontano e una cassa davanti a un capannone poteva finire disegnata prima (e coperta).
+// Pezzi che si sovrappongono a terra (camini e insegne dentro un edificio) restano nell'ordine
+// di prima: il più piccolo prima, così l'edificio copre la parte bassa e sporge solo la cima.
+function partBefore(A, B) {
+  const a = A.b, b = B.b, e = 1e-6;
+  const aBehind = a[2] <= b[0] + e || a[3] <= b[1] + e;
+  const bBehind = b[2] <= a[0] + e || b[3] <= a[1] + e;
+  if (aBehind && !bBehind) return true;
+  if (bBehind && !aBehind) return false;
+  if (aBehind && bBehind) return A.i < B.i;       // non si coprono sullo schermo: ordine qualsiasi
+  return A.depth < B.depth || (A.depth === B.depth && A.i < B.i);
+}
+function sortParts(items) {
+  const left = items.slice(), out = [];
+  while (left.length) {
+    let k = left.findIndex(a => !left.some(b => b !== a && partBefore(b, a)));
+    if (k < 0) k = 0;                              // (non dovrebbe succedere) si va avanti comunque
+    out.push(left.splice(k, 1)[0]);
+  }
+  return out;
+}
 function drawParts(c, ax, ay, base, r, parts) {
-  const items = parts.map(p => { const b = rotBox(p.box, r); return { p, b, depth: b[2] + b[3] }; })
-    .sort((a, b) => a.depth - b.depth);
+  const items = sortParts(parts.map((p, i) => { const b = rotBox(p.box, r); return { p, b, i, depth: b[2] + b[3] }; }));
   for (const { p, b } of items) {
     const top = box(c, ax, ay, base, b[0], b[1], b[2], b[3], p.h, p.col);
     if (p.roof) gableRoof(c, ax, ay, top, b[0] - 0.04, b[1] - 0.04, b[2] + 0.04, b[3] + 0.04, p.roof.rh,
@@ -616,8 +648,11 @@ function drawSawmill(c, ax, ay, base, r) {
     { box: [0.7, 0.15, 1.88, 1.25], h: 17, col: { l: '#c9a46a', r: '#a8854f', t: '#8a96a2' },
       roof: { rh: 6, back: '#6f7a86', roof: '#8a96a2', gable: '#a8854f' },
       doors: [{ face: '+v', a: 0.85, b: 1.45, z1: 12, color: '#3a2a1a' }, { face: '+u', a: 0.4, b: 0.9, z0: 9, z1: 13, color: '#9fd3e8' }],
-      after(b, top) {   // lama della sega che spunta dal portone
-        const [sx, sy] = P((b[0] + b[2]) / 2, b[3], base + 6 / STEP);
+      after(b, top) {   // lama della sega nel portone (lato +v senza rotazione): solo se quel lato si vede
+        const n = rotVec(0, 1, r);
+        if (!((n[0] === 0 && n[1] === 1) || (n[0] === 1 && n[1] === 0))) return;
+        const [du, dv] = rotUV(1.15, 1.25, r);
+        const [sx, sy] = P(du, dv, base + 6 / STEP);
         c.fillStyle = '#d5dade'; c.beginPath(); c.arc(sx, sy, 3.5, 0, Math.PI * 2); c.fill();
         c.fillStyle = '#8a8f96'; c.beginPath(); c.arc(sx, sy, 1.2, 0, Math.PI * 2); c.fill();
       } },
@@ -1000,13 +1035,24 @@ function drawTile(c, x, y, detail, onlyTop) {
   else if (t.field) top = SOIL;
   else if (t.building && GROUND[t.building.kind === 'livestock' ? t.building.animal : t.building.kind]) top = GROUND[t.building.kind === 'livestock' ? t.building.animal : t.building.kind];
   else if (detail && t.type !== T.WATER) top = varyTone(top, hash(x, y, 7));   // un po' di variazione: il prato non sembra una scacchiera
+  else if (t.type === T.WATER && detail) {              // l'acqua cambia tono piano piano, a onde
+    waterSeen = true;
+    const w = Math.sin(animT * 0.8 + x * 0.55 + y * 0.85) + Math.sin(animT * 0.5 - x * 0.3 + y * 0.2) * 0.5;
+    top = shadeC(top, Math.round(w * 2) * 0.012);
+  }
   poly(c, [P(0, 0), P(1, 0), P(1, 1), P(0, 1)], top);
-  if (detail && t.type === T.WATER) {                    // schiuma lungo la riva
+  if (detail && t.type === T.WATER) {
+    waterDetail(c, x, y, P);
+    const foam = 0.45 + 0.35 * Math.sin(animT * 1.6 + (x + y) * 0.7);   // schiuma lungo la riva
     for (let d = 0; d < 4; d++) {
       const nx = x + DIRS[d].dx, ny = y + DIRS[d].dy;
       if (!inMap(nx, ny) || game.map[ny][nx].type === T.WATER) continue;
       const [A, B] = EDGE_UV[d], inw = [-DIRS[d].dx * 0.08, -DIRS[d].dy * 0.08];
-      aline(c, P(A[0] + inw[0], A[1] + inw[1]), P(B[0] + inw[0], B[1] + inw[1]), '#d8eef8', 0.7, 0.8);
+      aline(c, P(A[0] + inw[0], A[1] + inw[1]), P(B[0] + inw[0], B[1] + inw[1]), '#e4f3fb', foam, 0.8);
+      const k2 = 0.16 + 0.04 * Math.sin(animT * 1.6 + (x + y) * 0.7 + 1.5);
+      const in2 = [-DIRS[d].dx * k2, -DIRS[d].dy * k2];
+      aline(c, P(A[0] + in2[0] + 0.2 * (B[0] - A[0]), A[1] + in2[1] + 0.2 * (B[1] - A[1])),
+        P(A[0] + in2[0] + 0.8 * (B[0] - A[0]), A[1] + in2[1] + 0.8 * (B[1] - A[1])), '#bfe0f4', foam * 0.6, 0.6);
     }
   }
 
@@ -1243,6 +1289,7 @@ function drawFrame() {
   ctx.setTransform(z, 0, 0, z, Math.round(cam.x), Math.round(cam.y));
   ctx.imageSmoothingEnabled = false;
   DETAIL = z >= 1; FINE = z >= 2;
+  animT = performance.now() / 1000; waterSeen = false;
 
   const r = visibleRange();
   const detail = z >= 1;
