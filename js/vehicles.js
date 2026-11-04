@@ -334,7 +334,7 @@ function removeVehiclesFor(id, b) {
     else if (v.kind === 'van' && v.to === id) {
       const home = game.buildings.get(v.from), g = v.good, q = v.load, fid = v.from;
       if (home && redirectVehicle(v, accessTiles(home))) {
-        home.status = 'Destinazione demolita: il furgone torna indietro';
+        home.status = TR('Destinazione demolita: il furgone torna indietro');
         Object.assign(v, { to: null, arrive() { const f = game.buildings.get(fid); if (f) { addTo(f.store, g, q); vanHome(f); f.status = ''; } },
           cancel() { const f = game.buildings.get(fid); if (f) { addTo(f.store, g, q); vanHome(f); } } });
       } else if (redirectVehicle(v, entryTiles(), true)) Object.assign(v, { to: null, from: null, arrive() {}, cancel() {} });
@@ -510,13 +510,13 @@ function platformTiles(b) { return footprint(b.kind, b.ax, b.ay).map(p => [p.x, 
 function sendByShip(from, to, g, q) {
   const goals = to.kind === 'port' ? dockTiles(to) : [];
   const route = goals.length && waterRoute(platformTiles(from), goals);
-  if (!route) { from.status = 'Nessuna via d\'acqua verso ' + buildingLabel(to); from.retry = 3; return false; }
+  if (!route) { from.status = TR("Nessuna via d'acqua verso {b}", { b: buildingLabel(to) }); from.retry = 3; return false; }
   q = Math.min(from.store[g] || 0, SHIP_CAPACITY, Math.max(0, roomFor(to, g)));   // la nave porta più di un furgone
   if (q <= 0) return false;
   addTo(from.store, g, -q);
   to.expect = to.expect || {};
   addTo(to.expect, g, q);
-  from.status = 'Nave in viaggio verso ' + buildingLabel(to);
+  from.status = TR('Nave in viaggio verso {b}', { b: buildingLabel(to) });
   const fid = from.id, tid = to.id;
   vanOut(from);
   const back = path => spawnVehicle({ kind: 'ship', from: fid, load: 0, tiles: path, pts: shipPoints(path), speed: SHIP_SPEED,
@@ -527,7 +527,7 @@ function sendByShip(from, to, g, q) {
       const t = game.buildings.get(tid), f = game.buildings.get(fid);
       if (t) { addTo(t.expect, g, -q); receive(t, g, Math.min(q, Math.max(0, freeFor(t, g)))); }
       if (!f) return;
-      f.status = 'Nave di ritorno';
+      f.status = TR('Nave di ritorno');
       back(route.slice().reverse());
     },
     cancel() {

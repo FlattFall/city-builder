@@ -10,38 +10,32 @@
 <canvas id="c"></canvas>
 
 <div id="topbar">
-  <span>Fondi: <b id="money">-</b></span>
-  <span>Abitanti: <b id="population">0</b></span>
-  <span>Disoccupati: <b id="unemployed">0</b></span>
-  <span>Case: <b id="houses">0</b></span>
-  <span>Industrie: <b id="industries">0</b></span>
+  <span><span data-i18n>Fondi:</span> <b id="money">-</b></span>
+  <span><span data-i18n>Abitanti:</span> <b id="population">0</b></span>
+  <span><span data-i18n>Disoccupati:</span> <b id="unemployed">0</b></span>
+  <span><span data-i18n>Case:</span> <b id="houses">0</b></span>
+  <span><span data-i18n>Industrie:</span> <b id="industries">0</b></span>
   <span class="top-btns">
-    <button id="manual-btn">Manuale (M)</button>
-    <button id="progress-btn">Progressi (P)</button>
-    <button id="menu-btn">Menu (Esc)</button>
+    <button id="manual-btn" data-i18n>Manuale (M)</button>
+    <button id="progress-btn" data-i18n>Progressi (P)</button>
+    <button id="menu-btn" data-i18n>Menu (Esc)</button>
   </span>
 </div>
 
 <div id="submenu" hidden></div>
 <div id="panel" hidden></div>
-<div id="fieldbar" hidden><span id="fieldbar-text"></span> <button id="fieldbar-done">Fatto</button></div>
+<div id="fieldbar" hidden><span id="fieldbar-text"></span> <button id="fieldbar-done" data-i18n>Fatto</button></div>
 <div id="toolname"></div>
-<button id="rotate-btn" hidden>↻ Ruota (R)</button>
+<button id="rotate-btn" hidden data-i18n>↻ Ruota (R)</button>
 <div id="toolbar"></div>
 <div id="toast"></div>
 
-<div id="help">
-  Sinistro: usa lo strumento<br>
-  Mano: trascina la mappa, clic su edificio = info<br>
-  Destro/centrale + trascina: muovi | Rotella: zoom<br>
-  WASD/frecce: muovi | 1-8: strumenti | R: ruota<br>
-  M: manuale | P: progressi | Esc: menu
-</div>
+<div id="help" data-i18n-html>Sinistro: usa lo strumento<br>Mano: trascina la mappa, clic su edificio = info<br>Destro/centrale + trascina: muovi | Rotella: zoom<br>WASD/frecce: muovi | 1-8: strumenti | R: ruota<br>M: manuale | P: progressi | I: sblocca tutto | Esc: menu</div>
 
 <!-- Progressi: sblocchi a pagamento (tasto P) -->
 <div id="progress" class="overlay" hidden>
   <div class="ov-box">
-    <div class="ov-head"><h2>Progressi</h2><span id="progress-sub" class="ov-sub"></span><button id="progress-close" class="ov-close">✕</button></div>
+    <div class="ov-head"><h2 data-i18n>Progressi</h2><span id="progress-sub" class="ov-sub"></span><button id="progress-close" class="ov-close">✕</button></div>
     <div id="progress-body" class="ov-body"></div>
   </div>
 </div>
@@ -49,7 +43,7 @@
 <!-- Manuale (tasto M) -->
 <div id="manual" class="overlay" hidden>
   <div class="ov-box wide">
-    <div class="ov-head"><h2>Manuale</h2><span class="ov-sub">Come funziona ogni settore</span><button id="manual-close" class="ov-close">✕</button></div>
+    <div class="ov-head"><h2 data-i18n>Manuale</h2><span class="ov-sub" data-i18n>Come funziona ogni settore</span><button id="manual-close" class="ov-close">✕</button></div>
     <div class="man-wrap"><nav id="manual-nav"></nav><div id="manual-body" class="ov-body"></div></div>
   </div>
 </div>
@@ -61,30 +55,32 @@
     <div id="menu-sub" class="menu-sub">Menu principale</div>
 
     <div class="menu-page" data-page="main">
-      <button id="m-resume">Riprendi</button>
-      <button id="m-save">Salva partita</button>
-      <button id="m-new">Nuova mappa</button>
-      <button id="m-load">Carica mappa</button>
-      <button id="m-options">Opzioni</button>
-      <button id="m-exit">Esci</button>
+      <button id="m-resume" data-i18n>Riprendi</button>
+      <button id="m-save" data-i18n>Salva partita</button>
+      <button id="m-new" data-i18n>Nuova mappa</button>
+      <button id="m-load" data-i18n>Carica mappa</button>
+      <button id="m-options" data-i18n>Opzioni</button>
+      <button id="m-exit" data-i18n>Esci</button>
     </div>
 
     <div class="menu-page" data-page="new" hidden>
-      <h2>Nuova mappa: grandezza</h2>
+      <h2 data-i18n>Nuova mappa: grandezza</h2>
       <div id="size-list"></div>
-      <button class="m-back">Indietro</button>
+      <button class="m-back" data-i18n>Indietro</button>
     </div>
 
     <div class="menu-page" data-page="load" hidden>
-      <h2>Carica mappa</h2>
+      <h2 data-i18n>Carica mappa</h2>
       <div id="save-list"></div>
-      <button class="m-back">Indietro</button>
+      <button class="m-back" data-i18n>Indietro</button>
     </div>
 
     <div class="menu-page" data-page="options" hidden>
-      <h2>Opzioni</h2>
-      <p class="menu-note">Ci stiamo lavorando! Presto qui potrai cambiare audio, grafica e controlli.</p>
-      <button class="m-back">Indietro</button>
+      <h2 data-i18n>Opzioni</h2>
+      <div class="menu-label" data-i18n>Lingua</div>
+      <div id="lang-list" class="lang-list"></div>
+      <p class="menu-note" data-i18n>Audio, grafica e controlli: ci stiamo lavorando!</p>
+      <button class="m-back" data-i18n>Indietro</button>
     </div>
 
     <div id="menu-msg" class="menu-msg"></div>
@@ -112,6 +108,9 @@
 <script src="js/input.js"></script>
 <script src="js/save.js"></script>
 <script src="js/menu.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/i18n-en.js"></script>
+<script src="js/i18n-es.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

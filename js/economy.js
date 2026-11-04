@@ -106,11 +106,11 @@ function vanHome(b) { b.van = Math.max(0, (b.van || 0) - 1); }
 function sendGoods(from, to, g, q) {
   if (BUILDINGS[from.kind].water) return sendByShip(from, to, g, q);   // dal mare: in nave (vehicles.js)
   const route = findRoute(accessTiles(from), accessTiles(to));
-  if (!route) { from.status = 'Nessuna strada verso ' + buildingLabel(to); from.retry = 3; return false; }
+  if (!route) { from.status = TR('Nessuna strada verso {b}', { b: buildingLabel(to) }); from.retry = 3; return false; }
   addTo(from.store, g, -q);
   to.expect = to.expect || {};
   addTo(to.expect, g, q);
-  from.status = 'Furgone in viaggio verso ' + buildingLabel(to);
+  from.status = TR('Furgone in viaggio verso {b}', { b: buildingLabel(to) });
   const fid = from.id, tid = to.id, stripe = VAN_STRIPES[from.kind === 'livestock' ? from.animal : from.kind];
   vanOut(from);
   spawnVehicle({
@@ -121,7 +121,7 @@ function sendGoods(from, to, g, q) {
       if (!f) { if (t) leaveMap({ kind: 'van', stripe }, accessTiles(t)); return; }   // casa del furgone demolita: se ne va
       const back = t && findRoute(accessTiles(t), accessTiles(f));
       if (!back) { vanHome(f); f.status = ''; return; }
-      f.status = 'Furgone di ritorno';
+      f.status = TR('Furgone di ritorno');
       spawnVehicle({
         kind: 'van', from: fid, load: 0, stripe, tiles: back, pts: routePoints(back, false), speed: VAN_SPEED,
         arrive() { const ff = game.buildings.get(fid); if (ff) { vanHome(ff); ff.status = ''; } },
@@ -149,7 +149,7 @@ function pushGoods(b) {
     const to = game.buildings.get(id);
     // due magazzini che si mandano la merce a vicenda la farebbero girare all'infinito
     if (isWarehouse(b) && isWarehouse(to) && to.dests.includes(b.id)) {
-      why = why || 'Due magazzini non possono mandarsi la merce a vicenda'; continue;
+      why = why || TR('Due magazzini non possono mandarsi la merce a vicenda'); continue;
     }
     // a un negozio si porta quello che gli manca di più, agli altri la merce più abbondante
     let best = null, bq = 0, bs = -Infinity;
@@ -158,8 +158,8 @@ function pushGoods(b) {
       const score = SHOPS[to.kind] ? -((to.store[g] || 0) + ((to.expect || {})[g] || 0)) * 1000 + q : q;
       if (score > bs) { best = g; bq = q; bs = score; }
     }
-    if (!best) { why = why || 'Le destinazioni non accettano questa merce o sono piene'; continue; }
-    if (!to.workers) { why = buildingLabel(to) + ' non ha personale'; continue; }
+    if (!best) { why = why || TR('Le destinazioni non accettano questa merce o sono piene'); continue; }
+    if (!to.workers) { why = TR('{b} non ha personale', { b: buildingLabel(to) }); continue; }
     if (sendGoods(b, to, best, Math.min(bq, VAN_CAPACITY, roomFor(to, best)))) return;
     why = b.status;
   }

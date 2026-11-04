@@ -23,6 +23,7 @@ resize();
 // All'avvio una mappa casuale fa da sfondo al menu principale (non è ancora una partita)
 newGame(Math.floor(Math.random() * 100000));
 centerCamera();
+initLanguage();   // lingua scelta l'ultima volta (i18n.js): prima di costruire la barra
 buildToolbar();
 initMenu();
 initPanel();

@@ -76,7 +76,7 @@ canvas.addEventListener('mousedown', e => {
     const plan = tile && planTunnel(tile, rotationDir());
     if (!plan) return;
     const r = buildBridge(plan);
-    if (r.ok) { game.dirty = true; updateHud(); toast('Tunnel costruito'); }
+    if (r.ok) { game.dirty = true; updateHud(); toast(TR('Tunnel costruito')); }
     else if (r.msg) toast(r.msg);
     game.bridgePlan = planTunnel(tile, rotationDir());
     requestDraw();
@@ -108,7 +108,7 @@ addEventListener('mouseup', e => {
       const r = buildBridge(plan);
       if (r.ok) { game.dirty = true; updateHud(); } else if (r.msg) toast(r.msg);
       bridgeStart = null; game.bridgePlan = null;
-    } else toast("Ora clicca sull'altra sponda (tasto destro per annullare)");
+    } else toast(TR("Ora clicca sull'altra sponda (tasto destro per annullare)"));
     requestDraw();
   }
   panning = false; painting = false; lastTile = null;
@@ -154,6 +154,7 @@ addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (!e.repeat && k === 'm') { toggleManual(); return; }
   if (!e.repeat && k === 'p') { toggleProgress(); return; }
+  if (!e.repeat && k === 'i') { cheatUnlockAll(); return; }   // sblocca tutto (per le prove)
   if (manualIsOpen() || progressIsOpen()) return;   // con manuale o progressi aperti il resto è fermo
   if (PAN_KEYS[k]) { keysHeld.add(k); e.preventDefault(); return; }
   if (e.repeat) return;

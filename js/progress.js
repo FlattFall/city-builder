@@ -48,6 +48,15 @@ const UNLOCK_BY_ID = Object.fromEntries(UNLOCKS.map(u => [u.id, u]));
 function unlockName(u) { return u.name || TOOL_INFO[u.tools[0]].label.replace(/ \(.*\)$/, ''); }
 function isUnlocked(id) { return !game.unlocked || game.unlocked.has(id); }
 function unlockAll() { game.unlocked = new Set(UNLOCKS.map(u => u.id)); refreshLocks(); }
+// Tasto I: sblocca tutto (per provare il gioco senza dover accumulare i soldi)
+function cheatUnlockAll() {
+  if (!game.started) return;
+  unlockAll();
+  game.dirty = true;
+  updateHud();
+  if (progressIsOpen()) renderProgress();
+  toast(TR('Tutto sbloccato (tasto I)'));
+}
 function resetUnlocks() { game.unlocked = new Set(); }
 
 // Uno strumento è bloccato se non è tra quelli iniziali e nessuno sblocco che lo contiene è stato preso
@@ -69,16 +78,16 @@ function missingNeeds(u) { return (u.needs || []).filter(n => !isUnlocked(n)); }
 
 function buyUnlock(id) {
   const u = UNLOCK_BY_ID[id];
-  if (!u || isUnlocked(id)) return { ok: false, msg: 'Già sbloccato' };
+  if (!u || isUnlocked(id)) return { ok: false, msg: TR('Già sbloccato') };
   const miss = missingNeeds(u);
-  if (miss.length) return { ok: false, msg: 'Prima sblocca: ' + miss.map(n => unlockName(UNLOCK_BY_ID[n])).join(', ') };
-  if (game.money < u.cost) return { ok: false, msg: 'Fondi insufficienti (servono ' + u.cost.toLocaleString('it-IT') + ' €)' };
+  if (miss.length) return { ok: false, msg: TR('Prima sblocca: {list}', { list: miss.map(n => unlockName(UNLOCK_BY_ID[n])).join(', ') }) };
+  if (game.money < u.cost) return { ok: false, msg: TR('Fondi insufficienti (servono {m})', { m: money(u.cost) }) };
   game.money -= u.cost;
   game.unlocked.add(id);
   game.dirty = true;
   updateHud();
   refreshLocks();
-  return { ok: true, msg: 'Sbloccato: ' + unlockName(u) };
+  return { ok: true, msg: TR('Sbloccato: {x}', { x: unlockName(u) }) };
 }
 
 // Barra strumenti: lucchetto sugli strumenti bloccati
@@ -97,7 +106,7 @@ function markLockedSub(b, id) {
   const locked = toolLocked(id);
   b.classList.toggle('locked', locked);
   const small = b.querySelector('small');
-  if (small) small.textContent = locked ? '🔒 ' + unlockFor(id).cost.toLocaleString('it-IT') + ' € (P)' : (TOOL_INFO[id].cost ? TOOL_INFO[id].cost + ' €' : '');
+  if (small) small.textContent = locked ? '🔒 ' + money(unlockFor(id).cost) + ' (P)' : (TOOL_INFO[id].cost ? money(TOOL_INFO[id].cost) : '');
 }
 
 // ---------- Finestra Progressi (P) ----------
@@ -124,10 +133,10 @@ function renderProgress() {
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   box.textContent = '';
   const done = UNLOCKS.filter(u => isUnlocked(u.id)).length;
-  document.getElementById('progress-sub').textContent = 'Sbloccati ' + done + ' di ' + UNLOCKS.length + ' - Fondi: ' + Math.floor(game.money).toLocaleString('it-IT') + ' €';
+  document.getElementById('progress-sub').textContent = TR('Sbloccati {a} di {b} - Fondi: {m}', { a: done, b: UNLOCKS.length, m: money(game.money) });
   const start = el('div', 'pg-start');
-  start.append(el('b', null, 'Già disponibili: '), document.createTextNode(START_TOOLS.filter(t => TOOL_INFO[t] && t !== 'field')
-    .map(t => TOOL_INFO[t].label.replace(/ \(.*\)$/, '')).join(', ') + '; colture: ' + START_CROPS.map(c => CROPS[c].name).join(', ') + '.'));
+  start.append(el('b', null, TR('Già disponibili:') + ' '), document.createTextNode(START_TOOLS.filter(t => TOOL_INFO[t] && t !== 'field')
+    .map(t => TOOL_INFO[t].label.replace(/ \(.*\)$/, '')).join(', ') + '; ' + TR('colture:') + ' ' + START_CROPS.map(c => CROPS[c].name).join(', ') + '.'));
   box.appendChild(start);
   for (const sector of [...new Set(UNLOCKS.map(u => u.sector))]) {
     box.appendChild(el('h3', 'pg-sector', sector));
@@ -142,10 +151,10 @@ function renderProgress() {
       card.appendChild(imgs);
       card.appendChild(el('b', null, unlockName(u)));
       card.appendChild(el('div', 'pg-desc', u.desc || (TOOL_INFO[u.tools[0]].desc || '').split('. ')[0].replace(/\.$/, '') + '.'));
-      if (miss.length) card.appendChild(el('div', 'pg-need', 'Serve prima: ' + miss.map(n => unlockName(UNLOCK_BY_ID[n])).join(', ')));
-      if (owned) card.appendChild(el('div', 'pg-owned', '✓ Sbloccato'));
+      if (miss.length) card.appendChild(el('div', 'pg-need', TR('Serve prima: {list}', { list: miss.map(n => unlockName(UNLOCK_BY_ID[n])).join(', ') })));
+      if (owned) card.appendChild(el('div', 'pg-owned', '✓ ' + TR('Sbloccato')));
       else {
-        const btn = el('button', 'pg-buy', 'Sblocca - ' + u.cost.toLocaleString('it-IT') + ' €');
+        const btn = el('button', 'pg-buy', TR('Sblocca - {m}', { m: money(u.cost) }));
         btn.id = 'unlock-' + u.id;
         btn.disabled = miss.length > 0 || game.money < u.cost;
         btn.addEventListener('click', () => { const r = buyUnlock(u.id); toast(r.msg); renderProgress(); });
@@ -167,7 +176,7 @@ function initProgress() {
 function progressLive() {
   if (!progressOpen) return;
   const done = UNLOCKS.filter(u => isUnlocked(u.id)).length;
-  document.getElementById('progress-sub').textContent = 'Sbloccati ' + done + ' di ' + UNLOCKS.length + ' - Fondi: ' + Math.floor(game.money).toLocaleString('it-IT') + ' €';
+  document.getElementById('progress-sub').textContent = TR('Sbloccati {a} di {b} - Fondi: {m}', { a: done, b: UNLOCKS.length, m: money(game.money) });
   for (const u of UNLOCKS) {
     const b = document.getElementById('unlock-' + u.id);
     if (b) b.disabled = missingNeeds(u).length > 0 || game.money < u.cost;

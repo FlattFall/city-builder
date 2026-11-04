@@ -4,7 +4,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 
 ## Struttura
 - `index.html` + `style.css`: pagina e interfaccia (barra in alto, barra strumenti con sottomenu, info tile, toast, menu).
-- `js/`: script classici (niente moduli ES, così funziona anche aprendo il file con doppio clic). L'ordine in `index.html` conta: config, noise, terrain, game, bridges, roadgen, camera, sprite-data, sprites, render, render-energy, vehicles, economy, ui, panel, progress, manual, input, save, menu, app.
+- `js/`: script classici (niente moduli ES, così funziona anche aprendo il file con doppio clic). L'ordine in `index.html` conta: config, noise, terrain, game, bridges, roadgen, camera, sprite-data, sprites, render, render-energy, vehicles, economy, ui, panel, progress, manual, input, save, menu, i18n, i18n-en, i18n-es, app.
   - `config.js` costanti: grandezze mappa (`MAP_SIZES`: 128, 256, 512, 1024), terreno, `PATHS` (strada, terra, binari), `BUILDINGS` (casa e panificio 1x1, le altre attività 2x2), abitanti, `CROPS`, `FARM`, costi
   - `game.js` stato (`game`) e regole: percorsi, rampe, rotonde, edifici, `checkTool` / `useTool` / `canUseTool`, `recount()`
   - `render.js` disegno (ordine del pittore, solo tile visibili sullo schermo); `requestDraw()` per ridisegnare
@@ -126,8 +126,15 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - `MANUAL`: capitoli (come si inizia, strade, case e lavoro, agricoltura, allevamento, trasformazione alimentare, legno, tessile, magazzini e furgoni, negozi e soldi, progressi, terreno, comandi) con icone del gioco. Catene, prezzi e numeri presi dai dati (`recipeRow`, `item`, `priceNote`), le icone di stato con `drawStatusIcon` (render.js). Se si aggiunge un settore, aggiungere il capitolo.
 - M e P aprono/chiudono; Esc chiude prima manuale e progressi; con una delle due aperte gli altri tasti del gioco sono fermi. Pulsanti anche nella barra in alto.
 
+## Lingue (i18n.js, i18n-en.js, i18n-es.js)
+- Italiano, inglese, spagnolo: scelta nel menu Opzioni (`renderLangList`, `setLanguage`), salvata in localStorage (`citybuilder.lang`), si cambia anche a partita aperta (rifà barra, pannello, finestre).
+- Il testo nel codice resta in italiano dentro `TR('frase', { n: 3 })` (NON `T`: `T` è l'elenco dei tipi di terreno). `DICT.en` / `DICT.es`: chiave = la frase italiana esatta, `{nome}` = pezzi che cambiano. Mai concatenare frasi: un'unica frase con i segnaposto.
+- Nomi nei dati (edifici, merci, colture, animali, gruppi, grandezze, sblocchi, capitoli, terreno) tradotti da `applyLanguage()` con `trField` (si ricorda l'italiano in `_it_*`). Strumenti: `TOOL_TEXT.en/es[id] = { label, desc }` (le descrizioni usano le costanti del gioco). Testi fissi della pagina: `data-i18n` / `data-i18n-html`. Soldi con `money(n)` (formato della lingua).
+- Nuovo testo: scriverlo con `TR(...)` e aggiungere la frase in tutti e due i dizionari. Il test "nessuna frase senza traduzione" (e `missingText`) dice cosa manca; script di controllo che cerca parole italiane nel testo visibile in inglese.
+- Tasto I = sblocca tutto (`cheatUnlockAll`, richiesta dell'utente per provare il gioco senza accumulare soldi).
+
 ## Menu e salvataggi
-- `menu.js`: menu principale/pausa (Riprendi e Salva solo se `game.started`), Nuova mappa (scelta grandezza), Carica, Opzioni ("ci stiamo lavorando"), Esci (`window.close()` in Electron). Esc apre/chiude il menu (prima chiude il sottomenu).
+- `menu.js`: menu principale/pausa (Riprendi e Salva solo se `game.started`), Nuova mappa (scelta grandezza), Carica, Opzioni (lingua; audio/grafica "ci stiamo lavorando"), Esci (`window.close()` in Electron). Esc apre/chiude il menu (prima chiude il sottomenu).
 - `save.js`: localStorage (`citybuilder.saves.v1`), formato v3: si ricrea il terreno dal seed e si salvano solo differenze (`game.base`), percorsi, campi, edifici con i loro dati, entrate. Legge anche v1/v2. I veicoli non si salvano.
 
 ## Pubblicazione e prove

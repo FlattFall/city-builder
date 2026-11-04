@@ -1357,6 +1357,46 @@ function check(cond, msg) {
   check(en.shipBack, 'porto demolito: la nave torna alla piattaforma con il petrolio '+ (en.shipBack ? '' : ' ' + JSON.stringify(en.dbg)));
   check(en.oilShare > 0.05 && en.oilShare < 0.6, 'giacimenti di petrolio: ' + Math.round(en.oilShare * 100) + '% della mappa');
 
+  // 46. tasto I: sblocca tutto
+  await page.evaluate(() => { closeMenu(); clearVehicles(); __newGame(9, 128); game.started = true; enterGame(); });
+  const i0 = await page.evaluate(() => toolLocked('refinery'));
+  await page.keyboard.press('i');
+  const i1 = await page.evaluate(() => !toolLocked('refinery') && !cropLocked('cotton') && UNLOCKS.every(u => isUnlocked(u.id)));
+  check(i0 && i1, 'tasto I: sblocca tutto');
+
+  // 47. lingue: inglese e spagnolo dal menu Opzioni, tutto tradotto, la scelta resta
+  await page.keyboard.press('Escape');
+  await page.click('#m-options');
+  await page.click('#lang-en');
+  const lgEn = await page.evaluate(() => ({ menu: document.getElementById('m-back-opt') ? '' : document.querySelector('.menu-page[data-page="options"] h2').textContent,
+    group: TOOL_GROUPS[1].label, good: GOODS.wheat.name, build: BUILDINGS.farm.name, tool: TOOL_INFO.house.desc, top: document.querySelector('#topbar span span').textContent,
+    msg: checkTool('farm', -1, -1) === null ? '' : TR('Fondi insufficienti'), stored: localStorage.getItem(LANG_KEY) }));
+  await page.click('#lang-es');
+  const lgEs = await page.evaluate(() => ({ group: TOOL_GROUPS[1].label, good: GOODS.wheat.name, title: document.querySelector('.menu-page[data-page="options"] h2').textContent }));
+  const cover = await page.evaluate(() => {
+    const out = {};
+    for (const l of ['en', 'es']) {
+      setLanguage(l); missingText.clear();
+      for (const ch of MANUAL) openManual(ch.id);
+      closeManual(); openProgress(); closeProgress();
+      for (const b of game.buildings.values()) { openBuildingPanel(b); renderPanel(); }
+      closePanel();
+      for (const g of TOOL_GROUPS) { openSubmenu(g); for (const t of g.tools) showToolDesc(t); }
+      closeSubmenu();
+      out[l] = [...missingText];
+    }
+    return out;
+  });
+  await page.reload();
+  await page.waitForTimeout(300);
+  const kept = await page.evaluate(() => LANG === 'es' && document.getElementById('m-new').textContent === 'Nuevo mapa');
+  await page.evaluate(() => setLanguage('it'));
+  const back = await page.evaluate(() => GOODS.wheat.name === 'Grano' && TOOL_GROUPS[1].label === 'Strade' && document.getElementById('m-new').textContent === 'Nuova mappa');
+  check(lgEn.group === 'Roads' && lgEn.good === 'Wheat' && lgEn.build === 'Farm' && lgEn.tool.startsWith('Up to') && lgEn.top === 'Funds:' && lgEn.stored === 'en', 'lingua inglese: barra, merci, edifici, descrizioni');
+  check(lgEs.group === 'Carreteras' && lgEs.good === 'Trigo' && lgEs.title === 'Opciones', 'lingua spagnola');
+  check(!cover.en.length && !cover.es.length, 'nessuna frase senza traduzione' + (cover.en.length || cover.es.length ? ': ' + JSON.stringify(cover) : ''));
+  check(kept && back, 'la lingua scelta resta dopo il riavvio; si torna all\'italiano');
+
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();
 })();

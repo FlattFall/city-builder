@@ -51,7 +51,7 @@ function saveGame() {
   const now = new Date();
   let entry = game.saveId && list.find(s => s.id === game.saveId);
   if (!entry) {
-    entry = { id: 's' + now.getTime(), name: 'Città ' + game.seed };
+    entry = { id: 's' + now.getTime(), name: TR('Città {n}', { n: game.seed }) };
     list.unshift(entry);
   }
   entry.date = now.toISOString();

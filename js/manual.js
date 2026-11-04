@@ -18,7 +18,7 @@ function toggleManual() { if (manualOpen) closeManual(); else openManual(); }
 // ---------- piccoli aiuti per costruire le pagine ----------
 function mEl(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
 function mImg(src, cls) { const i = document.createElement('img'); i.src = src; i.alt = ''; if (cls) i.className = cls; return i; }
-const euro = n => n.toLocaleString('it-IT') + ' €';
+const euro = n => money(n);   // money() è in i18n.js (caricato dopo)
 const shortName = id => TOOL_INFO[id].label.replace(/ \(.*\)$/, '');
 
 function goodChip(g, q) {
@@ -31,7 +31,7 @@ const arrow = () => mEl('span', 'ar', '→');
 const plus = () => mEl('span', 'pl', '+');
 function priceNote(g) {
   const shop = shopOf(g);
-  return shop ? mEl('span', 'pr', 'si vende al ' + shortName(shop).toLowerCase() + ' a ' + GOODS[g].price + ' €') : null;
+  return shop ? mEl('span', 'pr', TR('si vende al {s} a {p} €', { s: shortName(shop).toLowerCase(), p: GOODS[g].price })) : null;
 }
 
 // Riga di una ricetta: materie prime -> edificio -> prodotto
@@ -49,8 +49,8 @@ function item(id, extra) {
   it.appendChild(mImg(ICONS[id]));
   const t = mEl('div');
   const cost = TOOL_INFO[id].cost ? ' - ' + euro(TOOL_INFO[id].cost) : '';
-  const lock = typeof toolLocked === 'function' && toolLocked(id) ? ' <span style="color:#ff9b6b">🔒 da sbloccare (P)</span>' : '';
-  const jobs = JOBS[id] ? ' <span style="color:#94b0c2">- ' + JOBS[id] + ' lavoratori</span>' : '';
+  const lock = typeof toolLocked === 'function' && toolLocked(id) ? ' <span style="color:#ff9b6b">🔒 ' + TR('da sbloccare (P)') + '</span>' : '';
+  const jobs = JOBS[id] ? ' <span style="color:#94b0c2">- ' + TR('{n} lavoratori', { n: JOBS[id] }) + '</span>' : '';
   t.innerHTML = '<b>' + shortName(id) + '</b>' + cost + jobs + lock + '<br>' + (TOOL_INFO[id].desc || '') + (extra ? ' ' + extra : '');
   it.appendChild(t);
   return it;
@@ -62,57 +62,60 @@ function statusIcon(st) {
   return cv.toDataURL();
 }
 function destLine(kind) {
-  return 'Può mandare a: ' + destKindsOf({ kind }).map(k => shortName(k).toLowerCase()).join(', ') + '.';
+  return TR('Può mandare a: {list}.', { list: destKindsOf({ kind }).map(k => shortName(k).toLowerCase()).join(', ') });
 }
 
 // ---------- capitoli ----------
 const MANUAL = [
   { id: 'start', title: 'Come si inizia', icon: 'house', build(b) {
-    b.append(mEl('p', null, 'Il gioco è una città che cresce: le case portano abitanti, gli abitanti lavorano nelle attività, le attività producono merce che i negozi vendono agli abitanti. Su ogni vendita incassi le <b>tasse</b>: sono i soldi per costruire e per sbloccare nuovi settori.'));
+    b.append(mEl('p', null, TR('Il gioco è una città che cresce: le case portano abitanti, gli abitanti lavorano nelle attività, le attività producono merce che i negozi vendono agli abitanti. Su ogni vendita incassi le <b>tasse</b>: sono i soldi per costruire e per sbloccare nuovi settori.')));
     const ol = mEl('ol');
-    ol.innerHTML = '<li>Costruisci <b>case</b> lungo la strada principale (o su strade collegate a lei): arrivano le famiglie in auto.</li>' +
-      '<li>Metti una <b>fattoria</b> vicino alle case e scegli i campi intorno.</li>' +
-      '<li>Costruisci un <b>supermercato</b> e, dal pannello della fattoria (clic con la Mano), scegli il supermercato come destinazione: le verdure si vendono anche fresche.</li>' +
-      '<li>Aggiungi un <b>magazzino alimenti</b> per tenere da parte il raccolto.</li>' +
-      '<li>Con i soldi delle tasse apri la finestra <b>Progressi</b> (tasto <span class="man-key">P</span>) e sblocca fabbrica alimentare, allevamenti, legno, tessile...</li>';
+    ol.innerHTML = [
+      'Costruisci <b>case</b> lungo la strada principale (o su strade collegate a lei): arrivano le famiglie in auto.',
+      'Metti una <b>fattoria</b> vicino alle case e scegli i campi intorno.',
+      'Costruisci un <b>supermercato</b> e, dal pannello della fattoria (clic con la Mano), scegli il supermercato come destinazione: le verdure si vendono anche fresche.',
+      'Aggiungi un <b>magazzino alimenti</b> per tenere da parte il raccolto.',
+      'Con i soldi delle tasse apri la finestra <b>Progressi</b> (tasto <span class="man-key">P</span>) e sblocca fabbrica alimentare, allevamenti, legno, tessile, energia...',
+      'Per provare il gioco senza accumulare soldi: tasto <span class="man-key">I</span> = sblocca tutto.',
+    ].map(x => '<li>' + TR(x) + '</li>').join('');
     b.appendChild(ol);
-    b.appendChild(mEl('div', 'man-tip', 'Ogni attività ha bisogno di lavoratori che abitano vicino (entro ' + JOB_RADIUS + ' tile) e di una strada davanti all\'entrata. Quando piazzi un edificio vedi l\'entrata: verde = c\'è la strada, giallo = manca.'));
-    b.appendChild(mEl('h4', null, 'Si parte con'));
+    b.appendChild(mEl('div', 'man-tip', TR("Ogni attività ha bisogno di lavoratori che abitano vicino (entro {n} tile) e di una strada davanti all'entrata. Quando piazzi un edificio vedi l'entrata: verde = c'è la strada, giallo = manca.", { n: JOB_RADIUS })));
+    b.appendChild(mEl('h4', null, TR('Si parte con')));
     const ok = mEl('div', 'chain-row');
     for (const t of START_TOOLS.filter(t => ICONS[t] && !['field', 'raise', 'lower', 'level', 'hand'].includes(t))) ok.appendChild(buildingChip(t));
     b.appendChild(ok);
-    b.appendChild(mEl('p', null, 'Soldi all\'inizio: <b>' + euro(START_MONEY) + '</b>.'));
+    b.appendChild(mEl('p', null, TR("Soldi all'inizio: <b>{m}</b>.", { m: euro(START_MONEY) })));
   } },
 
   { id: 'roads', title: 'Strade', icon: 'road', build(b) {
-    b.appendChild(mEl('p', null, 'Le auto e i furgoni si muovono solo sulle strade collegate. Trascina con il mouse per costruire. Le strade salgono da sole sulle colline con le rampe (un livello alla volta, in linea retta).'));
+    b.appendChild(mEl('p', null, TR('Le auto e i furgoni si muovono solo sulle strade collegate. Trascina con il mouse per costruire. Le strade salgono da sole sulle colline con le rampe (un livello alla volta, in linea retta).')));
     for (const id of ['road', 'dirt', 'oneway', 'highway', 'bridge', 'hwBridge', 'tunnel', 'rail']) b.appendChild(item(id));
-    b.appendChild(mEl('div', 'man-tip', 'Rotonda: costruisci un quadrato 2x2 di strade asfaltate. Si gira solo in senso antiorario. Per trasformare una strada (es. in autostrada) inizia il trascinamento sopra una strada.'));
+    b.appendChild(mEl('div', 'man-tip', TR('Rotonda: costruisci un quadrato 2x2 di strade asfaltate. Si gira solo in senso antiorario. Per trasformare una strada (es. in autostrada) inizia il trascinamento sopra una strada.')));
   } },
 
   { id: 'homes', title: 'Case, abitanti e lavoro', icon: 'house', build(b) {
     b.appendChild(item('house'));
-    b.appendChild(mEl('p', null, 'Gli abitanti arrivano dai bordi della mappa lungo la strada principale. Una casa si riempie solo se è accanto a una strada collegata alla principale. Se demolisci una casa, chi ci abita cerca un\'altra casa libera o se ne va dalla mappa.'));
-    b.appendChild(mEl('p', null, 'Ogni attività prende i lavoratori dalle case entro <b>' + JOB_RADIUS + ' tile</b>. Più personale = lavora più in fretta; senza personale si ferma. In alto vedi quanti <b>Disoccupati</b> ci sono: se sono tanti puoi aprire nuove attività.'));
-    b.appendChild(mEl('h4', null, 'Le icone sopra gli edifici'));
+    b.appendChild(mEl('p', null, TR("Gli abitanti arrivano dai bordi della mappa lungo la strada principale. Una casa si riempie solo se è accanto a una strada collegata alla principale. Se demolisci una casa, chi ci abita cerca un'altra casa libera o se ne va dalla mappa.")));
+    b.appendChild(mEl('p', null, TR('Ogni attività prende i lavoratori dalle case entro <b>{n} tile</b>. Più personale = lavora più in fretta; senza personale si ferma. In alto vedi quanti <b>Disoccupati</b> ci sono: se sono tanti puoi aprire nuove attività.', { n: JOB_RADIUS })));
+    b.appendChild(mEl('h4', null, TR('Le icone sopra gli edifici')));
     const names = { noRoad: 'Nessuna strada (o non collegata alla principale)', noWorkers: 'Nessun lavoratore', fewWorkers: 'Pochi lavoratori',
       full: 'Deposito pieno: scegli una destinazione', noInput: 'Mancano le materie prime', empty: 'Negozio vuoto: niente da vendere' };
     for (const [st, txt] of Object.entries(names)) {
-      const s = mEl('div', 'man-stat'); s.append(mImg(statusIcon(st)), document.createTextNode(txt)); b.appendChild(s);
+      const s = mEl('div', 'man-stat'); s.append(mImg(statusIcon(st)), document.createTextNode(TR(txt))); b.appendChild(s);
     }
   } },
 
   { id: 'farm', title: 'Agricoltura', icon: 'farm', build(b) {
     b.appendChild(item('farm'));
-    b.appendChild(mEl('p', null, 'Dopo aver piazzato la fattoria scegli i campi (entro ' + FARM.fieldRadius + ' tile, poi "Fatto"). Nel pannello della fattoria scegli la coltura e le destinazioni. Con tutto il personale si raccoglie ogni ' + FARM.cycleSec + ' secondi, ' + FARM.yieldPerField + ' unità per campo. La fattoria tiene al massimo ' + CAPS.farm.store + ' unità.'));
-    b.appendChild(mEl('h4', null, 'Colture'));
+    b.appendChild(mEl('p', null, TR('Dopo aver piazzato la fattoria scegli i campi (entro {r} tile, poi "Fatto"). Nel pannello della fattoria scegli la coltura e le destinazioni. Con tutto il personale si raccoglie ogni {s} secondi, {y} unità per campo. La fattoria tiene al massimo {c} unità.', { r: FARM.fieldRadius, s: FARM.cycleSec, y: FARM.yieldPerField, c: CAPS.farm.store })));
+    b.appendChild(mEl('h4', null, TR('Colture')));
     for (const c of Object.keys(CROPS)) {
       const row = mEl('div', 'chain-row');
       row.append(buildingChip('farm'), arrow(), goodChip(c));
       const uses = Object.entries(RECIPES).filter(([, rs]) => rs.some(r => r.in[c])).map(([k]) => shortName(k).toLowerCase());
-      if (uses.length) row.appendChild(mEl('span', 'pr', 'serve a: ' + uses.join(', ')));
+      if (uses.length) row.appendChild(mEl('span', 'pr', TR('serve a: {list}', { list: uses.join(', ') })));
       const p = priceNote(c); if (p) row.appendChild(p);
-      if (typeof cropLocked === 'function' && cropLocked(c)) row.appendChild(mEl('span', 'pr', '🔒 da sbloccare'));
+      if (typeof cropLocked === 'function' && cropLocked(c)) row.appendChild(mEl('span', 'pr', '🔒 ' + TR('da sbloccare')));
       b.appendChild(row);
     }
     b.appendChild(mEl('p', null, destLine('farm')));
@@ -120,19 +123,19 @@ const MANUAL = [
 
   { id: 'animals', title: 'Allevamento', icon: 'livestock', build(b) {
     b.appendChild(item('livestock'));
-    b.appendChild(mEl('p', null, 'Un solo edificio: nel pannello scegli quale animale allevare. Produce da solo (non servono campi), più in fretta con tutto il personale.'));
+    b.appendChild(mEl('p', null, TR('Un solo edificio: nel pannello scegli quale animale allevare. Produce da solo (non servono campi), più in fretta con tutto il personale.')));
     for (const [k, L] of Object.entries(LIVESTOCK)) {
-      b.appendChild(mEl('h4', null, L.animal + ' - ogni ' + L.every + ' secondi' + (L.grass ? ' (vuole l\'erba)' : ' (anche in montagna)')));
+      b.appendChild(mEl('h4', null, L.animal + ' - ' + TR('ogni {n} secondi', { n: L.every }) + ' ' + (L.grass ? TR("(vuole l'erba)") : TR('(anche in montagna)'))));
       const row = mEl('div', 'chain-row');
       row.append(buildingChip('livestock'), arrow());
       Object.entries(L.out).forEach(([g, q], i) => { if (i) row.appendChild(plus()); row.appendChild(goodChip(g, q)); });
       b.appendChild(row);
-      b.appendChild(mEl('p', null, 'Può mandare a: ' + DEST_KINDS[k].map(x => shortName(x).toLowerCase()).join(', ') + '.'));
+      b.appendChild(mEl('p', null, TR('Può mandare a: {list}.', { list: DEST_KINDS[k].map(x => shortName(x).toLowerCase()).join(', ') })));
     }
   } },
 
   { id: 'food', title: 'Trasformazione alimentare', icon: 'factory', build(b) {
-    b.appendChild(mEl('p', null, 'Le fabbriche prendono le materie prime (mandate dai produttori o prese da sole dai magazzini) e ad ogni ciclo fanno un prodotto per ogni ricetta. Nel pannello puoi spegnere le ricette che non vuoi.'));
+    b.appendChild(mEl('p', null, TR('Le fabbriche prendono le materie prime (mandate dai produttori o prese da sole dai magazzini) e ad ogni ciclo fanno un prodotto per ogni ricetta. Nel pannello puoi spegnere le ricette che non vuoi.')));
     for (const k of ['factory', 'bakery', 'dairy', 'slaughterhouse']) {
       b.appendChild(item(k));
       for (const r of RECIPES[k]) b.appendChild(recipeRow(k, r));
@@ -141,7 +144,7 @@ const MANUAL = [
   } },
 
   { id: 'wood', title: 'Legno e mobili', icon: 'forestry', build(b) {
-    b.appendChild(item('forestry', 'Lavora a pieno ritmo con almeno ' + FORESTRY.forestry.trees + ' tile di bosco entro ' + FORESTRY.forestry.radius + ' tile.'));
+    b.appendChild(item('forestry', TR('Lavora a pieno ritmo con almeno {n} tile di bosco entro {r} tile.', { n: FORESTRY.forestry.trees, r: FORESTRY.forestry.radius })));
     const row = mEl('div', 'chain-row');
     row.append(buildingChip('forestry'), arrow());
     Object.entries(FORESTRY.forestry.out).forEach(([g, q], i) => { if (i) row.appendChild(plus()); row.appendChild(goodChip(g, q)); });
@@ -155,7 +158,7 @@ const MANUAL = [
   } },
 
   { id: 'textile', title: 'Tessile e abbigliamento', icon: 'textileMill', build(b) {
-    b.appendChild(mEl('p', null, 'Il cotone arriva dalle fattorie, la lana dagli allevamenti di pecore. Con cotone e lana insieme si fanno le stoffe lavorate, che servono per i capi più cari.'));
+    b.appendChild(mEl('p', null, TR('Il cotone arriva dalle fattorie, la lana dagli allevamenti di pecore. Con cotone e lana insieme si fanno le stoffe lavorate, che servono per i capi più cari.')));
     for (const k of ['textileMill', 'clothingFactory']) {
       b.appendChild(item(k));
       for (const r of RECIPES[k]) b.appendChild(recipeRow(k, r));
@@ -164,24 +167,24 @@ const MANUAL = [
   } },
 
   { id: 'energy', title: 'Energia e petrolio', icon: 'coalPlant', build(b) {
-    b.appendChild(mEl('p', null, 'La città ha una sola <b>rete elettrica</b>: le centrali producono, abitanti e attività consumano (' + GRID.perResident + ' per abitante, ' + GRID.perBusiness + ' per attività). Ogni ' + GRID.billEvery + ' secondi gli abitanti con la corrente pagano la <b>bolletta</b> e le attività con la corrente lavorano fino al <b>' + Math.round(GRID.boost * 100) + '%</b> più in fretta. Nel pannello di ogni centrale vedi produzione, consumo e quanta città è coperta.'));
-    b.appendChild(mEl('h4', null, 'Carbone'));
+    b.appendChild(mEl('p', null, TR('La città ha una sola <b>rete elettrica</b>: le centrali producono, abitanti e attività consumano ({a} per abitante, {b} per attività). Ogni {s} secondi gli abitanti con la corrente pagano la <b>bolletta</b> e le attività con la corrente lavorano fino al <b>{p}%</b> più in fretta. Nel pannello di ogni centrale vedi produzione, consumo e quanta città è coperta.', { a: GRID.perResident, b: GRID.perBusiness, s: GRID.billEvery, p: Math.round(GRID.boost * 100) })));
+    b.appendChild(mEl('h4', null, TR('Carbone')));
     b.appendChild(item('charcoalKiln'));
     for (const r of RECIPES.charcoalKiln) b.appendChild(recipeRow('charcoalKiln', r));
     b.appendChild(item('coalPlant'));
     const cr = mEl('div', 'chain-row');
-    cr.append(goodChip('coal'), arrow(), buildingChip('coalPlant'), arrow(), mEl('span', 'pr', '⚡ ' + POWER.coalPlant.out + ' di energia (1 carbone ogni ' + POWER.coalPlant.burn + ' s)'));
+    cr.append(goodChip('coal'), arrow(), buildingChip('coalPlant'), arrow(), mEl('span', 'pr', '⚡ ' + TR('{n} di energia (1 carbone ogni {s} s)', { n: POWER.coalPlant.out, s: POWER.coalPlant.burn })));
     b.appendChild(cr);
-    b.appendChild(mEl('h4', null, 'Rinnovabili'));
-    b.appendChild(item('solarPlant', '⚡ ' + POWER.solarPlant.out + ' di energia.'));
-    b.appendChild(item('windPlant', '⚡ da ' + POWER.windPlant.out + ' (in pianura) fino a ' + POWER.windPlant.max + ' (in montagna).'));
-    b.appendChild(mEl('h4', null, 'Petrolio'));
-    b.appendChild(mEl('p', null, 'Il petrolio sta nei <b>giacimenti</b> sotto terra e sotto il mare: quando prendi in mano il pozzo o la piattaforma, le zone dove ce n\'è diventano scure (più scure = più petrolio).'));
+    b.appendChild(mEl('h4', null, TR('Rinnovabili')));
+    b.appendChild(item('solarPlant', '⚡ ' + TR('{n} di energia.', { n: POWER.solarPlant.out })));
+    b.appendChild(item('windPlant', '⚡ ' + TR('da {a} (in pianura) fino a {b} (in montagna).', { a: POWER.windPlant.out, b: POWER.windPlant.max })));
+    b.appendChild(mEl('h4', null, TR('Petrolio')));
+    b.appendChild(mEl('p', null, TR("Il petrolio sta nei <b>giacimenti</b> sotto terra e sotto il mare: quando prendi in mano il pozzo o la piattaforma, le zone dove ce n'è diventano scure (più scure = più petrolio).")));
     b.appendChild(item('oilWell'));
     b.appendChild(item('oilPlatform'));
-    b.appendChild(item('port', 'Le navi viaggiano sull\'acqua collegata dalla piattaforma alle caselle d\'acqua dietro al porto.'));
+    b.appendChild(item('port', TR("Le navi viaggiano sull'acqua collegata dalla piattaforma alle caselle d'acqua dietro al porto.")));
     const sr = mEl('div', 'chain-row');
-    sr.append(buildingChip('oilPlatform'), arrow(), mEl('span', 'pr', '🚢 nave'), arrow(), buildingChip('port'), arrow(), mEl('span', 'pr', '🚚 furgone'), arrow(), buildingChip('refinery'));
+    sr.append(buildingChip('oilPlatform'), arrow(), mEl('span', 'pr', '🚢 ' + TR('nave')), arrow(), buildingChip('port'), arrow(), mEl('span', 'pr', '🚚 ' + TR('furgone')), arrow(), buildingChip('refinery'));
     b.appendChild(sr);
     b.appendChild(item('refinery'));
     for (const r of RECIPES.refinery) b.appendChild(recipeRow('refinery', r));
@@ -191,15 +194,15 @@ const MANUAL = [
   { id: 'logistics', title: 'Magazzini e furgoni', icon: 'warehouse', build(b) {
     b.appendChild(item('warehouse'));
     b.appendChild(item('goodsWarehouse'));
-    b.appendChild(mEl('p', null, 'Ogni attività ha un furgone (i magazzini ' + VANS.warehouse + '). Il furgone parte quando ci sono almeno <b>' + VAN_MIN_LOAD + ' unità</b> e ne porta fino a <b>' + VAN_CAPACITY + '</b>, poi torna indietro. Le destinazioni si scelgono nel pannello dell\'edificio: se ne scegli più di una, ogni merce va alla prima che la accetta e ha posto.'));
-    b.appendChild(mEl('p', null, 'Fabbriche e negozi vanno anche da soli a prendere nei magazzini quello che gli serve. Il supermercato lascia la precedenza alle fabbriche per le merci che loro trasformano (es. la farina va prima al panificio).'));
-    b.appendChild(mEl('div', 'man-tip', 'Nel pannello del magazzino puoi scegliere cosa accetta (clic sulle merci) e un\'uscita verso altri edifici. Due magazzini non possono mandarsi la merce a vicenda.'));
+    b.appendChild(mEl('p', null, TR("Ogni attività ha un furgone (i magazzini {w}). Il furgone parte quando ci sono almeno <b>{a} unità</b> e ne porta fino a <b>{b}</b>, poi torna indietro. Le destinazioni si scelgono nel pannello dell'edificio: se ne scegli più di una, ogni merce va alla prima che la accetta e ha posto.", { w: VANS.warehouse, a: VAN_MIN_LOAD, b: VAN_CAPACITY })));
+    b.appendChild(mEl('p', null, TR('Fabbriche e negozi vanno anche da soli a prendere nei magazzini quello che gli serve. Il supermercato lascia la precedenza alle fabbriche per le merci che loro trasformano (es. la farina va prima al panificio).')));
+    b.appendChild(mEl('div', 'man-tip', TR("Nel pannello del magazzino puoi scegliere cosa accetta (clic sulle merci) e un'uscita verso altri edifici. Due magazzini non possono mandarsi la merce a vicenda.")));
   } },
 
   { id: 'shops', title: 'Negozi, vendite e soldi', icon: 'supermarket', build(b) {
-    b.appendChild(mEl('p', null, 'I clienti di un negozio sono gli abitanti delle case vicine. Per ogni cosa venduta incassi il <b>' + Math.round(TAX_RATE * 100) + '%</b> del prezzo come tasse.'));
+    b.appendChild(mEl('p', null, TR('I clienti di un negozio sono gli abitanti delle case vicine. Per ogni cosa venduta incassi il <b>{n}%</b> del prezzo come tasse.', { n: Math.round(TAX_RATE * 100) })));
     for (const [k, S] of Object.entries(SHOPS)) {
-      b.appendChild(item(k, 'Clienti entro ' + S.radius + ' tile.'));
+      b.appendChild(item(k, TR('Clienti entro {n} tile.', { n: S.radius })));
       const row = mEl('div', 'chain-row');
       for (const g of Object.keys(GOODS).filter(g => shopOf(g) === k)) {
         const chip = goodChip(g);
@@ -208,11 +211,11 @@ const MANUAL = [
       }
       b.appendChild(row);
     }
-    b.appendChild(mEl('div', 'man-tip', 'Le merci senza prezzo (grano, animali, tronchi, cotone, lana, filati, tessuti) non si vendono: servono alle fabbriche. Latte, farina e legname si vendono anche così, ma se c\'è una fabbrica che li usa vanno prima a lei.'));
+    b.appendChild(mEl('div', 'man-tip', TR("Le merci senza prezzo (grano, animali, tronchi, cotone, lana, filati, tessuti, carbone, petrolio) non si vendono: servono alle fabbriche. Latte, farina e legname si vendono anche così, ma se c'è una fabbrica che li usa vanno prima a lei.")));
   } },
 
   { id: 'progress', title: 'Progressi e sblocchi', icon: 'factory', build(b) {
-    b.appendChild(mEl('p', null, 'In una mappa nuova hai solo le cose di base. Apri la finestra <b>Progressi</b> con il tasto <span class="man-key">P</span> (o il pulsante in alto) e paga per sbloccare nuove strade, colture e industrie. Alcune ne vogliono prima un\'altra: ad esempio il panificio vuole la fabbrica alimentare.'));
+    b.appendChild(mEl('p', null, TR("In una mappa nuova hai solo le cose di base. Apri la finestra <b>Progressi</b> con il tasto <span class=\"man-key\">P</span> (o il pulsante in alto) e paga per sbloccare nuove strade, colture e industrie. Alcune ne vogliono prima un'altra: ad esempio il panificio vuole la fabbrica alimentare. Il tasto <span class=\"man-key\">I</span> sblocca tutto (per provare il gioco).")));
     for (const sector of [...new Set(UNLOCKS.map(u => u.sector))]) {
       b.appendChild(mEl('h4', null, sector));
       const row = mEl('div', 'chain-row');
@@ -224,23 +227,24 @@ const MANUAL = [
       });
       b.appendChild(row);
     }
-    b.appendChild(mEl('div', 'man-tip', 'Uno strumento bloccato nella barra ha il lucchetto: cliccandolo si apre direttamente la finestra Progressi.'));
+    b.appendChild(mEl('div', 'man-tip', TR('Uno strumento bloccato nella barra ha il lucchetto: cliccandolo si apre direttamente la finestra Progressi.')));
   } },
 
   { id: 'terrain', title: 'Terreno e demolizione', icon: 'demolish', build(b) {
     for (const id of ['demolish', 'raise', 'lower', 'level']) b.appendChild(item(id));
-    b.appendChild(mEl('p', null, 'Il terreno si modella solo dove non ci sono strade o edifici. A quota 0 diventa acqua. Si costruisce anche in montagna, ma fattorie e la maggior parte degli allevamenti vogliono l\'erba.'));
+    b.appendChild(mEl('p', null, TR("Il terreno si modella solo dove non ci sono strade o edifici. A quota 0 diventa acqua. Si costruisce anche in montagna, ma fattorie e la maggior parte degli allevamenti vogliono l'erba.")));
   } },
 
   { id: 'keys', title: 'Comandi', icon: 'hand', build(b) {
     const ul = mEl('ul');
     ul.innerHTML = [
       ['Clic sinistro', 'usa lo strumento (trascina per strade, campi, demolizioni)'],
-      ['Mano + clic', 'apre il pannello dell\'edificio (merce, lavoratori, destinazioni, nome con ✎)'],
+      ['Mano + clic', "apre il pannello dell'edificio (merce, lavoratori, destinazioni, nome con ✎)"],
       ['Destro / centrale + trascina', 'sposta la mappa'], ['Rotella', 'zoom'],
       ['W A S D / frecce', 'sposta la mappa'], ['1 - 8', 'gruppi della barra (premi di nuovo per il prossimo strumento)'],
-      ['R', 'ruota l\'edificio (o la direzione di senso unico e tunnel)'], ['M', 'manuale'], ['P', 'progressi'], ['Esc', 'chiude le finestre, poi menu e salvataggio'],
-    ].map(([k, d]) => '<li><span class="man-key">' + k + '</span> ' + d + '</li>').join('');
+      ['R', "ruota l'edificio (o la direzione di senso unico e tunnel)"], ['M', 'manuale'], ['P', 'progressi'], ['I', 'sblocca tutto (per provare il gioco)'],
+      ['Esc', 'chiude le finestre, poi menu e salvataggio'],
+    ].map(([k, d]) => '<li><span class="man-key">' + TR(k) + '</span> ' + TR(d) + '</li>').join('');
     b.appendChild(ul);
   } },
 ];

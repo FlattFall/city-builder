@@ -411,42 +411,42 @@ function updateJobs() {
 // Controlla se lo strumento si può usare: null se sì, altrimenti { msg?, silent? }
 function checkTool(tool, x, y) {
   if (!inMap(x, y)) return { silent: true };
-  if (typeof toolLocked === 'function' && toolLocked(tool)) return { msg: 'Bloccato: sbloccalo nei Progressi (P)' };
+  if (typeof toolLocked === 'function' && toolLocked(tool)) return { msg: TR('Bloccato: sbloccalo nei Progressi (P)') };
   const t = game.map[y][x];
   if (PATHS[tool]) {
     // senso unico già fatto: ripassandoci sopra si cambia la direzione
     if (t.path === tool) return (PATHS[tool].oneway && t.dir !== game.pathDir && game.convertRoads !== false) ? null : { silent: true };
     if (t.path) {
       // una strada si può trasformare in un'altra (es. strada -> autostrada), ma non in binario
-      if (netOf(t.path) !== 'road' || PATHS[tool].net !== 'road') return { msg: "C'è già " + (t.path === 'rail' ? 'un binario' : 'una strada') };
+      if (netOf(t.path) !== 'road' || PATHS[tool].net !== 'road') return { msg: t.path === 'rail' ? TR("C'è già un binario") : TR("C'è già una strada") };
       if (game.convertRoads === false) return { silent: true };   // si passa sopra senza cambiarle
-      if (t.main && (PATHS[tool].oneway || tool === 'dirt')) return { msg: 'La strada principale resta a doppio senso e asfaltata' };
-      if (t.main && t.path === 'highway' && tool !== 'highway') return { msg: "La strada principale resta un'autostrada" };
+      if (t.main && (PATHS[tool].oneway || tool === 'dirt')) return { msg: TR('La strada principale resta a doppio senso e asfaltata') };
+      if (t.main && t.path === 'highway' && tool !== 'highway') return { msg: TR("La strada principale resta un'autostrada") };
       return null;
     }
     if (bridgeOver(t) && deckMin(bridgeOver(t), t.bridge.i) < t.elev + BRIDGE.clearPath)
-      return { msg: "Sotto il ponte non c'è abbastanza spazio" };
-    if (t.building) return { msg: "C'è già un edificio" };
-    if (t.field) return { msg: "C'è un campo: demolisci prima" };
-    if (!isBuildable(t)) return { msg: 'Qui non si può costruire' };
+      return { msg: TR("Sotto il ponte non c'è abbastanza spazio") };
+    if (t.building) return { msg: TR("C'è già un edificio") };
+    if (t.field) return { msg: TR("C'è un campo: demolisci prima") };
+    if (!isBuildable(t)) return { msg: TR('Qui non si può costruire') };
     return null;
   }
   if (tool === 'raise' || tool === 'lower' || tool === 'level') {
-    if (t.building || t.path) return { msg: 'Libera il terreno prima di modellarlo' };
-    if (t.bridge) return { msg: isTunnel(bridgeAt(x, y)) ? "Sotto c'è un tunnel" : "Sopra c'è un ponte" };
-    if (tool === 'raise' && t.elev >= MAX_ELEV) return { msg: 'Più in alto non si può' };
-    if (tool === 'lower' && t.type === T.WATER) return { msg: 'Più in basso non si può' };
+    if (t.building || t.path) return { msg: TR('Libera il terreno prima di modellarlo') };
+    if (t.bridge) return { msg: isTunnel(bridgeAt(x, y)) ? TR("Sotto c'è un tunnel") : TR("Sopra c'è un ponte") };
+    if (tool === 'raise' && t.elev >= MAX_ELEV) return { msg: TR('Più in alto non si può') };
+    if (tool === 'lower' && t.type === T.WATER) return { msg: TR('Più in basso non si può') };
     if (tool === 'level' && game.levelTarget != null && t.elev === game.levelTarget) return { silent: true };
     return null;
   }
   if (tool === 'field') {
     // i campi si mettono solo dalla fattoria (modalità campi)
-    if (!game.fieldMode) return { msg: 'I campi si mettono dalla fattoria' };
+    if (!game.fieldMode) return { msg: TR('I campi si mettono dalla fattoria') };
     // un campo già fatto ma senza fattoria si può assegnare a una fattoria vicina
     if (t.field) return (!t.farm && farmForField(x, y)) ? null : { silent: true };
-    if (game.fieldMode && !farmForField(x, y)) return { msg: 'Troppo lontano dalla fattoria (max ' + FARM.fieldRadius + ' tile)' };
-    if (t.path || t.building) return { msg: 'Tile occupato' };
-    if (t.type !== T.GRASS && t.type !== T.FOREST) return { msg: 'I campi vanno su erba o foresta' };
+    if (game.fieldMode && !farmForField(x, y)) return { msg: TR('Troppo lontano dalla fattoria (max {n} tile)', { n: FARM.fieldRadius }) };
+    if (t.path || t.building) return { msg: TR('Tile occupato') };
+    if (t.type !== T.GRASS && t.type !== T.FOREST) return { msg: TR('I campi vanno su erba o foresta') };
     return null;
   }
   if (BUILDINGS[tool]) {
@@ -454,38 +454,38 @@ function checkTool(tool, x, y) {
     if (t.building && b.w === 1) return { silent: true };
     if (b.water) {   // piattaforma petrolifera: tutta sull'acqua, sopra un giacimento
       for (const p of footprint(tool, x, y)) {
-        if (!inMap(p.x, p.y)) return { msg: 'Fuori dalla mappa' };
+        if (!inMap(p.x, p.y)) return { msg: TR('Fuori dalla mappa') };
         const q = game.map[p.y][p.x];
-        if (q.type !== T.WATER || q.building || q.bridge) return { msg: 'La piattaforma va costruita sull\'acqua libera (' + b.w + 'x' + b.h + ')' };
+        if (q.type !== T.WATER || q.building || q.bridge) return { msg: TR("La piattaforma va costruita sull'acqua libera ({w}x{h})", { w: b.w, h: b.h }) };
       }
-      if (!oilUnder(tool, x, y)) return { msg: 'Qui sotto non c\'è petrolio (scegli una zona scura)' };
+      if (!oilUnder(tool, x, y)) return { msg: TR('Qui sotto non c\'è petrolio (scegli una zona scura)') };
       return null;
     }
     if (b.coast && !dockTiles({ kind: tool, ax: x, ay: y, rot: game.rotation }).length)
-      return { msg: 'Il retro del porto deve dare sull\'acqua (R per ruotarlo): davanti la strada, dietro il mare' };
-    if (b.oil && !oilUnder(tool, x, y)) return { msg: 'Qui sotto non c\'è petrolio (scegli una zona scura)' };
+      return { msg: TR('Il retro del porto deve dare sull\'acqua (R per ruotarlo): davanti la strada, dietro il mare') };
+    if (b.oil && !oilUnder(tool, x, y)) return { msg: TR('Qui sotto non c\'è petrolio (scegli una zona scura)') };
     for (const p of footprint(tool, x, y)) {
-      if (!inMap(p.x, p.y)) return { msg: 'Fuori dalla mappa' };
+      if (!inMap(p.x, p.y)) return { msg: TR('Fuori dalla mappa') };
       const q = game.map[p.y][p.x];
       const over = bridgeOver(q);   // sotto un ponte ci stanno solo le case basse (1x1)
-      if (over && (b.w > 1 || deckMin(over, q.bridge.i) < q.elev + buildingClear(tool))) return { msg: 'Sotto il ponte non c\'è abbastanza spazio' };
+      if (over && (b.w > 1 || deckMin(over, q.bridge.i) < q.elev + buildingClear(tool))) return { msg: TR('Sotto il ponte non c\'è abbastanza spazio') };
       if (q.building || q.path || q.field || !isBuildable(q))
-        return { msg: b.w > 1 ? 'Serve uno spazio libero ' + b.w + 'x' + b.h : 'Qui non si può costruire' };
-      if (q.elev !== t.elev) return { msg: 'Serve un terreno piano ' + b.w + 'x' + b.h };
-      if (b.grass && isMountain(q)) return { msg: 'In montagna fa troppo freddo e non c\'è erba' };
-      if (b.grass && q.type === T.SAND) return { msg: 'Serve erba, non sabbia' };
+        return { msg: b.w > 1 ? TR('Serve uno spazio libero {w}x{h}', { w: b.w, h: b.h }) : TR('Qui non si può costruire') };
+      if (q.elev !== t.elev) return { msg: TR('Serve un terreno piano {w}x{h}', { w: b.w, h: b.h }) };
+      if (b.grass && isMountain(q)) return { msg: TR('In montagna fa troppo freddo e non c\'è erba') };
+      if (b.grass && q.type === T.SAND) return { msg: TR('Serve erba, non sabbia') };
     }
     return null;
   }
   if (isBridgeTool(tool) || tool === 'tunnel') {
-    if (t.building || t.bridge || !isBuildable(t) || (t.path && netOf(t.path) !== 'road')) return { msg: 'Qui non può partire un ' + (tool === 'tunnel' ? 'tunnel' : 'ponte') };
+    if (t.building || t.bridge || !isBuildable(t) || (t.path && netOf(t.path) !== 'road')) return { msg: tool === 'tunnel' ? TR('Qui non può partire un tunnel') : TR('Qui non può partire un ponte') };
     return null;
   }
   if (tool === 'demolish') {
     const what = demolishTarget(x, y);
-    if (what === 'bridge') return bridgeOver(t).main ? { msg: 'La strada principale non si può demolire' } : null;
+    if (what === 'bridge') return bridgeOver(t).main ? { msg: TR('La strada principale non si può demolire') } : null;
     if (what === 'tunnel') return null;
-    if (!t.building && t.path && t.main) return { msg: 'La strada principale non si può demolire' };
+    if (!t.building && t.path && t.main) return { msg: TR('La strada principale non si può demolire') };
     if (t.building || t.path || t.field || t.type === T.FOREST) return null;
     return { silent: true };
   }
@@ -534,7 +534,7 @@ function useTool(tool, x, y) {
   if (tool === 'level' && game.levelTarget == null && inMap(x, y)) { game.levelTarget = game.map[y][x].elev; return { ok: false, silent: true }; }
   const bad = checkTool(tool, x, y);
   if (bad) return { ok: false, msg: bad.msg, silent: bad.silent };
-  if (!spend(toolCost(tool, x, y))) return { ok: false, msg: 'Fondi insufficienti' };
+  if (!spend(toolCost(tool, x, y))) return { ok: false, msg: TR('Fondi insufficienti') };
   const t = game.map[y][x];
 
   if (PATHS[tool]) {

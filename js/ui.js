@@ -13,7 +13,7 @@ const TOOL_INFO = {
   house:     { label: 'Casa', cost: BUILDINGS.house.cost, desc: 'Ci abitano fino a ' + HOUSE_CAPACITY + ' persone, che arrivano in auto dalla strada principale. Lavorano nelle attività entro ' + JOB_RADIUS + ' tile e comprano nei negozi vicini.' },
   farm:      { label: 'Fattoria (2x2)', cost: BUILDINGS.farm.cost, desc: 'Coltiva i campi che scegli intorno (grano, carote, patate, mais, pomodori, cavoli, cotone). Le verdure si vendono anche fresche al supermercato; il cotone va alla fabbrica tessile.' },
   warehouse: { label: 'Magazzino alimenti (2x2)', cost: BUILDINGS.warehouse.cost, desc: 'Conserva cibo e animali: scegli cosa accetta e dove mandarlo (uscita). Fabbriche alimentari e supermercati vengono a prendere qui quello che gli serve.' },
-  goodsWarehouse: { label: 'Magazzino merci (2x2)', cost: BUILDINGS.goodsWarehouse.cost, desc: 'Conserva tutto quello che non è cibo: legno, mobili, cotone, lana, tessuti e vestiti. Scegli cosa accetta e dove mandarlo; segheria, fabbriche e negozi vengono a prendere qui quello che gli serve.' },
+  goodsWarehouse: { label: 'Magazzino merci (2x2)', cost: BUILDINGS.goodsWarehouse.cost, desc: 'Conserva tutto quello che non è cibo: legno, mobili, cotone, lana, tessuti, vestiti ed energia. Scegli cosa accetta e dove mandarlo; segheria, fabbriche e negozi vengono a prendere qui quello che gli serve.' },
   textileMill: { label: 'Fabbrica tessile (2x2)', cost: BUILDINGS.textileMill.cost, desc: 'Trasforma il cotone delle fattorie in filati e tessuto. Con cotone e lana delle pecore fa le stoffe lavorate, che servono per giacche, scarpe e cappotti.' },
   clothingFactory: { label: 'Fabbrica di abbigliamento (2x2)', cost: BUILDINGS.clothingFactory.cost, desc: 'Cuce i vestiti con i filati, il tessuto e le stoffe lavorate della fabbrica tessile.' },
   clothingStore: { label: 'Negozio di abbigliamento (2x2)', cost: BUILDINGS.clothingStore.cost, desc: 'Vende vestiti e scarpe agli abitanti vicini: per ogni vendita incassi le tasse.' },
@@ -211,13 +211,13 @@ function goodList(m) { return Object.entries(m).map(([g, n]) => (n > 1 ? n + ' '
 function chainLines(id) {
   const out = [];
   if (RECIPES[id]) out.push(...RECIPES[id].map(r => goodList(r.in) + ' → ' + GOODS[r.out].name.toLowerCase()));
-  if (NATURE[id]) out.push('Produce: ' + goodList(NATURE[id].out) + ' (ogni ' + NATURE[id].every + ' s)');
-  if (id === 'livestock') for (const A of Object.values(LIVESTOCK)) out.push(A.animal + ': ' + goodList(A.out) + ' (ogni ' + A.every + ' s)');
-  if (POWER[id]) out.push('Energia: ' + POWER[id].out + (POWER[id].perLevel ? ' (+' + POWER[id].perLevel + ' per livello di quota, fino a ' + POWER[id].max + ')' : '') +
-    (POWER[id].fuel ? ', brucia 1 ' + GOODS[POWER[id].fuel].name.toLowerCase() + ' ogni ' + POWER[id].burn + ' s' : ''));
-  if (SHOPS[id]) out.push('Vende: ' + Object.keys(GOODS).filter(g => shopOf(g) === id).map(g => GOODS[g].name.toLowerCase()).join(', '));
-  if (DEST_KINDS[id]) out.push('Manda la merce a: ' + DEST_KINDS[id].map(k => BUILDINGS[k].name.toLowerCase()).join(', '));
-  if (JOBS[id]) out.push('Lavoratori: ' + JOBS[id]);
+  if (NATURE[id]) out.push(TR('Produce: {list} (ogni {n} s)', { list: goodList(NATURE[id].out), n: NATURE[id].every }));
+  if (id === 'livestock') for (const A of Object.values(LIVESTOCK)) out.push(A.animal + ': ' + TR('{list} (ogni {n} s)', { list: goodList(A.out), n: A.every }));
+  if (POWER[id]) out.push(TR('Energia: {n}', { n: POWER[id].out }) + (POWER[id].perLevel ? ' ' + TR('(+{a} per livello di quota, fino a {b})', { a: POWER[id].perLevel, b: POWER[id].max }) : '') +
+    (POWER[id].fuel ? ', ' + TR('brucia 1 {g} ogni {n} s', { g: GOODS[POWER[id].fuel].name.toLowerCase(), n: POWER[id].burn }) : ''));
+  if (SHOPS[id]) out.push(TR('Vende:') + ' ' + Object.keys(GOODS).filter(g => shopOf(g) === id).map(g => GOODS[g].name.toLowerCase()).join(', '));
+  if (DEST_KINDS[id]) out.push(TR('Manda la merce a:') + ' ' + DEST_KINDS[id].map(k => BUILDINGS[k].name.toLowerCase()).join(', '));
+  if (JOBS[id]) out.push(TR('Lavoratori: {n}', { n: JOBS[id] }));
   return out;
 }
 function showToolDesc(id) {
@@ -393,7 +393,7 @@ function buildIcons() {
 // ---------- Barra strumenti ----------
 function toolLabel(id) {
   const i = TOOL_INFO[id];
-  return i.cost ? i.label + ' - ' + i.cost + ' €' : i.label;
+  return i.cost ? i.label + ' - ' + money(i.cost) : i.label;
 }
 
 function groupOf(tool, prefer) {
@@ -450,7 +450,7 @@ function openSubmenu(g) {
     const lbl = document.createElement('span');
     lbl.textContent = TOOL_INFO[id].label;
     const cost = document.createElement('small');
-    cost.textContent = TOOL_INFO[id].cost ? TOOL_INFO[id].cost + ' €' : '';
+    cost.textContent = TOOL_INFO[id].cost ? money(TOOL_INFO[id].cost) : '';
     b.append(img, lbl, cost);
     markLockedSub(b, id);
     b.addEventListener('click', () => {
@@ -509,9 +509,9 @@ function setTool(id, groupId) {
   if (typeof bridgeStart !== 'undefined' && !isBridgeTool(id)) bridgeStart = null;
   game.bridgePlan = null;
   if (id === 'oneway') game.pathDir = rotationDir();
-  const hint = id === 'oneway' ? '  |  trascina nel senso di marcia, R: gira la freccia'
-    : isBridgeTool(id) ? "  |  trascina (o clicca) da una sponda all'altra"
-    : id === 'tunnel' ? '  |  clicca ai piedi della collina (R: direzione)' : rotatable ? '  |  R: ruota' : '';
+  const hint = id === 'oneway' ? '  |  ' + TR('trascina nel senso di marcia, R: gira la freccia')
+    : isBridgeTool(id) ? '  |  ' + TR("trascina (o clicca) da una sponda all'altra")
+    : id === 'tunnel' ? '  |  ' + TR('clicca ai piedi della collina (R: direzione)') : rotatable ? '  |  ' + TR('R: ruota') : '';
   const tn = document.getElementById('toolname');
   tn.textContent = toolLabel(id) + hint;
   const pm = document.createElement('span'); pm.id = 'planmsg'; tn.appendChild(pm);
@@ -523,7 +523,7 @@ function setTool(id, groupId) {
 // ---------- Contatori e informazioni ----------
 // Barra in alto: fondi, abitanti, disoccupati (abitano qui ma non lavorano), case, industrie
 function updateHud() {
-  document.getElementById('money').textContent = game.money.toLocaleString('it-IT') + ' €';
+  document.getElementById('money').textContent = money(game.money);
   document.getElementById('population').textContent = game.population;
   document.getElementById('unemployed').textContent = Math.max(0, game.population - (game.employed || 0));
   document.getElementById('houses').textContent = game.houses;
@@ -536,7 +536,7 @@ function updateHud() {
 function setPlanMsg(plan) {
   const el = document.getElementById('planmsg');
   if (el) el.style.color = plan && plan.ok ? '#a7f070' : '#ff9b6b';
-  if (el) el.textContent = plan && !plan.ok && plan.msg ? plan.msg : plan && plan.ok ? 'Costo: ' + plan.cost.toLocaleString('it-IT') + ' €' : '';
+  if (el) el.textContent = plan && !plan.ok && plan.msg ? plan.msg : plan && plan.ok ? TR('Costo: {m}', { m: money(plan.cost) }) : '';
 }
 
 // Direzione del senso unico quando si clicca senza trascinare (cambia con R)
@@ -555,14 +555,13 @@ function updateInfo() {
   const h = game.hover;
   if (!h) { el.textContent = '-'; return; }
   const t = game.map[h.y][h.x];
-  let s = h.x + ',' + h.y + ' - ' + TERRAIN_NAMES[t.type] + ' (quota ' + t.elev + ')';
-  if (t.path) s += ' - ' + (t.main ? 'Strada principale' : t.rb ? 'Rotonda' : PATHS[t.path].name);
-  if (t.bridge) s += ' - sotto un ponte';
-  if (t.field) s += ' - Campo' + (t.farm ? ' della fattoria' : ' (senza fattoria)');
+  let s = h.x + ',' + h.y + ' - ' + TERRAIN_NAMES[t.type] + ' ' + TR('(quota {n})', { n: t.elev });
+  if (t.path) s += ' - ' + (t.main ? TR('Strada principale') : t.rb ? TR('Rotonda') : PATHS[t.path].name);
+  if (t.field) s += ' - ' + TR('Campo');
   if (t.building) {
     const b = t.building;
     s += ' - ' + buildingName(b);
-    if (b.kind === 'house') s += ' (' + b.residents + '/' + HOUSE_CAPACITY + ' abitanti)';
+    if (b.kind === 'house') s += ' (' + b.residents + '/' + HOUSE_CAPACITY + ')';
   }
   el.textContent = s;
 }
