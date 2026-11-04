@@ -249,9 +249,14 @@ function drawPort(c, ax, ay, base, r) {
     // gru a portale sulla banchina: 4 gambe, telaio in cima e il braccio che sporge sull'acqua
     { group: [
       ...[[0.5, 0.06], [1.42, 0.06], [0.5, 0.3], [1.42, 0.3]].map(([u, v]) => ({ box: [u, v, u + 0.07, v + 0.07], h: 24, col: CRANE })),
-      { box: [0.95, -0.55, 1.04, -0.46], z: 14, h: 4, col: { l: '#3a3a40', r: '#2b2b30', t: '#4a4a52' } },   // gancio
       { box: [0.5, 0.06, 1.49, 0.37], z: 24, h: 3, col: CRANE },
-      { box: [0.93, -0.75, 1.06, 0.37], z: 27, h: 2, col: CRANE },
+      { box: [0.93, -0.75, 1.06, 0.37], z: 27, h: 2, col: CRANE,
+        after() {   // fune sottile con il gancio, appesa alla punta del braccio (prima era un blocco nero fuori posto)
+          if (!DETAIL) return;
+          const [hu, hv] = rotUV(1.0, -0.62, r), top = iso(ax, ay, hu, hv, base + 27 / STEP), bot = iso(ax, ay, hu, hv, base + 17 / STEP);
+          c.strokeStyle = '#2b2b30'; c.lineWidth = 0.5; c.beginPath(); c.moveTo(...top); c.lineTo(...bot); c.stroke();
+          c.strokeStyle = '#3a3a40'; c.lineWidth = 0.8; c.beginPath(); c.arc(bot[0], bot[1] + 0.9, 0.9, -Math.PI * 0.1, Math.PI * 1.1); c.stroke();
+        } },
     ] },
     // bitte d'ormeggio sul bordo della banchina (fuori dalla gru, così non si accavallano)
     { box: [0.17, 0.05, 0.23, 0.11], h: 2, col: bitt },

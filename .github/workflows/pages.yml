@@ -24,8 +24,12 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # tutta la storia: serve per la pagina delle versioni
       - name: Prepara i file del gioco
         run: mkdir site && cp -r index.html style.css js site/
+      - name: Prepara tutte le versioni (site/versioni)
+        run: python3 tools/build-versions.py site
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
