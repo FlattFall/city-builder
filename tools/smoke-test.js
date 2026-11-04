@@ -1527,6 +1527,59 @@ function check(cond, msg) {
   });
   check(dq.emptyGone && dq.asked && dq.kept && dq.gone, 'ruspa: chiede conferma per un edificio con merce (Annulla lo tiene, Demolisci lo toglie), vuoto subito: ' + JSON.stringify(dq));
 
+  // 53. supermercato con due caselle di entrata, rimborso del 75%, finestra "cosa accetta", navi distanziate
+  const misc = await page.evaluate(() => {
+    clearVehicles(); newGame(15, 128); unlockAll(); game.started = true;
+    const N = game.size, c = N / 2, r = {};
+    for (let y = c - 8; y < c + 8; y++) for (let x = c - 8; x < c + 8; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, elev: 2, bridge: null });
+    game.rotation = 0; useTool('supermarket', c, c);
+    const sm = game.map[c][c].building;
+    r.ents = entrancesOf(sm).length;
+    const e2 = entrancesOf(sm)[1]; useTool('road', e2.rx, e2.ry);
+    r.second = accessTiles(sm).length === 1;
+    const m0 = game.money; setTool('demolish'); lastTile = null; paintTo({ x: c, y: c }); lastTile = null; setTool('hand');
+    r.refund = game.money - m0 === Math.floor(BUILDINGS.supermarket.cost * 0.75);
+    useTool('warehouse', c, c); const w = game.map[c][c].building;
+    openBuildingPanel(w);
+    r.noGrid = !document.querySelector('#panel .gtoggle');
+    document.querySelector('#panel .psub-open').click();
+    r.sub = !document.getElementById('subpanel').hidden && document.querySelectorAll('#subpanel .gtoggle').length > 3;
+    document.querySelector('#subpanel .gtoggle').click();
+    r.toggled = Object.values(w.accept).includes(false) && !document.getElementById('subpanel').hidden;
+    closePanel(); r.closed = document.getElementById('subpanel').hidden;
+    return r;
+  });
+  check(misc.ents === 2 && misc.second, 'supermercato: strada su tutte e due le caselle davanti');
+  check(misc.refund, 'demolire un edificio ridà il 75% del costo');
+  check(misc.noGrid && misc.sub && misc.toggled && misc.closed, '"cosa accetta" in una finestra che si apre e si chiude: ' + JSON.stringify(misc));
+
+  // 54. navi da porto a porto: mai una sopra l'altra, e nessuna resta ferma
+  const sh = await page.evaluate(() => {
+    clearVehicles(); newGame(11, 128); unlockAll(); game.started = true; if (menuIsOpen()) closeMenu();
+    const N = game.size, c = N / 2;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, rb: null, elev: 2, bridge: null });
+    game.bridges = new Map(); rebuildBridgeIndex(); recount(); game.money = 1e7;
+    for (let y = c + 3; y <= c + 12; y++) for (let x = 0; x < N; x++) Object.assign(game.map[y][x], { type: T.WATER, elev: 0 });
+    for (let x = 0; x < N; x++) { useTool('road', x, c); game.map[c][x].main = true; useTool('road', x, c + 15); }
+    game.entries = [{ x: 0, y: c }, { x: N - 1, y: c }];
+    game.rotation = 2; useTool('port', c - 20, c + 1); game.rotation = 0; useTool('port', c + 20, c + 13);
+    for (let hx = c - 34; hx <= c + 30; hx++) { useTool('house', hx, c - 1); useTool('house', hx, c + 16); }
+    for (const h of game.buildings.values()) if (h.kind === 'house') h.residents = HOUSE_CAPACITY;
+    recount();
+    const [pa, pb] = [...game.buildings.values()].filter(b => b.kind === 'port').sort((x, y) => x.ax - y.ax);
+    pa.store = { wheat: 120, tables: 100 }; pa.dests = [pb.id];
+    let close = 0, maxWait = 0;
+    for (let i = 0; i < 4000; i++) {
+      simUpdate(0.1);
+      const ss = vehicles.filter(v => v.kind === 'ship');
+      for (let a = 0; a < ss.length; a++) { maxWait = Math.max(maxWait, ss[a].waited || 0); for (let b = a + 1; b < ss.length; b++) {
+        const p = vehiclePos(ss[a]), q = vehiclePos(ss[b]); if (Math.hypot(p.mx - q.mx, p.my - q.my) < 0.3) close++; } }
+    }
+    for (let i = 0; i < 3000 && vehicles.some(v => v.kind === 'ship'); i++) simUpdate(0.1);
+    return { close, maxWait, left: vehicles.filter(v => v.kind === "ship").length, landed: sumOf(pb.store), st: pa.status, w: pa.workers + "/" + pb.workers, ps: JSON.stringify(pa.store) };
+  });
+  check(sh.close === 0 && sh.left === 0 && sh.landed > 0, `navi: mai sovrapposte (${sh.close}), tutte tornate (${sh.left} in mare), merce arrivata ${sh.landed} ${JSON.stringify(sh)}`);
+
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();
 })();

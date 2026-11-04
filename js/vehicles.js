@@ -47,8 +47,8 @@ function driveNeighbors(x, y, L) {
 // Strade attaccate a un edificio (da qui si parte e qui si arriva).
 // Fattoria e magazzino si raggiungono solo dalla loro entrata.
 function accessTiles(b) {
-  const ent = entranceOf(b);
-  if (ent) return roadAt(ent.rx, ent.ry) ? [[ent.rx, ent.ry]] : [];
+  const ents = entrancesOf(b);
+  if (ents.length) return ents.filter(e => roadAt(e.rx, e.ry)).map(e => [e.rx, e.ry]);
   const out = [], seen = new Set();
   for (const p of footprint(b.kind, b.ax, b.ay))
     for (const D of DIRS) {
@@ -286,10 +286,18 @@ function blockedAhead(v) {
   const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
   if (len < 1e-6) return false;
   const dx = (b[0] - a[0]) / len, dy = (b[1] - a[1]) / len;
-  const p = vehiclePos(v);
+  const p = vehiclePos(v), ship = v.kind === 'ship';
   for (const o of vehicles) {
-    if (o === v) continue;
+    if (o === v || (o.kind === 'ship') !== ship) continue;   // navi e auto non si incontrano
     const q = vehiclePos(o);
+    if (ship) {   // una nave aspetta solo quella davanti che va nella stessa direzione
+      const oa = o.pts[o.seg], ob = o.pts[Math.min(o.seg + 1, o.pts.length - 1)];
+      const ox = ob[0] - oa[0], oy = ob[1] - oa[1];
+      if (ox * dx + oy * dy <= 0) continue;
+      const rx = q.mx - p.mx, ry = q.my - p.my, ahead = rx * dx + ry * dy, side = Math.abs(-rx * dy + ry * dx);
+      if (ahead > 0 && ahead < 1.1 && side < 0.3) return true;
+      continue;
+    }
     if (Math.abs(q.h - p.h) > 0.7) continue;   // uno sul ponte e uno sotto: non si danno fastidio
     const rx = q.mx - p.mx, ry = q.my - p.my;
     const ahead = rx * dx + ry * dy, side = Math.abs(-rx * dy + ry * dx);
@@ -303,7 +311,13 @@ function simUpdate(dt) {
   dt = Math.min(dt, 0.1);
   const done = [];
   for (const v of vehicles) {
-    if (blockedAhead(v) && (v.waited = (v.waited || 0) + dt) < 3) continue;
+    // fermo troppo a lungo: riparte e per un po' non si ferma (prima ripartiva per un attimo e si
+    // fermava di nuovo, e due veicoli uno contro l'altro sembravano bloccati per sempre)
+    if (v.force > 0) v.force -= dt;
+    else if (blockedAhead(v)) {
+      if ((v.waited = (v.waited || 0) + dt) < 3) continue;
+      v.force = 1.5;
+    }
     v.waited = 0;
     if (moveVehicle(v, dt)) done.push(v);
   }
@@ -510,7 +524,17 @@ function waterRoute(starts, goals) {
   }
   return null;
 }
-function shipPoints(tiles) { return tiles.map(([x, y]) => [x + 0.5, y + 0.5, 0, 1, 0]); }
+// Le navi tengono la destra (come le auto): così quella che va e quella che torna non si
+// sovrappongono (prima andavano sulla stessa riga e si fermavano una davanti all'altra)
+const SHIP_LANE = 0.2;
+function shipPoints(tiles) {
+  return tiles.map(([x, y], i) => {
+    const a = tiles[Math.max(0, i - 1)], b = tiles[Math.min(tiles.length - 1, i + 1)];
+    let dx = b[0] - a[0], dy = b[1] - a[1];
+    const l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l;
+    return [x + 0.5 - dy * SHIP_LANE, y + 0.5 + dx * SHIP_LANE, 0, 1, 0];
+  });
+}
 function platformTiles(b) { return footprint(b.kind, b.ax, b.ay).map(p => [p.x, p.y]); }
 // Da dove parte una nave: la piattaforma (è nell'acqua) o le caselle d'acqua dietro al porto
 function shipStarts(b) { return BUILDINGS[b.kind].water ? platformTiles(b) : b.kind === 'port' ? dockTiles(b) : []; }
@@ -523,6 +547,9 @@ function sendByShip(from, to, g, q) {
   const goals = to.kind === 'port' ? dockTiles(to) : [];
   const route = goals.length && waterRoute(shipStarts(from), goals);
   if (!route) { from.status = TR("Nessuna via d'acqua verso {b}", { b: buildingLabel(to) }); from.retry = 3; return false; }
+  // una nave alla volta dallo stesso molo: la prossima parte quando la prima si è allontanata
+  // (prima ne partivano due insieme, una sopra l'altra)
+  if (vehicles.some(v => v.kind === 'ship' && v.load > 0 && v.from === from.id && v.seg < 4)) { from.retry = 1; return false; }
   q = Math.min(from.store[g] || 0, SHIP_CAPACITY, Math.max(0, roomFor(to, g)));   // la nave porta più di un furgone
   if (q <= 0) return false;
   addTo(from.store, g, -q);

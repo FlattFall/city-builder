@@ -111,13 +111,13 @@ canvas { display: block; }
 .pbar-fill { height: 100%; background: #a7f070; }
 .pchoices { display: flex; gap: 4px; }
 .plist { display: flex; flex-direction: column; gap: 4px; }
-#panel button {
+#panel button, #subpanel button {
   font: inherit; font-size: 12px; cursor: pointer; color: #f4f4f4;
   background: #2c2f48; border: 2px solid #44486b; border-radius: 4px; padding: 4px 6px;
 }
-#panel button:hover { border-color: #ffd966; }
-#panel .pchoice.active { border-color: #ffd966; background: #4a4f78; }
-#panel .pchoice.bad { color: #ff9b6b; }
+#panel button:hover, #subpanel button:hover { border-color: #ffd966; }
+#panel .pchoice.active, #subpanel .pchoice.active { border-color: #ffd966; background: #4a4f78; }
+#panel .pchoice.bad, #subpanel .pchoice.bad { color: #ff9b6b; }
 .pchoices .pchoice { flex: 1; }
 
 #fieldbar {
@@ -140,14 +140,14 @@ canvas { display: block; }
 .pgood { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .pgood b { margin-left: auto; color: #ffd966; }
 .pgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
-#panel .gtoggle { padding: 2px; opacity: .35; filter: grayscale(1); }
-#panel .gtoggle.on { opacity: 1; filter: none; border-color: #a7f070; }
+#panel .gtoggle, #subpanel .gtoggle { padding: 2px; opacity: .35; filter: grayscale(1); }
+#panel .gtoggle.on, #subpanel .gtoggle.on { opacity: 1; filter: none; border-color: #a7f070; }
 .pwrap { flex-wrap: wrap; }
 .pwrap .pchoice { flex: 1 1 30%; display: flex; flex-direction: column; align-items: center; gap: 2px; }
-#panel .precipe {
+#panel .precipe, #subpanel .precipe {
   display: flex; align-items: center; gap: 4px; width: 100%; margin: 3px 0; text-align: left; opacity: .45;
 }
-#panel .precipe.on { opacity: 1; border-color: #a7f070; }
+#panel .precipe.on, #subpanel .precipe.on { opacity: 1; border-color: #a7f070; }
 .parrow { color: #94b0c2; margin: 0 2px; }
 
 #submenu { flex-wrap: wrap; max-width: min(96vw, 800px); justify-content: center; }
@@ -164,7 +164,7 @@ canvas { display: block; }
 /* nome dell'edificio modificabile */
 .pname { cursor: text; }
 .pname:hover { text-decoration: underline dotted; }
-#panel .prename { padding: 0 5px; font-size: 12px; margin-left: 4px; }
+#panel .prename, #subpanel .prename { padding: 0 5px; font-size: 12px; margin-left: 4px; }
 .pnameinput { font: inherit; font-size: 14px; width: 170px; padding: 1px 4px; color: #1a1c2c; background: #f4f4f4; border: 2px solid #ffd966; border-radius: 3px; }
 
 /* ---------- Strumenti bloccati (progressi) ---------- */
@@ -172,7 +172,7 @@ canvas { display: block; }
 #toolbar .tool.locked::after { content: '🔒'; position: absolute; right: 4px; bottom: 16px; font-size: 14px; }
 #submenu .sub.locked span { color: #94b0c2; }
 #submenu .sub.locked small { color: #ff9b6b; }
-#panel .pchoice.locked { opacity: .55; }
+#panel .pchoice.locked, #subpanel .pchoice.locked { opacity: .55; }
 
 /* ---------- Finestre: progressi e manuale ---------- */
 .overlay { position: fixed; inset: 0; z-index: 9; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(10, 12, 24, .62); }
@@ -269,8 +269,8 @@ canvas { display: block; }
 #panel .psplit-row { display: flex; align-items: center; gap: 4px; margin-top: 5px; }
 #panel .psplit-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
 #panel .psplit-pct { min-width: 38px; text-align: center; color: #ffd966; }
-#panel .pstep { width: 22px; height: 20px; padding: 0; background: #3a3f63; color: #f4f4f4; border: 1px solid #5a5f8a; border-radius: 3px; cursor: pointer; font: inherit; }
-#panel .pstep:hover { background: #4a4f78; }
+#panel .pstep, #subpanel .pstep { width: 22px; height: 20px; padding: 0; background: #3a3f63; color: #f4f4f4; border: 1px solid #5a5f8a; border-radius: 3px; cursor: pointer; font: inherit; }
+#panel .pstep:hover, #subpanel .pstep:hover { background: #4a4f78; }
 #panel .psplit-bar { height: 4px; margin-top: 2px; }
 
 /* Domanda prima di demolire un edificio con della merce */
@@ -285,3 +285,16 @@ canvas { display: block; }
 .confirm-btns button:hover { background: #4a4f78; }
 .confirm-btns button.danger { background: #a83232; border-color: #d94141; }
 .confirm-btns button.danger:hover { background: #c03a3a; }
+
+/* Finestra a parte del pannello: cosa accetta / ricette (si apre con il pulsante nel pannello) */
+#subpanel {
+  position: fixed; top: 46px; right: 316px; width: 250px; z-index: 6;
+  background: #262b44; border: 2px solid #ffd966; border-radius: 6px; padding: 10px 12px;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, .4); font-size: 13px; max-height: calc(100% - 180px); overflow-y: auto; color: #f4f4f4;
+}
+#subpanel[hidden] { display: none; }
+#subpanel .pgrid { margin: 6px 0; }
+#subpanel .pchoices { display: flex; gap: 6px; margin-top: 6px; }
+#subpanel .pchoice { flex: 1; }
+#panel .psub-open { display: block; width: 100%; text-align: left; margin: 6px 0; padding: 6px 8px; background: #3a3f63; color: #f4f4f4; border: 2px solid #5a5f8a; border-radius: 3px; cursor: pointer; font: inherit; }
+#panel .psub-open:hover, #panel .psub-open.active { border-color: #ffd966; }

@@ -49,7 +49,7 @@ const BUILDINGS = {
   bakery:    { name: 'Panificio', w: 1, h: 1, cost: 400, height: 18, group: 'industry' },
   dairy:     { name: 'Caseificio', w: 2, h: 2, cost: 1200, height: 26, group: 'industry' },
   slaughterhouse: { name: 'Macello e industria della carne', w: 2, h: 2, cost: 1400, height: 24, group: 'industry' },
-  supermarket: { name: 'Supermercato', w: 2, h: 2, cost: 1200, height: 20, group: 'industry' },
+  supermarket: { name: 'Supermercato', w: 2, h: 2, cost: 1200, height: 20, group: 'industry', wide: true },   // wide: strada su tutte e due le caselle davanti
   // settore forestale e del legno
   forestry:  { name: 'Azienda forestale', w: 2, h: 2, cost: 800, height: 20, group: 'wood' },
   sawmill:   { name: 'Segheria', w: 2, h: 2, cost: 1300, height: 24, group: 'wood' },

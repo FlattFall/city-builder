@@ -1304,9 +1304,9 @@ function drawHover(c) {
 }
 
 // Segno dell'entrata (lato da collegare alla strada): verde se la strada c'è già, giallo se manca
-function drawEntrance(c, b) {
-  const ent = entranceOf(b);
-  if (!ent || !inMap(ent.x, ent.y)) return;
+function drawEntrance(c, b) { for (const ent of entrancesOf(b)) drawEntranceMark(c, b, ent); }
+function drawEntranceMark(c, b, ent) {
+  if (!inMap(ent.x, ent.y)) return;
   const e = game.map[b.ay][b.ax].elev;
   const [k1, k2] = EDGES[ent.d];
   const A = iso(ent.x, ent.y, ...CORNERS[k1], e), B = iso(ent.x, ent.y, ...CORNERS[k2], e);
@@ -1434,6 +1434,7 @@ function drawFrame() {
     for (let x = xa; x <= xb; x++) if (visible(x, y)) run(y * N + x);
   }
   if (game.fieldMode) drawFieldArea(ctx);
+  else if (game.tool === 'farm' && game.hover) drawFieldArea(ctx, { ax: game.hover.x, ay: game.hover.y });   // con la fattoria in mano: dove si potranno mettere i campi
   drawWorkerIcons(ctx);
   DETAIL = true; FINE = true;   // icone e altri disegni fuori dal fotogramma: sempre dettagliati
 }
@@ -1491,9 +1492,9 @@ function drawStatusIcon(c, st, x, y) {
 }
 
 // In modalità campi: zona tratteggiata dove si possono mettere i campi della fattoria
-function drawFieldArea(c) {
-  const f = game.buildings.get(game.fieldMode);
-  if (!f) return;
+function drawFieldArea(c, f) {
+  f = f || game.buildings.get(game.fieldMode);
+  if (!f || !inMap(f.ax, f.ay)) return;
   const R = FARM.fieldRadius, e = game.map[f.ay][f.ax].elev;
   const x0 = f.ax - R, y0 = f.ay - R, w = 2 + 2 * R;
   const pts = [iso(x0, y0, 0, 0, e), iso(x0, y0, w, 0, e), iso(x0, y0, w, w, e), iso(x0, y0, 0, w, e)];

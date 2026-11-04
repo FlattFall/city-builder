@@ -51,14 +51,14 @@ function paintTo(tile) {
         askDemolish(b, () => {
           game.pickDeck = pick.deck;
           const r2 = useTool('demolish', pick.x, pick.y);
-          if (r2.ok) { game.dirty = true; updateHud(); requestDraw(); } else if (r2.msg) toast(r2.msg);
+          if (r2.ok) { game.dirty = true; updateHud(); requestDraw(); if (r2.refund) toast(TR('Demolito: ti ridanno {m}', { m: money(r2.refund) })); } else if (r2.msg) toast(r2.msg);
         });
         if (changed) { updateHud(); requestDraw(); }
         return;
       }
     }
     const r = useTool(game.tool, p.x, p.y);
-    if (r.ok) { changed = true; game.dirty = true; paintedNow.add(p.y * game.size + p.x); }
+    if (r.ok) { changed = true; game.dirty = true; paintedNow.add(p.y * game.size + p.x); if (r.refund) toast(TR('Demolito: ti ridanno {m}', { m: money(r.refund) })); }
     else if (r.msg) toast(r.msg);
     prev = p;
   }

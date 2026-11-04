@@ -61,6 +61,7 @@ function panelShapeOf(b) {
 }
 
 function openBuildingPanel(b) {
+  if (game.selected !== b.id) subOpen = null;
   game.selected = b.id;
   document.getElementById('panel').hidden = false;
   renderPanel();
@@ -68,6 +69,7 @@ function openBuildingPanel(b) {
 }
 
 function closePanel() {
+  closeSubpanel();
   game.selected = null;
   document.getElementById('panel').hidden = true;
   requestDraw();
@@ -189,6 +191,60 @@ function splitSection(box, b) {
   }
 }
 
+// ---------- Finestra a parte: cosa accetta il magazzino / ricette della fabbrica ----------
+let subOpen = null;   // 'accept', 'recipes' o null
+function subButton(kind, text) {
+  const btn = el('button', 'psub-open' + (subOpen === kind ? ' active' : ''), text + (subOpen === kind ? '  ◂' : '  ▸'));
+  btn.title = TR('Apri o chiudi la finestra');
+  btn.addEventListener('click', () => { subOpen = subOpen === kind ? null : kind; renderPanel(); });
+  return btn;
+}
+function closeSubpanel() { subOpen = null; document.getElementById('subpanel').hidden = true; }
+function renderSubpanel(b) {
+  const box = document.getElementById('subpanel');
+  const ok = b && ((subOpen === 'accept' && isWarehouse(b)) || (subOpen === 'recipes' && isProcessor(b)));
+  if (!ok) { box.hidden = true; if (subOpen && b) subOpen = null; return; }
+  box.textContent = '';
+  const head = el('div', 'phead');
+  head.appendChild(el('b', 'pname', subOpen === 'accept' ? TR('Cosa accetta') : TR('Ricette')));
+  const x = el('button', 'pclose', '✕');
+  x.addEventListener('click', () => { subOpen = null; renderPanel(); });
+  head.appendChild(x);
+  box.appendChild(head);
+  if (subOpen === 'accept') {
+    box.appendChild(el('div', 'pnote', TR('Clic su una merce per accettarla o rifiutarla.')));
+    const grid = el('div', 'pgrid');
+    for (const g of Object.keys(GOODS).filter(g => warehouseTakes(b.kind, g))) {
+      const on = b.accept[g] !== false;
+      const btn = el('button', 'gtoggle' + (on ? ' on' : ''));
+      btn.title = GOODS[g].name + (on ? TR(': accettato') : TR(': rifiutato'));
+      btn.appendChild(goodImg(g));
+      btn.addEventListener('click', () => { b.accept[g] = !on; game.dirty = true; renderPanel(); });
+      grid.appendChild(btn);
+    }
+    box.appendChild(grid);
+    const all = el('div', 'pchoices');
+    for (const [lab, val] of [[TR('Tutto'), true], [TR('Niente'), false]]) {
+      const bt = el('button', 'pchoice', lab);
+      bt.addEventListener('click', () => { for (const g of Object.keys(GOODS).filter(g => warehouseTakes(b.kind, g))) b.accept[g] = val; game.dirty = true; renderPanel(); });
+      all.appendChild(bt);
+    }
+    box.appendChild(all);
+  } else {
+    box.appendChild(el('div', 'pnote', TR('Clic su una ricetta per accenderla o spegnerla.')));
+    for (const r of RECIPES[b.kind]) {
+      const on = b.recipes[r.out] !== false;
+      const row = el('button', 'precipe' + (on ? ' on' : ''));
+      for (const [g, n] of Object.entries(r.in)) { if (n > 1) row.appendChild(el('span', 'pdim', n + 'x')); row.appendChild(goodImg(g)); }
+      row.appendChild(el('span', 'parrow', '→'));
+      row.append(goodImg(r.out), el('span', null, GOODS[r.out].name));
+      row.addEventListener('click', () => { b.recipes[r.out] = !on; game.dirty = true; renderPanel(); });
+      box.appendChild(row);
+    }
+  }
+  box.hidden = false;
+}
+
 function renderPanel() {
   const b = game.selected && game.buildings.get(game.selected);
   const box = document.getElementById('panel');
@@ -246,17 +302,9 @@ function renderPanel() {
     box.appendChild(liveText('div', 'prow', () => TR('Scorte: {a} / {b}', { a: sumOf(b.store), b: CAPS[b.kind].store })));
     box.appendChild(bar(() => sumOf(b.store), CAPS[b.kind].store));
     box.appendChild(goodsList(() => b.store, TR('Vuoto.')));
-    box.appendChild(el('div', 'plabel', TR('Cosa accetta (clic per cambiare)')));
-    const grid = el('div', 'pgrid');
-    for (const g of Object.keys(GOODS).filter(g => warehouseTakes(b.kind, g))) {
-      const on = b.accept[g] !== false;
-      const btn = el('button', 'gtoggle' + (on ? ' on' : ''));
-      btn.title = GOODS[g].name + (on ? TR(': accettato') : TR(': rifiutato'));
-      btn.appendChild(goodImg(g));
-      btn.addEventListener('click', () => { b.accept[g] = !on; game.dirty = true; renderPanel(); });
-      grid.appendChild(btn);
-    }
-    box.appendChild(grid);
+    // cosa accetta: in una finestra a parte che si apre e si chiude (richiesta dell'utente: occupava troppo spazio)
+    const takes = Object.keys(GOODS).filter(g => warehouseTakes(b.kind, g));
+    box.appendChild(subButton('accept', TR('Cosa accetta ({a} di {b})', { a: takes.filter(g => b.accept[g] !== false).length, b: takes.length })));
     if (b.kind === 'port' && !dockTiles(b).length) box.appendChild(el('div', 'pwarn', TR("Dietro il porto non c'è acqua: le navi non possono attraccare.")));
     box.appendChild(el('div', 'pnote', b.kind === 'port' ? TR('Magazzino marittimo: tutte le merci. Le navi arrivano dalle piattaforme e dagli altri porti; scegli un altro porto come destinazione per mandarci la merce in nave.') : b.kind === 'warehouse' ? TR('Solo cibo e animali. Fabbrica, panificio, caseificio, macello e supermercato prendono da qui quello che gli serve.')
       : TR('Solo merci (legno, mobili, cotone, lana, tessuti, vestiti, energia). Segheria, fabbriche e negozi prendono da qui quello che gli serve.')));
@@ -333,16 +381,8 @@ function renderPanel() {
   }
 
   if (isProcessor(b)) {
-    box.appendChild(el('div', 'plabel', TR('Ricette (clic per accendere/spegnere)')));
-    for (const r of RECIPES[b.kind]) {
-      const on = b.recipes[r.out] !== false;
-      const row = el('button', 'precipe' + (on ? ' on' : ''));
-      for (const [g, n] of Object.entries(r.in)) { if (n > 1) row.appendChild(el('span', 'pdim', n + 'x')); row.appendChild(goodImg(g)); }
-      row.appendChild(el('span', 'parrow', '→'));
-      row.append(goodImg(r.out), el('span', null, GOODS[r.out].name));
-      row.addEventListener('click', () => { b.recipes[r.out] = !on; game.dirty = true; renderPanel(); });
-      box.appendChild(row);
-    }
+    const recs = RECIPES[b.kind];
+    box.appendChild(subButton('recipes', TR('Ricette ({a} di {b} accese)', { a: recs.filter(r => b.recipes[r.out] !== false).length, b: recs.length })));
     box.appendChild(liveText('div', 'prow', () => TR('Materie prime: {a} / {b}', { a: sumOf(b.input), b: CAPS[b.kind].input })));
     box.appendChild(goodsList(() => b.input, TR('Nessuna materia prima.')));
     box.appendChild(liveText('div', 'prow', () => TR('Prodotti pronti: {a} / {b}', { a: sumOf(b.store), b: CAPS[b.kind].store })));
@@ -382,6 +422,7 @@ function renderPanel() {
     box.appendChild(row);
     box.appendChild(el('div', 'pnote', TR('Si rifornisce anche dai magazzini. Tasse: {n}% del prezzo.', { n: Math.round(TAX_RATE * 100) })));
   }
+  renderSubpanel(b);
 }
 
 // aggiornamento del pannello aperto (chiamato dal ciclo del gioco)

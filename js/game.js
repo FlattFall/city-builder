@@ -302,12 +302,20 @@ function rotUV(u, v, r) {
 
 // Fattoria e magazzino hanno una sola entrata: il tile dell'impronta da cui si entra e il tile
 // fuori (dove deve esserci la strada). Senza rotazione l'entrata è davanti a sinistra.
-function entranceOf(b) {
-  if (BUILDINGS[b.kind].w === 1 || BUILDINGS[b.kind].anySide) return null;   // senza entrata: va bene una strada su qualsiasi lato
-  const inn = rotUV(0.5, 1.5, b.rot || 0), out = rotUV(0.5, 2.5, b.rot || 0);
-  const x = b.ax + Math.floor(inn[0]), y = b.ay + Math.floor(inn[1]);
-  const rx = b.ax + Math.floor(out[0]), ry = b.ay + Math.floor(out[1]);
-  return { x, y, rx, ry, d: DIRS.findIndex(D => D.dx === rx - x && D.dy === ry - y) };
+function entranceOf(b) { return entrancesOf(b)[0] || null; }
+// Tutte le entrate: una sola di solito; il supermercato (`wide`) si collega da tutte e due le caselle
+// del lato davanti (richiesta dell'utente)
+function entrancesOf(b) {
+  const def = BUILDINGS[b.kind];
+  if (def.w === 1 || def.anySide) return [];   // senza entrata: va bene una strada su qualsiasi lato
+  const out = [];
+  for (const u of def.wide ? [0.5, 1.5] : [0.5]) {
+    const inn = rotUV(u, 1.5, b.rot || 0), o = rotUV(u, 2.5, b.rot || 0);
+    const x = b.ax + Math.floor(inn[0]), y = b.ay + Math.floor(inn[1]);
+    const rx = b.ax + Math.floor(o[0]), ry = b.ay + Math.floor(o[1]);
+    out.push({ x, y, rx, ry, d: DIRS.findIndex(D => D.dx === rx - x && D.dy === ry - y) });
+  }
+  return out;
 }
 
 // Porto: le due caselle d'acqua dietro (lato opposto all'entrata) dove attraccano le navi
@@ -520,6 +528,7 @@ function demolishTarget(x, y) {
 // Il tile permette l'azione dello strumento? (anteprima verde/rossa)
 function canUseTool(tool, x, y) { return tool === 'hand' || !checkTool(tool, x, y); }
 
+const DEMOLISH_REFUND = 0.75;
 function toolCost(tool, x, y) {
   const t = game.map[y][x];
   const forest = t.type === T.FOREST ? COSTS.clearForest : 0;
@@ -530,7 +539,7 @@ function toolCost(tool, x, y) {
   if (BUILDINGS[tool]) return BUILDINGS[tool].cost;
   if (tool === 'demolish') {
     if (demolishTarget(x, y) === 'bridge') return COSTS.demolishPath * (bridgeOver(t).n - 1);
-    if (t.building) return COSTS.demolishBuilding;
+    if (t.building) return 0;   // demolire un edificio non costa: anzi ridà il 75% (DEMOLISH_REFUND)
     if (t.path) return COSTS.demolishPath;
     if (t.bridge && t.type !== T.FOREST && !t.field) return COSTS.demolishPath * (bridgeAt(x, y).n - 1);
     if (t.field) return COSTS.demolishField;
@@ -585,7 +594,12 @@ function useTool(tool, x, y) {
     // priorità: ponte > edificio > percorso > campo > alberi > tunnel sotto
     const tun = t.bridge && !bridgeOver(t) ? bridgeAt(x, y) : null;
     if (demolishTarget(x, y) === 'bridge') removeBridge(bridgeOver(t));
-    else if (t.building) removeBuilding(t.building);
+    else if (t.building) {
+      const b = t.building, back = Math.floor(BUILDINGS[b.kind].cost * DEMOLISH_REFUND);
+      removeBuilding(b);
+      game.money += back;   // si riprende il 75% di quello che era costato (richiesta dell'utente)
+      return { ok: true, refund: back };
+    }
     else if (t.path) {
       if (t.path === 'rail') game.rails--; else game.roads--;
       setPath(x, y, null);

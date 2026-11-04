@@ -36,7 +36,7 @@ const TOOL_INFO = {
   port:      { label: 'Porto (2x2)', cost: BUILDINGS.port.cost, desc: "Porto con magazzino marittimo per tutte le merci: davanti la strada, dietro l'acqua (R per ruotarlo). Le navi portano la merce agli altri porti (petroliere per petrolio e carburanti, portacontainer per il resto), i furgoni a magazzini, fabbriche e negozi." },
   refinery:  { label: 'Raffineria di petrolio (2x2)', cost: BUILDINGS.refinery.cost, desc: 'Trasforma il petrolio grezzo in benzina e gasolio.' },
   gasStation: { label: 'Distributore di carburante', cost: BUILDINGS.gasStation.cost, desc: 'Vende benzina e gasolio agli abitanti vicini: per ogni vendita incassi le tasse.' },
-  demolish:  { label: 'Demolisci', desc: 'Toglie edifici, strade, ponti, tunnel, campi e alberi. Trascinando toglie solo cose dello stesso tipo del primo clic.' },
+  demolish:  { label: 'Demolisci', desc: 'Toglie edifici, strade, ponti, tunnel, campi e alberi. Trascinando toglie solo cose dello stesso tipo del primo clic. Un edificio demolito ti ridà il 75% del costo.' },
   raise:     { label: 'Alza terreno', cost: COSTS.terrain, desc: 'Alza il terreno di un livello (solo dove non ci sono strade o edifici).' },
   lower:     { label: 'Abbassa terreno', cost: COSTS.terrain, desc: "Abbassa il terreno di un livello; a quota 0 diventa acqua." },
   level:     { label: 'Livella terreno', cost: COSTS.terrain, desc: 'Trascina: porta tutto alla quota del primo tile.' },
