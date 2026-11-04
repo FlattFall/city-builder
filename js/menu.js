@@ -15,7 +15,7 @@ function showMenuPage(page) {
   }
   if (page === 'load') renderSaveList();
   if (page === 'new') sizeLabels();
-  if (page === 'options') renderLangList();
+  if (page === 'options') { renderLangList(); renderSettings(); }
 }
 
 // Scelta della lingua (menu Opzioni): si cambia subito, anche a partita aperta

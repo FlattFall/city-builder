@@ -292,18 +292,6 @@ const MANUAL = [
     b.appendChild(mEl('p', null, TR("Il terreno si modella solo dove non ci sono strade o edifici. A quota 0 diventa acqua. Si costruisce anche in montagna, ma fattorie e la maggior parte degli allevamenti vogliono l'erba.")));
   } },
 
-  { id: 'keys', title: 'Comandi', icon: 'hand', build(b) {
-    const ul = mEl('ul');
-    ul.innerHTML = [
-      ['Clic sinistro', 'usa lo strumento (trascina per strade, campi, demolizioni)'],
-      ['Mano + clic', "apre il pannello dell'edificio (merce, lavoratori, destinazioni, nome con ✎)"],
-      ['Destro / centrale + trascina', 'sposta la mappa'], ['Rotella', 'zoom'],
-      ['W A S D / frecce', 'sposta la mappa'], ['1 - 8', 'gruppi della barra (premi di nuovo per il prossimo strumento)'],
-      ['R', "ruota l'edificio (o la direzione di senso unico e tunnel)"], ['M', 'manuale'], ['P', 'progressi'], ['I', 'sblocca tutto (per provare il gioco)'],
-      ['Esc', 'chiude le finestre, poi menu e salvataggio'],
-    ].map(([k, d]) => '<li><span class="man-key">' + TR(k) + '</span> ' + TR(d) + '</li>').join('');
-    b.appendChild(ul);
-  } },
 ];
 
 function renderManual() {

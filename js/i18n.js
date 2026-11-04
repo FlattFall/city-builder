@@ -87,6 +87,7 @@ function setLanguage(l) {
   refreshLocks();
   updateHud();
   refreshSpeed();
+  refreshKeyLabels();
   if (panelIsOpen()) renderPanel();
   if (manualIsOpen()) renderManual();
   if (progressIsOpen()) renderProgress();

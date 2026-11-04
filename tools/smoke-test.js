@@ -31,7 +31,14 @@ function check(cond, msg) {
   await page.keyboard.press('Escape');
   check(await page.evaluate(() => !document.getElementById('menu').hidden), 'avvio: Esc non chiude il menu senza una mappa');
   await page.click('#m-options');
-  check(await page.isVisible('text=Ci stiamo lavorando'), 'Opzioni: messaggio "ci stiamo lavorando"');
+  check(await page.evaluate(() => document.querySelectorAll('#key-list .key-btn').length === KEY_ACTIONS.length && document.querySelectorAll('#volume-list input[type=range]').length === 2), 'Opzioni: volume e tasti');
+  // cambio di un tasto: manuale su N, poi si torna ai tasti di base
+  await page.click('#key-list .key-btn[data-action="manual"]');
+  await page.keyboard.press('n');
+  const kb = await page.evaluate(() => ({ k: keyOf('manual'), btn: document.getElementById('manual-btn').textContent }));
+  await page.click('#keys-reset');
+  const kb2 = await page.evaluate(() => keyOf('manual'));
+  check(kb.k === 'n' && kb.btn.includes('(N)') && kb2 === 'm', 'Opzioni: si cambia il tasto del manuale (N) e si ripristina (M)');
   await page.keyboard.press('Escape');
   await page.click('#m-new');
   check(await page.isVisible('#m-size-128') && await page.isVisible('#m-size-1024'), 'Nuova mappa: 4 grandezze (da 128 a 1024)');
@@ -1685,6 +1692,18 @@ function check(cond, msg) {
     return { maxTurn: Math.round(maxTurn), near, ratio: +(len / straight).toFixed(2) };
   });
   check(sr.maxTurn < 50 && sr.near === 0 && sr.ratio < 1.5, `rotta delle navi: curve dolci (al massimo ${sr.maxTurn}° per punto), lontana dalla costa (${sr.near}), lunga ${sr.ratio} volte la linea d'aria`);
+
+  // 59. prezzi sensati: ogni prodotto vale almeno 1,5 volte le sue materie prime
+  const bad = await page.evaluate(() => {
+    const worth = g => GOODS[g].price || GOODS[g].value || 0, out = [];
+    for (const rs of Object.values(RECIPES)) for (const r of rs) {
+      const inp = Object.entries(r.in).reduce((a, [g, n]) => a + worth(g) * n, 0);
+      if (!worth(r.out) || !inp || worth(r.out) < 1.5 * inp) out.push(r.out + ' ' + worth(r.out) + ' / ' + inp);
+    }
+    for (const [g, G] of Object.entries(GOODS)) if (!G.price && !G.value) out.push(g + ' senza valore');
+    return out;
+  });
+  check(bad.length === 0, 'prezzi: ogni prodotto vale almeno 1,5 volte le materie prime' + (bad.length ? ': ' + bad.join(', ') : ''));
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();

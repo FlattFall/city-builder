@@ -158,8 +158,7 @@ canvas.addEventListener('wheel', e => {
 // (Esc apre il menu: vedi menu.js. Nuova mappa e caricamento sono nel menu.)
 // Movimento con WASD/frecce: si tiene conto dei tasti premuti in questo momento e la mappa
 // scorre in modo continuo a ogni fotogramma (anche in diagonale, es. W + A insieme)
-const PAN_KEYS = { w: [0, 1], arrowup: [0, 1], s: [0, -1], arrowdown: [0, -1],
-  a: [1, 0], arrowleft: [1, 0], d: [-1, 0], arrowright: [-1, 0] };
+// (i tasti si scelgono nelle Opzioni: keyOf / actionOfKey / panDir in settings.js)
 const PAN_SPEED = 900; // pixel dello schermo al secondo
 const keysHeld = new Set();
 
@@ -222,15 +221,16 @@ addEventListener('keydown', e => {
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;   // si sta scrivendo un nome
   if (menuIsOpen()) return; // con il menu aperto la tastiera non comanda il gioco
   const k = e.key.toLowerCase();
-  if (!e.repeat && k === 'm') { toggleManual(); return; }
-  if (!e.repeat && k === 'p') { toggleProgress(); return; }
-  if (!e.repeat && k === 'i') { cheatUnlockAll(); return; }   // sblocca tutto (per le prove)
-  if (!e.repeat && e.code === 'Space' && game.started) { e.preventDefault(); togglePause(); return; }   // pausa
+  const act = actionOfKey(k);
+  if (!e.repeat && act === 'manual') { toggleManual(); return; }
+  if (!e.repeat && act === 'progress') { toggleProgress(); return; }
+  if (!e.repeat && act === 'unlock') { cheatUnlockAll(); return; }   // sblocca tutto (per le prove)
+  if (!e.repeat && act === 'pause' && game.started) { e.preventDefault(); togglePause(); return; }   // pausa
   if (manualIsOpen() || progressIsOpen()) return;   // con manuale o progressi aperti il resto è fermo
-  if (PAN_KEYS[k]) { keysHeld.add(k); e.preventDefault(); return; }
+  if (panDir(k)) { keysHeld.add(k); e.preventDefault(); return; }
   if (e.repeat) return;
   if (selectGroupByKey(e.key)) { /* strumento scelto */ }
-  else if (k === 'r') rotateTool();
+  else if (act === 'rotate') rotateTool();
 });
 addEventListener('keyup', e => keysHeld.delete(e.key.toLowerCase()));
 addEventListener('blur', () => keysHeld.clear()); // la finestra perde il fuoco: niente tasti "incollati"
@@ -238,7 +238,7 @@ addEventListener('blur', () => keysHeld.clear()); // la finestra perde il fuoco:
 function panWithKeys(dt) {
   if (!keysHeld.size || menuIsOpen()) return;
   let dx = 0, dy = 0;
-  for (const k of keysHeld) { dx += PAN_KEYS[k][0]; dy += PAN_KEYS[k][1]; }
+  for (const k of keysHeld) { const d = panDir(k); if (d) { dx += d[0]; dy += d[1]; } }
   if (!dx && !dy) return;
   const len = Math.hypot(dx, dy); // in diagonale stessa velocità
   cam.x += dx / len * PAN_SPEED * dt;

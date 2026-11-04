@@ -103,58 +103,62 @@ const WAREHOUSE_CAPACITY = 1000;
 // cat: raw = dai campi, food = dalla fabbrica, bakery = dal panificio...
 // price = prezzo di vendita (le merci senza prezzo non si vendono); shop = negozio dove si
 // vendono (se manca: supermercato)
+// Prezzi (richiesta dell'utente: lavorare una merce deve rendere di più che venderla così com'è):
+// ogni prodotto vale almeno 1,5 volte (di solito 2) le sue materie prime; le tasse sono il 50% del
+// prezzo e i prezzi sono pari, così "ti dà" è un numero intero. value = quanto vale una merce che
+// non si vende (serve solo per fare questi conti; il test lo controlla).
 const GOODS = {
-  wheat:      { name: 'Grano', cat: 'raw' },
+  wheat:      { name: 'Grano', cat: 'raw', value: 2 },
   carrot:     { name: 'Carote', cat: 'raw', price: 2 },        // le verdure si vendono anche fresche
   potato:     { name: 'Patate', cat: 'raw', price: 2 },
   corn:       { name: 'Mais', cat: 'raw', price: 2 },
-  tomato:     { name: 'Pomodori', cat: 'raw', price: 3 },
-  cabbage:    { name: 'Cavoli', cat: 'raw', price: 3 },
-  milk:       { name: 'Latte', cat: 'animal', price: 3 },
-  eggs:       { name: 'Uova', cat: 'animal', price: 3 },
-  wool:       { name: 'Lana', cat: 'fiber' },
-  cotton:     { name: 'Cotone', cat: 'fiber' },
-  cattle:     { name: 'Bovini', cat: 'animal' },              // animali per il macello
-  poultry:    { name: 'Polli', cat: 'animal' },
-  pigs:       { name: 'Maiali', cat: 'animal' },
-  flour:      { name: 'Farina', cat: 'food', price: 4 },
+  tomato:     { name: 'Pomodori', cat: 'raw', price: 4 },
+  cabbage:    { name: 'Cavoli', cat: 'raw', price: 4 },
+  milk:       { name: 'Latte', cat: 'animal', price: 4 },
+  eggs:       { name: 'Uova', cat: 'animal', price: 4 },
+  wool:       { name: 'Lana', cat: 'fiber', value: 3 },
+  cotton:     { name: 'Cotone', cat: 'fiber', value: 2 },
+  cattle:     { name: 'Bovini', cat: 'animal', value: 8 },              // animali per il macello
+  poultry:    { name: 'Polli', cat: 'animal', value: 4 },
+  pigs:       { name: 'Maiali', cat: 'animal', value: 6 },
+  flour:      { name: 'Farina', cat: 'food', price: 6 },
   chips:      { name: 'Patatine confezionate', cat: 'food', price: 6 },
-  carrotPack: { name: 'Carote confezionate', cat: 'food', price: 5 },
-  sauce:      { name: 'Salsa di pomodoro', cat: 'food', price: 6 },
-  cornFlour:  { name: 'Farina di mais', cat: 'food', price: 4 },
-  pasta:      { name: 'Pasta', cat: 'food', price: 8 },
-  bread:      { name: 'Pane', cat: 'bakery', price: 5 },
-  biscuits:   { name: 'Biscotti', cat: 'bakery', price: 7 },
-  cakes:      { name: 'Torte', cat: 'bakery', price: 12 },
-  cheese:     { name: 'Formaggio', cat: 'dairy', price: 9 },
-  butter:     { name: 'Burro', cat: 'dairy', price: 7 },
-  yogurt:     { name: 'Yogurt', cat: 'dairy', price: 5 },
-  freshMeat:  { name: 'Carne fresca', cat: 'meat', price: 10 },
-  sausages:   { name: 'Salsicce', cat: 'meat', price: 8 },
-  ham:        { name: 'Prosciutto', cat: 'meat', price: 12 },
-  packedMeat: { name: 'Carne confezionata', cat: 'meat', price: 9 },
-  logs:       { name: 'Tronchi', cat: 'wood' },
-  firewood:   { name: 'Legna da ardere', cat: 'wood', price: 3 },
+  carrotPack: { name: 'Carote confezionate', cat: 'food', price: 6 },
+  sauce:      { name: 'Salsa di pomodoro', cat: 'food', price: 10 },
+  cornFlour:  { name: 'Farina di mais', cat: 'food', price: 6 },
+  pasta:      { name: 'Pasta', cat: 'food', price: 14 },
+  bread:      { name: 'Pane', cat: 'bakery', price: 12 },
+  biscuits:   { name: 'Biscotti', cat: 'bakery', price: 14 },
+  cakes:      { name: 'Torte', cat: 'bakery', price: 28 },
+  cheese:     { name: 'Formaggio', cat: 'dairy', price: 18 },
+  butter:     { name: 'Burro', cat: 'dairy', price: 16 },
+  yogurt:     { name: 'Yogurt', cat: 'dairy', price: 10 },
+  freshMeat:  { name: 'Carne fresca', cat: 'meat', price: 18 },
+  sausages:   { name: 'Salsicce', cat: 'meat', price: 14 },
+  ham:        { name: 'Prosciutto', cat: 'meat', price: 16 },
+  packedMeat: { name: 'Carne confezionata', cat: 'meat', price: 10 },
+  logs:       { name: 'Tronchi', cat: 'wood', value: 2 },
+  firewood:   { name: 'Legna da ardere', cat: 'wood', price: 4 },
   planks:     { name: 'Assi di legno', cat: 'lumber', price: 6, shop: 'furnitureStore' },
-  beams:      { name: 'Travature', cat: 'lumber', price: 7, shop: 'furnitureStore' },
-  panels:     { name: 'Pannelli di legno', cat: 'lumber', price: 8, shop: 'furnitureStore' },
+  beams:      { name: 'Travature', cat: 'lumber', price: 6, shop: 'furnitureStore' },
+  panels:     { name: 'Pannelli di legno', cat: 'lumber', price: 10, shop: 'furnitureStore' },
   tables:     { name: 'Tavoli', cat: 'furniture', price: 30, shop: 'furnitureStore' },
-  chairs:     { name: 'Sedie', cat: 'furniture', price: 15, shop: 'furnitureStore' },
-  wardrobes:  { name: 'Armadi', cat: 'furniture', price: 45, shop: 'furnitureStore' },
+  chairs:     { name: 'Sedie', cat: 'furniture', price: 16, shop: 'furnitureStore' },
+  wardrobes:  { name: 'Armadi', cat: 'furniture', price: 56, shop: 'furnitureStore' },
   beds:       { name: 'Letti', cat: 'furniture', price: 50, shop: 'furnitureStore' },
   kitchens:   { name: 'Mobili da cucina', cat: 'furniture', price: 80, shop: 'furnitureStore' },
-  yarn:       { name: 'Filati', cat: 'textile' },
-  fabric:     { name: 'Tessuto', cat: 'textile' },
-  cloth:      { name: 'Stoffe lavorate', cat: 'textile' },   // cotone + lana: per i capi più pesanti
-  shirts:     { name: 'Magliette', cat: 'clothing', price: 12, shop: 'clothingStore' },
-  trousers:   { name: 'Pantaloni', cat: 'clothing', price: 18, shop: 'clothingStore' },
-  jackets:    { name: 'Giacche', cat: 'clothing', price: 35, shop: 'clothingStore' },
-  shoes:      { name: 'Scarpe', cat: 'clothing', price: 25, shop: 'clothingStore' },
-  coats:      { name: 'Cappotti', cat: 'clothing', price: 45, shop: 'clothingStore' },
-  coal:       { name: 'Carbone', cat: 'energy' },                  // dalla carbonaia: per la centrale a carbone
-  crude:      { name: 'Petrolio grezzo', cat: 'energy' },          // da pozzi e piattaforme: per la raffineria
-  gasoline:   { name: 'Benzina', cat: 'fuel', price: 9, shop: 'gasStation' },
-  diesel:     { name: 'Gasolio', cat: 'fuel', price: 8, shop: 'gasStation' },
+  yarn:       { name: 'Filati', cat: 'textile', value: 5 },
+  fabric:     { name: 'Tessuto', cat: 'textile', value: 9 },
+  cloth:      { name: 'Stoffe lavorate', cat: 'textile', value: 11 },   // cotone + lana: per i capi più pesanti
+  shirts:     { name: 'Magliette', cat: 'clothing', price: 30, shop: 'clothingStore' },
+  trousers:   { name: 'Pantaloni', cat: 'clothing', price: 38, shop: 'clothingStore' },
+  jackets:    { name: 'Giacche', cat: 'clothing', price: 44, shop: 'clothingStore' },
+  shoes:      { name: 'Scarpe', cat: 'clothing', price: 36, shop: 'clothingStore' },
+  coats:      { name: 'Cappotti', cat: 'clothing', price: 56, shop: 'clothingStore' },
+  coal:       { name: 'Carbone', cat: 'energy', value: 12 },                  // dalla carbonaia: per la centrale a carbone
+  crude:      { name: 'Petrolio grezzo', cat: 'energy', value: 3 },          // da pozzi e piattaforme: per la raffineria
+  gasoline:   { name: 'Benzina', cat: 'fuel', price: 14, shop: 'gasStation' },
+  diesel:     { name: 'Gasolio', cat: 'fuel', price: 12, shop: 'gasStation' },
 };
 function shopOf(g) { return GOODS[g].price ? (GOODS[g].shop || 'supermarket') : null; }
 
@@ -309,7 +313,7 @@ const SHOPS = {
   gasStation: { tick: 15, radius: 30, buyRate: 0.08 },   // le auto degli abitanti fanno benzina
 };
 const SHOP = SHOPS.supermarket;
-const TAX_RATE = 0.3;                                 // tasse sulle vendite che vanno al giocatore
+const TAX_RATE = 0.5;                                 // tasse sulle vendite che vanno al giocatore
 
 // ---------- Lavoro ----------
 // Persone che servono per far funzionare un'attività; lavorano lì gli abitanti delle case

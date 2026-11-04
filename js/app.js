@@ -32,6 +32,7 @@ initPanel();
 initProgress();
 initManual();
 initBugReport();
+initSettings();   // tasti e volume (settings.js)
 updateHud();
 updateInfo();
 refreshSpeed();

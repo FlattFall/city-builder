@@ -317,3 +317,17 @@ canvas { display: block; }
 .man-table td.tg { white-space: nowrap; }
 .man-table td.tg img { width: 18px; height: 18px; vertical-align: middle; image-rendering: pixelated; }
 .man-table th, .man-table td.t { white-space: nowrap; }
+
+/* Opzioni: volume e tasti */
+.set-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; max-height: 300px; overflow-y: auto; }
+.set-row { display: flex; align-items: center; gap: 8px; padding: 4px 8px; background: #1a1c2c; border: 1px solid #33385a; border-radius: 3px; font-size: 13px; text-align: left; }
+.set-row > span:first-child { flex: 1; }
+.set-row input[type=range] { width: 130px; accent-color: #ffd966; }
+.set-row b { min-width: 42px; text-align: right; color: #ffd966; font-weight: normal; }
+.set-row.fixed { opacity: .7; }
+.key-btn { font: inherit; min-width: 84px; padding: 3px 8px; cursor: pointer; background: #3a3f63; color: #ffd966; border: 2px solid #5a5f8a; border-radius: 3px; }
+.key-btn:hover { border-color: #ffd966; }
+.key-btn.listening { background: #ffd966; color: #1a1c2c; border-color: #ffd966; }
+.key-fixed { min-width: 84px; text-align: center; color: #94b0c2; }
+.m-small { font: inherit; font-size: 12px; padding: 4px 10px; margin: 0 auto 10px; display: block; cursor: pointer; background: #262b44; color: #c9d2dc; border: 2px solid #44486b; border-radius: 3px; }
+.m-small:hover { border-color: #ffd966; }

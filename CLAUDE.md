@@ -51,6 +51,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - `pickTile` conta l'altezza degli edifici solo con Mano e Demolisci, così con gli altri strumenti si costruisce dietro gli edifici.
 
 ## Economia (economy.js)
+- Prezzi (richiesta dell'utente: lavorare deve rendere): ogni prodotto vale almeno 1,5 volte le materie prime (`price`, o `value` per le merci che non si vendono), prezzi pari e `TAX_RATE` = 0.5, così le tasse per pezzo sono intere. Test "prezzi" lo controlla per ogni ricetta.
 - `GOODS` (colture, prodotti animali, fabbrica, panificio, caseificio, carne; `price` = vendibile al supermercato), `RECIPES` (fabbrica, panificio, caseificio, macello: `isProcessor(b)` = ha ricette), `LIVESTOCK` (allevamenti: mucche latte+bovini, polli uova+polli, maiali, pecore lana; `updateLivestock`), `CAPS` (store/input per tipo), `DEST_KINDS`.
 - `grass: true` in `BUILDINGS` = vuole erba (fattoria).
 - Allevamento unico (`kind: 'livestock'`, `b.animal` = chiave di `LIVESTOCK`: cowFarm/chickenFarm/pigFarm/sheepFarm, i vecchi nomi degli allevamenti separati). L'animale si sceglie nel pannello (`setAnimal`, `animalAllowed`: mucche/polli/maiali vogliono l'erba, le pecore anche montagna e sabbia; `defaultAnimal`). `natureOf(b)` = produzione, `destKindsOf(b)` = destinazioni per animale. I salvataggi con i vecchi allevamenti separati vengono convertiti in `loadGame`. Richiesta dell'utente: menu più snello.
@@ -135,6 +136,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 ## Manuale (manual.js, tasto M)
 - `MANUAL`: capitoli (come si inizia, strade, case e lavoro, agricoltura, allevamento, trasformazione alimentare, legno, tessile, magazzini e furgoni, negozi e soldi, progressi, terreno, comandi) con icone del gioco. Catene, prezzi e numeri presi dai dati (`recipeRow`, `item`, `priceNote`), le icone di stato con `drawStatusIcon` (render.js). Se si aggiunge un settore, aggiungere il capitolo.
 - Capitolo "Tabella dei prodotti" (`id: 'table'`, richiesta dell'utente): tabelle generate dai dati (materie prime con chi le fa, quanto, ogni quanti secondi; prodotti lavorati con materie prime e `PRODUCE_TICK`; dove si vendono, prezzo e tasse per pezzo; negozi con raggio, tick e `buyRate`; capacità di furgone e nave). Si aggiorna da sola se cambiano i numeri.
+- Il capitolo "Comandi" è stato tolto dal manuale (richiesta dell'utente): i tasti stanno nelle Opzioni.
 - M e P aprono/chiudono; Esc chiude prima manuale e progressi; con una delle due aperte gli altri tasti del gioco sono fermi. Pulsanti anche nella barra in alto.
 
 ## Lingue (i18n.js, i18n-en.js, i18n-es.js)
@@ -150,6 +152,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 
 ## Menu e salvataggi
 - Nuova mappa: schede delle grandezze (`buildSizeChoices`, `sizeLabels`) con un'isola in miniatura (`drawMapPreview`: terreno vero generato piccolo, più grande per le mappe grandi), nome, dimensioni e descrizione (`MAP_SIZES[].desc`, tradotta). Prima erano pulsanti grigi del browser.
+- Opzioni (settings.js): lingua, volume (Musica/Effetti, salvato in `citybuilder.settings`; i suoni non ci sono ancora) e tasti (`KEY_ACTIONS`: muovi su/sinistra/giù/destra, ruota, pausa, manuale, progressi, sblocca tutto; clic sul tasto e premi quello nuovo, Esc annulla, se è già usato si scambiano; frecce, 1-8 ed Esc fissi). `keyOf`, `actionOfKey`, `panDir` usati in input.js; `refreshKeyLabels` aggiorna i pulsanti della barra e l'aiuto.
 - `menu.js`: menu principale/pausa (Riprendi e Salva solo se `game.started`), Nuova mappa (scelta grandezza), Carica, Opzioni (lingua; audio/grafica "ci stiamo lavorando"), Esci (`window.close()` in Electron). Esc apre/chiude il menu (prima chiude il sottomenu).
 - `save.js`: localStorage (`citybuilder.saves.v1`), formato v3: si ricrea il terreno dal seed e si salvano solo differenze (`game.base`), percorsi, campi, edifici con i loro dati, entrate. Legge anche v1/v2. I veicoli non si salvano.
 
