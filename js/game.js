@@ -294,7 +294,7 @@ function rotUV(u, v, r) {
 // Fattoria e magazzino hanno una sola entrata: il tile dell'impronta da cui si entra e il tile
 // fuori (dove deve esserci la strada). Senza rotazione l'entrata è davanti a sinistra.
 function entranceOf(b) {
-  if (BUILDINGS[b.kind].w === 1) return null;
+  if (BUILDINGS[b.kind].w === 1 || BUILDINGS[b.kind].anySide) return null;   // senza entrata: va bene una strada su qualsiasi lato
   const inn = rotUV(0.5, 1.5, b.rot || 0), out = rotUV(0.5, 2.5, b.rot || 0);
   const x = b.ax + Math.floor(inn[0]), y = b.ay + Math.floor(inn[1]);
   const rx = b.ax + Math.floor(out[0]), ry = b.ay + Math.floor(out[1]);

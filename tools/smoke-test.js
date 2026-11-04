@@ -1435,6 +1435,36 @@ function check(cond, msg) {
   check(pp.cargo && !pp.tanker && pp.landed > 0, `da porto a porto: nave portacontainer, ${pp.landed} grano arrivato`);
   check(pp.noNum, 'pannello senza numeri accanto ai nomi');
 
+  // 49. centrale eolica: la strada si collega da qualsiasi lato
+  const windSides = await page.evaluate(() => {
+    const out = [];
+    for (let side = 0; side < 4; side++) {
+      clearVehicles(); newGame(12, 128); unlockAll(); game.started = true;
+      const N = game.size, c = N / 2;
+      for (let y = c - 6; y < c + 6; y++) for (let x = c - 6; x < c + 6; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, building: null, elev: 2, bridge: null });
+      game.rotation = 0; useTool('windPlant', c, c);
+      const roads = [[c, c - 1], [c + 2, c], [c, c + 2], [c - 1, c]][side];
+      useTool('road', roads[0], roads[1]);
+      out.push(accessTiles(game.map[c][c].building).length > 0);
+    }
+    return out;
+  });
+  check(windSides.every(Boolean), 'centrale eolica: strada collegata su tutti e 4 i lati (' + windSides.join(',') + ')');
+
+  // 50. segnala un bug: pagina nel menu, apre GitHub con titolo e testo già scritti
+  await page.evaluate(() => { window.__opened = null; window.open = (u) => { window.__opened = u; return null; }; openMenu('main'); });
+  await page.click('#m-bug');
+  await page.fill('#bug-text', 'Il porto non riceve la merce\nprovato due volte');
+  await page.fill('#bug-name', 'Tester');
+  await page.click('#bug-send');
+  const bug = await page.evaluate(() => {
+    const u = window.__opened ? new URL(window.__opened) : null;
+    return { url: u && u.origin + u.pathname, title: u && u.searchParams.get('title'), body: u && u.searchParams.get('body'), msg: document.getElementById('menu-msg').textContent };
+  });
+  await page.keyboard.press('Escape');
+  check(bug.url === 'https://github.com/FlattFall/city-builder/issues/new' && bug.title === '[Bug] Il porto non riceve la merce', 'segnalazione: apre GitHub con il titolo giusto');
+  check(bug.body && bug.body.includes('provato due volte') && bug.body.includes('Tester') && bug.body.includes('Versione:') && bug.msg.length > 0, 'segnalazione: testo, nome e informazioni del gioco allegati');
+
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();
 })();

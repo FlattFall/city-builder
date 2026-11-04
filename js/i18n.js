@@ -59,6 +59,7 @@ function translateDom() {
     if (el.dataset.it === undefined) el.dataset.it = el.textContent;
     el.textContent = TR(el.dataset.it);
   }
+  for (const el of document.querySelectorAll('[data-i18n-ph]')) el.placeholder = TR(el.dataset.i18nPh);   // testo d'esempio dei campi
   for (const el of document.querySelectorAll('[data-i18n-html]')) {
     if (el.dataset.it === undefined) el.dataset.it = el.innerHTML;
     el.innerHTML = TR(el.dataset.it);

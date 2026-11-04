@@ -64,7 +64,7 @@ const BUILDINGS = {
   charcoalKiln: { name: 'Carbonaia', w: 1, h: 1, cost: 600, height: 16, group: 'energy' },
   coalPlant:  { name: 'Centrale a carbone', w: 2, h: 2, cost: 4000, height: 44, group: 'energy' },
   solarPlant: { name: 'Centrale solare', w: 2, h: 2, cost: 5000, height: 10, group: 'energy' },
-  windPlant:  { name: 'Centrale eolica', w: 2, h: 2, cost: 4500, height: 60, group: 'energy' },
+  windPlant:  { name: 'Centrale eolica', w: 2, h: 2, cost: 4500, height: 60, group: 'energy', anySide: true },   // strada da qualsiasi lato
   oilWell:    { name: 'Pozzo petrolifero', w: 1, h: 1, cost: 1500, height: 26, group: 'energy', oil: true },
   oilPlatform: { name: 'Piattaforma petrolifera', w: 2, h: 2, cost: 6000, height: 52, group: 'energy', oil: true, water: true },   // sull'acqua
   port:       { name: 'Porto', w: 2, h: 2, cost: 3500, height: 30, group: 'energy', coast: true },   // il retro sull'acqua

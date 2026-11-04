@@ -30,7 +30,7 @@ const TOOL_INFO = {
   charcoalKiln: { label: 'Carbonaia', cost: BUILDINGS.charcoalKiln.cost, desc: "Fa il carbone bruciando piano la legna sotto la terra: legna da ardere dall'azienda forestale." },
   coalPlant: { label: 'Centrale a carbone (2x2)', cost: BUILDINGS.coalPlant.cost, desc: 'Brucia il carbone della carbonaia e produce tanta energia per la rete elettrica.' },
   solarPlant: { label: 'Centrale solare (2x2)', cost: BUILDINGS.solarPlant.cost, desc: 'Pannelli solari: energia pulita senza materie prime, basta un lavoratore.' },
-  windPlant: { label: 'Centrale eolica (2x2)', cost: BUILDINGS.windPlant.cost, desc: "Pale eoliche: energia senza materie prime. Più in alto la costruisci, più vento c'è e più energia fa." },
+  windPlant: { label: 'Centrale eolica (2x2)', cost: BUILDINGS.windPlant.cost, desc: "Pale eoliche: energia senza materie prime. Più in alto la costruisci, più vento c'è e più energia fa. La strada si può collegare da qualsiasi lato." },
   oilWell:   { label: 'Pozzo petrolifero', cost: BUILDINGS.oilWell.cost, desc: 'Estrae il petrolio grezzo da un giacimento a terra (con lo strumento in mano vedi le zone scure dove ce n\'è).' },
   oilPlatform: { label: 'Piattaforma petrolifera (2x2)', cost: BUILDINGS.oilPlatform.cost, desc: "Si costruisce sull'acqua sopra un giacimento. Il personale vive a bordo; una nave porta il petrolio al porto." },
   port:      { label: 'Porto (2x2)', cost: BUILDINGS.port.cost, desc: "Porto con magazzino marittimo per tutte le merci: davanti la strada, dietro l'acqua (R per ruotarlo). Le navi portano la merce agli altri porti (petroliere per petrolio e carburanti, portacontainer per il resto), i furgoni a magazzini, fabbriche e negozi." },

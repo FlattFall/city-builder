@@ -29,6 +29,7 @@ initMenu();
 initPanel();
 initProgress();
 initManual();
+initBugReport();
 updateHud();
 updateInfo();
 openMenu('main');

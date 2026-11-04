@@ -60,6 +60,7 @@
       <button id="m-new" data-i18n>Nuova mappa</button>
       <button id="m-load" data-i18n>Carica mappa</button>
       <button id="m-options" data-i18n>Opzioni</button>
+      <button id="m-bug" data-i18n>Segnala un bug</button>
       <button id="m-exit" data-i18n>Esci</button>
     </div>
 
@@ -72,6 +73,17 @@
     <div class="menu-page" data-page="load" hidden>
       <h2 data-i18n>Carica mappa</h2>
       <div id="save-list"></div>
+      <button class="m-back" data-i18n>Indietro</button>
+    </div>
+
+    <div class="menu-page" data-page="bug" hidden>
+      <h2 data-i18n>Segnala un bug</h2>
+      <p class="menu-note" data-i18n>Raccontaci cosa non funziona: la segnalazione arriva allo sviluppatore.</p>
+      <textarea id="bug-text" class="bug-field" rows="5" maxlength="3000" data-i18n-ph="Cosa è successo? Cosa stavi facendo?"></textarea>
+      <input id="bug-name" class="bug-field" maxlength="60" data-i18n-ph="Il tuo nome (facoltativo)">
+      <label class="bug-check"><input type="checkbox" id="bug-info" checked> <span data-i18n>Allega le informazioni del gioco (versione, mappa, browser, errori)</span></label>
+      <div class="bug-btns"><button id="bug-send" data-i18n>Invia</button><button id="bug-copy" data-i18n>Copia il testo</button></div>
+      <p class="menu-note small" data-i18n>Si apre GitHub con la segnalazione già scritta (serve un account gratuito). Senza account puoi copiare il testo e mandarlo come preferisci.</p>
       <button class="m-back" data-i18n>Indietro</button>
     </div>
 
@@ -111,6 +123,7 @@
 <script src="js/i18n.js"></script>
 <script src="js/i18n-en.js"></script>
 <script src="js/i18n-es.js"></script>
+<script src="js/bugreport.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

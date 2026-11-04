@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu } = require('electron');
+const { app, BrowserWindow, Menu, shell } = require('electron');
 
 function createWindow() {
   Menu.setApplicationMenu(null);
@@ -10,6 +10,11 @@ function createWindow() {
     webPreferences: { contextIsolation: true }
   });
   win.loadFile('index.html');
+  // i link esterni (es. la segnalazione dei bug su GitHub) si aprono nel browser
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https:\/\//.test(url)) shell.openExternal(url);
+    return { action: 'deny' };
+  });
 
   // F11 = schermo intero, F5 = ricarica il gioco (utile dopo aver aggiornato i file)
   win.webContents.on('before-input-event', (event, input) => {

@@ -248,3 +248,15 @@ canvas { display: block; }
 .size-card small { font-size: 10.5px; color: #94b0c2; line-height: 1.3; min-height: 2.6em; }
 .size-card:hover { border-color: #ffd966; background: #2c3150; transform: translateY(-2px); }
 .size-card:active { transform: translateY(0); }
+
+/* ---------- Segnala un bug ---------- */
+.bug-field { display: block; width: 100%; box-sizing: border-box; margin: 6px 0; padding: 8px; font: inherit; font-size: 13px;
+  color: #f4f4f4; background: #1a1c2c; border: 2px solid #44486b; border-radius: 3px; resize: vertical; }
+.bug-field:focus { outline: none; border-color: #ffd966; }
+.bug-check { display: flex; gap: 6px; align-items: center; justify-content: center; font-size: 12px; color: #c9d2dc; margin: 4px 0 8px; cursor: pointer; }
+.bug-btns { display: flex; gap: 8px; }
+.bug-btns button { flex: 1; font: inherit; font-size: 15px; padding: 9px; cursor: pointer; color: #f4f4f4; background: #3a3e5e; border: 2px solid #5d6aa8; border-radius: 3px; }
+.bug-btns button:hover { border-color: #ffd966; background: #4a4f78; }
+#bug-send { background: #3f7a4a; border-color: #5fa36a; }
+#bug-send:hover { background: #4a8f57; }
+.menu-note.small { font-size: 11px; color: #94b0c2; margin-top: 8px; }
