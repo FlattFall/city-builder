@@ -1,3 +1,5 @@
+// La strada principale è un'autostrada (scelta dell'utente: le auto vanno più veloci)
+const MAIN_PATH = 'highway';
 // ---------- Strada principale ----------
 // Ogni mappa nuova ha una strada che arriva da un bordo, attraversa l'isola seguendo il
 // terreno ed esce dal bordo opposto. Sull'acqua passa su un ponte (dritto) con i pilastri;
@@ -118,7 +120,7 @@ function generateMainRoad() {
     const t = game.map[y][x];
     if (t.type === T.WATER) { t.type = T.SAND; t.elev = 1; }  // terrapieno (acqua sul bordo della mappa)
     if (t.type === T.FOREST) t.type = T.GRASS;
-    setPath(x, y, 'road');
+    setPath(x, y, MAIN_PATH);
     t.main = true;
   });
   for (const [x, y] of path) if (game.map[y][x].path) fillDips(x, y);
@@ -130,7 +132,7 @@ function generateMainRoad() {
     if (plan.ok) { buildBridge(plan, { free: true, main: true }); continue; }
     for (let k = i; k <= j; k++) {   // il ponte non va: terrapieno di sabbia come prima
       const [x, y] = path[k], t = game.map[y][x];
-      t.type = T.SAND; t.elev = 1; setPath(x, y, 'road'); t.main = true;
+      t.type = T.SAND; t.elev = 1; setPath(x, y, MAIN_PATH); t.main = true;
     }
     updateRoundabouts();
   }

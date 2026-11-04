@@ -1224,6 +1224,18 @@ function check(cond, msg) {
     }
   }
 
+  // 43. la strada principale di una mappa nuova è un'autostrada (auto più veloci) e resta tale
+  const hw = await page.evaluate(() => {
+    clearVehicles(); __newGame(7, 128); unlockAll();
+    let main = 0, hwy = 0;
+    for (const row of game.map) for (const t of row) if (t.main && t.path) { main++; if (t.path === 'highway') hwy++; }
+    const e = game.entries[0], t = game.map[e.y][e.x];
+    game.convertRoads = true;
+    const keep = !!checkTool('road', e.x, e.y) && t.path === 'highway';
+    return { main, hwy, keep };
+  });
+  check(hw.main > 50 && hw.hwy === hw.main && hw.keep, `strada principale = autostrada (${hw.hwy}/${hw.main} tile), non si declassa`);
+
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();
 })();

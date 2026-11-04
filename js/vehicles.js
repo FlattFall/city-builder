@@ -419,30 +419,40 @@ function drawVehicle(c, v) {
     const [sx, sy] = iso(0, 0, mx, my, h);
     c.fillStyle = 'rgba(0,0,0,0.2)'; c.beginPath(); c.ellipse(sx, sy + 0.5, (van ? 6 : 5), 2.4, 0, 0, Math.PI * 2); c.fill();
   }
-  // ruote: prima quelle lontane dallo schermo, poi la carrozzeria, poi le vicine
+  // ruote: piccole, appena fuori dalla carrozzeria; prima quelle lontane dallo schermo, poi la
+  // carrozzeria, poi le vicine
   const wheels = [];
-  for (const a of [-L + 0.06, L - 0.06]) for (const w of [-W + 0.01, W - 0.01]) wheels.push(R(a - 0.035, a + 0.035, w - 0.02, w + 0.02));
+  for (const a of [-L + 0.06, L - 0.06]) for (const w of [-W - 0.012, W - 0.004]) wheels.push(R(a - 0.026, a + 0.026, w, w + 0.016));
   const wheelCol = { l: '#2a2a30', r: '#1e1e22', t: '#3a3a40' };
   const far = rc => rc[0] + rc[1] < mx + my;
-  wheels.filter(far).forEach(rc => vbox(rc, 0, 2.4, wheelCol));
+  wheels.filter(far).forEach(rc => vbox(rc, 0, 2, wheelCol));
   const body = v.color || '#d94141', stripe = v.stripe || '#3fa34d';
-  let cabin;
   if (van) {
-    vbox(R(-L, L * 0.3, -W, W), 1, 8.5, { l: '#f2f2f2', r: '#cfd1d4', t: '#ffffff' });                // cassone
-    vbox(R(-L - 0.002, L * 0.3 + 0.002, -W - 0.002, W + 0.002), 4.5, 1.6, { l: stripe, r: shade(stripe, -0.2) });   // striscia
-    vbox(R(L * 0.3, L, -W, W), 1, 4, { l: stripe, r: shade(stripe, -0.25), t: shade(stripe, 0.1) });   // muso
-    cabin = { rc: R(L * 0.3, L * 0.8, -W * 0.92, W * 0.92), z: 5, hp: 3, top: shade(stripe, 0.15) };
+    // cassone dietro, muso con la cabina davanti. Se il muso guarda verso il fondo dello schermo
+    // (marcia verso -u o -v) sta dietro al cassone: va disegnato prima, altrimenti si vede attraverso
+    const cargo = () => {
+      const rc = R(-L, L * 0.3, -W, W);
+      vbox(rc, 1, 8.5, { l: '#f2f2f2', r: '#cfd1d4', t: '#ffffff' });
+      // striscia dipinta sulle due pareti che si vedono (senza coperchio, così non copre il cassone)
+      const P = (u, vv, z) => iso(0, 0, u, vv, h + z / STEP), [u0, v0, u1, v1] = rc;
+      poly(c, [P(u0, v1, 4.5), P(u1, v1, 4.5), P(u1, v1, 6.2), P(u0, v1, 6.2)], stripe);
+      poly(c, [P(u1, v1, 4.5), P(u1, v0, 4.5), P(u1, v0, 6.2), P(u1, v1, 6.2)], shade(stripe, -0.2));
+    };
+    const nose = () => {
+      vbox(R(L * 0.3, L, -W, W), 1, 4, { l: stripe, r: shade(stripe, -0.25), t: shade(stripe, 0.1) });
+      vbox(R(L * 0.3, L * 0.8, -W * 0.92, W * 0.92), 5, 3, { l: '#8fc8e2', r: '#6fa6c2', t: shade(stripe, 0.15) });   // cabina con i vetri
+    };
+    if (d === 1 || d === 2) { cargo(); nose(); } else { nose(); cargo(); }
   } else {
     vbox(R(-L, L, -W, W), 1, 3.6, { l: body, r: shade(body, -0.25), t: shade(body, 0.12) });             // carrozzeria
-    cabin = { rc: R(-L * 0.55, L * 0.35, -W * 0.86, W * 0.86), z: 4.6, hp: 3, top: shade(body, 0.2) };
+    vbox(R(-L * 0.55, L * 0.35, -W * 0.86, W * 0.86), 4.6, 3, { l: '#8fc8e2', r: '#6fa6c2', t: shade(body, 0.2) });   // abitacolo con i vetri
   }
-  vbox(cabin.rc, cabin.z, cabin.hp, { l: '#8fc8e2', r: '#6fa6c2', t: cabin.top });                   // abitacolo con i vetri
-  wheels.filter(rc => !far(rc)).forEach(rc => vbox(rc, 0, 2.4, wheelCol));
+  wheels.filter(rc => !far(rc)).forEach(rc => vbox(rc, 0, 2, wheelCol));
   if (!DETAIL) return;
   // fari: sul muso se guarda verso lo schermo (+u o +v), altrimenti luci rosse sul retro
   const front = d === 1 || d === 2, a = front ? L : -L, col = front ? '#fff3b0' : '#e83a3a';
-  for (const w of [-W * 0.62, W * 0.62]) {
-    const p = iso(0, 0, mx + f.dx * a + sd[0] * w, my + f.dy * a + sd[1] * w, h + 2.6 / STEP);
+  for (const w of [-W * 0.55, W * 0.55]) {
+    const p = iso(0, 0, mx + f.dx * a + sd[0] * w, my + f.dy * a + sd[1] * w, h + 3.2 / STEP);
     c.fillStyle = col; c.fillRect(p[0] - 0.5, p[1] - 0.5, 1, 0.8);
   }
 }

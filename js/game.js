@@ -410,6 +410,7 @@ function checkTool(tool, x, y) {
       if (netOf(t.path) !== 'road' || PATHS[tool].net !== 'road') return { msg: "C'è già " + (t.path === 'rail' ? 'un binario' : 'una strada') };
       if (game.convertRoads === false) return { silent: true };   // si passa sopra senza cambiarle
       if (t.main && (PATHS[tool].oneway || tool === 'dirt')) return { msg: 'La strada principale resta a doppio senso e asfaltata' };
+      if (t.main && t.path === 'highway' && tool !== 'highway') return { msg: "La strada principale resta un'autostrada" };
       return null;
     }
     if (bridgeOver(t) && deckMin(bridgeOver(t), t.bridge.i) < t.elev + BRIDGE.clearPath)

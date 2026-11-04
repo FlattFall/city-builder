@@ -176,7 +176,7 @@ function buildBridge(plan, opts) {
   for (const i of [0, b.n]) {   // le teste diventano strada se non lo sono già
     const p = plan.tiles[i], t = game.map[p.y][p.x];
     if (t.field) { t.field = false; t.farm = null; game.fields--; }
-    if (!t.path) { if (t.type === T.FOREST) t.type = T.GRASS; setPath(p.x, p.y, 'road'); game.roads++; if (opts.main) t.main = true; }
+    if (!t.path) { if (t.type === T.FOREST) t.type = T.GRASS; setPath(p.x, p.y, opts.main ? MAIN_PATH : 'road'); game.roads++; if (opts.main) t.main = true; }
   }
   for (let i = 1; i < b.n; i++) {
     const p = plan.tiles[i], t = game.map[p.y][p.x];
