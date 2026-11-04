@@ -242,9 +242,9 @@ function makeIcon(draw) {
 }
 
 // un tile visto da vicino: scala s, centrato in basso
-function tileIcon(drawTop) {
+function tileIcon(drawTop, scale) {
   return makeIcon(c => {
-    const s = 1.4;
+    const s = scale || 1.4;   // la casa usa una scala più piccola: con 1.4 il tetto usciva in alto ed era tagliato
     c.setTransform(s, 0, 0, s, 32, 46 - (TH + 4) * s);
     const P = (u, v) => iso(0, 0, u, v, 0);
     const W = P(0, 1), S = P(1, 1), E = P(1, 0), down = p => [p[0], p[1] + 4];
@@ -312,7 +312,7 @@ function buildIcons() {
   ICONS.dirt = tileIcon((c, P) => { diamond(c, P, DIRT_COLORS[0]); drawDirt(c, P, straight, 3, 7, true); });
   ICONS.rail = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawRail(c, P, straight); });
   ICONS.field = tileIcon((c, P) => { diamond(c, P, SOIL); drawField(c, P, 'wheat', 3); });
-  ICONS.house = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawHouse(c, 0, 0, 0, 0, 0); });
+  ICONS.house = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawHouse(c, 0, 0, 0, 0, 0); }, 1.15);
   ICONS.farm = bigIcon(c => drawFarm(c, 0, 0, 0, 0), GROUND.farm);
   ICONS.warehouse = bigIcon(c => drawWarehouse(c, 0, 0, 0, 0), GROUND.warehouse);
   ICONS.factory = bigIcon(c => drawFactory(c, 0, 0, 0, 0), GROUND.factory);
@@ -404,7 +404,7 @@ function groupOf(tool, prefer) {
 // Quando uno sprite finisce di caricarsi, rifà l'icona che lo usa
 function onSpritesLoaded(name) {
   if (name !== 'house' || !ICONS.house) return;
-  ICONS.house = tileIcon((c, P) => { poly(c, [P(0, 0), P(1, 0), P(1, 1), P(0, 1)], COLORS[T.GRASS][0]); drawHouse(c, 0, 0, 0, 0, 0); });
+  ICONS.house = tileIcon((c, P) => { poly(c, [P(0, 0), P(1, 0), P(1, 1), P(0, 1)], COLORS[T.GRASS][0]); drawHouse(c, 0, 0, 0, 0, 0); }, 1.15);
   const img = document.querySelector('#group-homes img');
   if (img) img.src = ICONS.house;
 }

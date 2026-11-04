@@ -52,10 +52,11 @@ function unlockAll() { game.unlocked = new Set(UNLOCKS.map(u => u.id)); refreshL
 function cheatUnlockAll() {
   if (!game.started) return;
   unlockAll();
+  game.money += 10000000;   // e 10 milioni di fondi per provare tutto (richiesta dell'utente)
   game.dirty = true;
   updateHud();
   if (progressIsOpen()) renderProgress();
-  toast(TR('Tutto sbloccato (tasto I)'));
+  toast(TR('Tutto sbloccato e 10 milioni di fondi (tasto I)'));
 }
 function resetUnlocks() { game.unlocked = new Set(); }
 

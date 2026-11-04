@@ -350,6 +350,8 @@ function newGame(seed, size) {
   game.map = generateTerrain(seed, game.size);
   game.money = START_MONEY;
   game.grid = null;
+  game.speed = 1;   // velocità normale
+  if (typeof refreshSpeed === 'function') refreshSpeed();
   if (typeof resetUnlocks === 'function') resetUnlocks();   // mappa nuova: si parte con poco (progress.js)
   game.pathKeys = new Set();
   game.buildings = new Map();

@@ -262,16 +262,16 @@ canvas { display: block; }
 .menu-note.small { font-size: 11px; color: #94b0c2; margin-top: 8px; }
 
 /* Distribuzione per merce (pannello) */
-#panel .psplit { background: #2b3050; border: 1px solid #44486b; border-radius: 4px; padding: 6px; margin: 4px 0; }
-#panel .psplit-head { display: flex; align-items: center; gap: 6px; }
-#panel .psplit-head span { flex: 1; }
-#panel .psplit-mode { flex: 0 0 auto; padding: 2px 8px; font-size: 11px; }
-#panel .psplit-row { display: flex; align-items: center; gap: 4px; margin-top: 5px; }
-#panel .psplit-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
-#panel .psplit-pct { min-width: 38px; text-align: center; color: #ffd966; }
+#panel .psplit, #subpanel .psplit { background: #2b3050; border: 1px solid #44486b; border-radius: 4px; padding: 6px; margin: 4px 0; }
+#panel .psplit-head, #subpanel .psplit-head { display: flex; align-items: center; gap: 6px; }
+#panel .psplit-head span, #subpanel .psplit-head span { flex: 1; }
+#panel .psplit-mode, #subpanel .psplit-mode { flex: 0 0 auto; padding: 2px 8px; font-size: 11px; }
+#panel .psplit-row, #subpanel .psplit-row { display: flex; align-items: center; gap: 4px; margin-top: 5px; }
+#panel .psplit-name, #subpanel .psplit-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+#panel .psplit-pct, #subpanel .psplit-pct { min-width: 38px; text-align: center; color: #ffd966; }
 #panel .pstep, #subpanel .pstep { width: 22px; height: 20px; padding: 0; background: #3a3f63; color: #f4f4f4; border: 1px solid #5a5f8a; border-radius: 3px; cursor: pointer; font: inherit; }
 #panel .pstep:hover, #subpanel .pstep:hover { background: #4a4f78; }
-#panel .psplit-bar { height: 4px; margin-top: 2px; }
+#panel .psplit-bar, #subpanel .psplit-bar { height: 4px; margin-top: 2px; }
 
 /* Domanda prima di demolire un edificio con della merce */
 .confirm-box { background: #262b44; border: 2px solid #ffd966; border-radius: 6px; padding: 16px 18px; max-width: 380px; width: 100%; color: #f4f4f4; font-family: monospace; box-shadow: 0 6px 0 #0e0f1a; }
@@ -298,3 +298,12 @@ canvas { display: block; }
 #subpanel .pchoice { flex: 1; }
 #panel .psub-open { display: block; width: 100%; text-align: left; margin: 6px 0; padding: 6px 8px; background: #3a3f63; color: #f4f4f4; border: 2px solid #5a5f8a; border-radius: 3px; cursor: pointer; font: inherit; }
 #panel .psub-open:hover, #panel .psub-open.active { border-color: #ffd966; }
+
+/* Velocità del gioco (barra in alto) */
+#topbar .speed-btns { display: flex; gap: 3px; margin-left: 16px; }
+#topbar .speed-btns button { min-width: 34px; padding: 2px 6px; background: #3a3f63; color: #f4f4f4; border: 2px solid #5a5f8a; border-radius: 3px; }
+#topbar .speed-btns button.active { background: #ffd966; color: #1a1c2c; border-color: #ffd966; }
+#topbar .speed-btns button:hover { border-color: #ffd966; }
+/* nomi interi nella distribuzione (prima "Magazzino alimenti 2" e "3" diventavano uguali, tagliati) */
+#panel .psplit-name, #subpanel .psplit-name { white-space: normal; overflow: visible; line-height: 1.25; }
+#subpanel { width: 270px; }

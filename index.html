@@ -15,6 +15,12 @@
   <span><span data-i18n>Disoccupati:</span> <b id="unemployed">0</b></span>
   <span><span data-i18n>Case:</span> <b id="houses">0</b></span>
   <span><span data-i18n>Industrie:</span> <b id="industries">0</b></span>
+  <span class="speed-btns" id="speed-btns">
+    <button data-speed="0" title="Pausa (Spazio)">⏸</button>
+    <button data-speed="1" title="Normale">▶</button>
+    <button data-speed="2" title="Veloce">▶▶</button>
+    <button data-speed="5" title="Super rapido">▶▶▶</button>
+  </span>
   <span class="top-btns">
     <button id="manual-btn" data-i18n>Manuale (M)</button>
     <button id="progress-btn" data-i18n>Progressi (P)</button>
@@ -31,7 +37,7 @@
 <div id="toolbar"></div>
 <div id="toast"></div>
 
-<div id="help" data-i18n-html>Sinistro: usa lo strumento<br>Mano: trascina la mappa, clic su edificio = info<br>Destro/centrale + trascina: muovi | Rotella: zoom<br>WASD/frecce: muovi | 1-8: strumenti | R: ruota<br>M: manuale | P: progressi | I: sblocca tutto | Esc: menu</div>
+<div id="help" data-i18n-html>Sinistro: usa lo strumento<br>Mano: trascina la mappa, clic su edificio = info<br>Destro/centrale + trascina: muovi | Rotella: zoom<br>WASD/frecce: muovi | 1-8: strumenti | R: ruota<br>M: manuale | P: progressi | I: sblocca tutto | Esc: menu<br>Spazio: pausa | ▶ ▶▶ ▶▶▶ in alto: velocità</div>
 
 <!-- Progressi: sblocchi a pagamento (tasto P) -->
 <div id="progress" class="overlay" hidden>

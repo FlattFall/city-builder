@@ -4,8 +4,8 @@ DICT.en = {
   // menu and top bar
   'Fondi:': 'Funds:', 'Abitanti:': 'Residents:', 'Disoccupati:': 'Unemployed:', 'Case:': 'Houses:', 'Industrie:': 'Industries:',
   'Manuale (M)': 'Manual (M)', 'Progressi (P)': 'Progress (P)', 'Menu (Esc)': 'Menu (Esc)', 'Fatto': 'Done', '↻ Ruota (R)': '↻ Rotate (R)',
-  'Sinistro: usa lo strumento<br>Mano: trascina la mappa, clic su edificio = info<br>Destro/centrale + trascina: muovi | Rotella: zoom<br>WASD/frecce: muovi | 1-8: strumenti | R: ruota<br>M: manuale | P: progressi | I: sblocca tutto | Esc: menu':
-    'Left click: use the tool<br>Hand: drag the map, click a building = info<br>Right/middle + drag: move | Wheel: zoom<br>WASD/arrows: move | 1-8: tools | R: rotate<br>M: manual | P: progress | I: unlock all | Esc: menu',
+  'Sinistro: usa lo strumento<br>Mano: trascina la mappa, clic su edificio = info<br>Destro/centrale + trascina: muovi | Rotella: zoom<br>WASD/frecce: muovi | 1-8: strumenti | R: ruota<br>M: manuale | P: progressi | I: sblocca tutto | Esc: menu<br>Spazio: pausa | ▶ ▶▶ ▶▶▶ in alto: velocità':
+    'Left click: use the tool<br>Hand: drag the map, click a building = info<br>Right/middle + drag: move | Wheel: zoom<br>WASD/arrows: move | 1-8: tools | R: rotate<br>M: manual | P: progress | I: unlock all | Esc: menu<br>Space: pause | ▶ ▶▶ ▶▶▶ at the top: speed',
   'Progressi': 'Progress', 'Manuale': 'Manual', 'Come funziona ogni settore': 'How every sector works',
   'Riprendi': 'Resume', 'Salva partita': 'Save game', 'Nuova mappa': 'New map', 'Carica mappa': 'Load map', 'Opzioni': 'Options', 'Esci': 'Quit',
   'Nuova mappa: grandezza': 'New map: size', 'Indietro': 'Back', 'Lingua': 'Language', 'Audio, grafica e controlli: ci stiamo lavorando!': 'Audio, graphics and controls: we are working on it!',
@@ -65,7 +65,7 @@ DICT.en = {
   'Pozzo petrolifero (e magazzino merci).': 'Oil well (and goods warehouse).',
   'Già sbloccato': 'Already unlocked', 'Prima sblocca: {list}': 'Unlock first: {list}', 'Fondi insufficienti (servono {m})': 'Not enough funds ({m} needed)',
   'Sbloccato: {x}': 'Unlocked: {x}', 'Sbloccati {a} di {b} - Fondi: {m}': 'Unlocked {a} of {b} - Funds: {m}', 'Già disponibili:': 'Already available:', 'colture:': 'crops:',
-  'Serve prima: {list}': 'Needs first: {list}', 'Sbloccato': 'Unlocked', 'Sblocca - {m}': 'Unlock - {m}', 'Tutto sbloccato (tasto I)': 'Everything unlocked (I key)',
+  'Serve prima: {list}': 'Needs first: {list}', 'Sbloccato': 'Unlocked', 'Sblocca - {m}': 'Unlock - {m}', 'Tutto sbloccato e 10 milioni di fondi (tasto I)': 'Everything unlocked and 10 million in funds (I key)',
   'Bloccato: sbloccalo nei Progressi (P)': 'Locked: unlock it in Progress (P)',
   // building and road messages
   'Fondi insufficienti': 'Not enough funds', 'Fuori dalla mappa': 'Outside the map', "C'è già un binario": 'There is already a railway', "C'è già una strada": 'There is already a road',
@@ -126,6 +126,14 @@ DICT.en = {
   'Solo merci (legno, mobili, cotone, lana, tessuti, vestiti, energia). Manda la merce solo agli edifici che scegli qui sotto come uscita.': 'Goods only (wood, furniture, cotton, wool, fabrics, clothes, energy). It sends goods only to the buildings you choose below as output.',
   'Si rifornisce dai magazzini che lo hanno come uscita. Tasse: {n}% del prezzo.': 'It restocks from the warehouses that have it as output. Taxes: {n}% of the price.',
   'Un magazzino rifornisce solo gli edifici che hai scelto come sua uscita (nel suo pannello): da lì fabbriche e negozi chiedono prima quello che gli manca. Il supermercato lascia la precedenza alle fabbriche per le merci che loro trasformano (es. la farina va prima al panificio).': 'A warehouse only supplies the buildings you chose as its output (in its panel): from those, factories and shops first ask for what they lack. The supermarket gives priority to factories for the goods they process (e.g. flour goes to the bakery first).',
+  'Pausa (Spazio)': 'Pause (Space)',
+  'Normale': 'Normal',
+  'Veloce': 'Fast',
+  'Super rapido': 'Super fast',
+  'Gioco in pausa (Spazio per riprendere)': 'Game paused (Space to resume)',
+  'Il gioco riprende': 'The game resumes',
+  'Distribuzione ({n} merci)': 'Distribution ({n} goods)',
+  'Per ogni merce: Automatica, oppure Personalizzata con la percentuale per ogni uscita.': 'For each good: Automatic, or Custom with the percentage for each output.',
   'Distribuzione per merce': 'Distribution per good', 'Personalizzata': 'Custom', 'Automatica': 'Automatic',
   'Clic per tornare alla distribuzione automatica': 'Click to go back to automatic distribution', 'Clic per scegliere quanto mandare a ogni destinazione': 'Click to choose how much to send to each destination',
   'Questa merce non va da nessuna parte: metti almeno una percentuale.': 'This good goes nowhere: set at least one percentage.', 'Va alla destinazione che ne ha bisogno.': 'It goes to the destination that needs it.',

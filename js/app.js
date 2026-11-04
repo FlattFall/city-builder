@@ -11,7 +11,9 @@ function loop(now) {
   const dt = Math.max(0, ((now || performance.now()) - lastTime) / 1000);
   lastTime = now || performance.now();
   panWithKeys(Math.min(dt, 0.05));
-  simUpdate(dt);
+  // velocità del gioco: 0 = fermo, 1 normale, 2 veloce, 5 super rapido (a passi piccoli, così i veicoli non saltano)
+  let left = dt * (game.speed ?? 1);
+  while (left > 1e-6) { const st = Math.min(left, 0.1); simUpdate(st); left -= st; }
   panelUpdate(dt);
   // l'acqua si anima ~8 volte al secondo (solo se si vede e lo zoom è vicino: da lontano costerebbe troppo)
   if (waterSeen && zoomLevel() >= 1 && lastTime - lastWaterFrame > 125) { lastWaterFrame = lastTime; needsDraw = true; }
@@ -32,5 +34,6 @@ initManual();
 initBugReport();
 updateHud();
 updateInfo();
+refreshSpeed();
 openMenu('main');
 loop();

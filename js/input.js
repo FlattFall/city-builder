@@ -198,6 +198,26 @@ addEventListener('keydown', e => {   // con la domanda aperta: Invio = sì, Esc 
   else if (e.key === 'Enter') document.getElementById('confirm-yes').click();
 }, true);
 
+// ---------- Velocità del gioco: pausa, normale, veloce, super rapido ----------
+const SPEED_NAMES = { 0: 'Pausa (Spazio)', 1: 'Normale', 2: 'Veloce', 5: 'Super rapido' };
+function setSpeed(n) {
+  game.speed = n;
+  refreshSpeed();
+}
+function refreshSpeed() {
+  for (const b of document.querySelectorAll('#speed-btns button')) {
+    b.classList.toggle('active', +b.dataset.speed === (game.speed ?? 1));
+    b.title = TR(SPEED_NAMES[b.dataset.speed]);
+  }
+}
+for (const b of document.querySelectorAll('#speed-btns button')) b.addEventListener('click', () => { setSpeed(+b.dataset.speed); b.blur(); });
+let speedBeforePause = 1;
+function togglePause() {
+  if ((game.speed ?? 1) === 0) setSpeed(speedBeforePause || 1);
+  else { speedBeforePause = game.speed ?? 1; setSpeed(0); }
+  toast(game.speed === 0 ? TR('Gioco in pausa (Spazio per riprendere)') : TR('Il gioco riprende'));
+}
+
 addEventListener('keydown', e => {
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;   // si sta scrivendo un nome
   if (menuIsOpen()) return; // con il menu aperto la tastiera non comanda il gioco
@@ -205,6 +225,7 @@ addEventListener('keydown', e => {
   if (!e.repeat && k === 'm') { toggleManual(); return; }
   if (!e.repeat && k === 'p') { toggleProgress(); return; }
   if (!e.repeat && k === 'i') { cheatUnlockAll(); return; }   // sblocca tutto (per le prove)
+  if (!e.repeat && e.code === 'Space' && game.started) { e.preventDefault(); togglePause(); return; }   // pausa
   if (manualIsOpen() || progressIsOpen()) return;   // con manuale o progressi aperti il resto è fermo
   if (PAN_KEYS[k]) { keysHeld.add(k); e.preventDefault(); return; }
   if (e.repeat) return;

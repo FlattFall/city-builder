@@ -123,15 +123,20 @@ function goodsOut(b) {
   if (N && N.out) for (const g of Object.keys(N.out)) set.add(g);
   for (const r of RECIPES[b.kind] || []) if (b.recipes[r.out] !== false) set.add(r.out);
   for (const g of Object.keys(b.split || {})) set.add(g);
+  // magazzino: tutte le merci che accetta, anche se adesso è vuoto (richiesta dell'utente:
+  // la distribuzione si sceglie prima che arrivi la merce)
+  if (isWarehouse(b)) for (const g of Object.keys(GOODS)) if (warehouseTakes(b.kind, g) && b.accept[g] !== false) set.add(g);
   return [...set].filter(g => GOODS[g]);
 }
 
 // Distribuzione per merce: per ogni merce che può andare a più destinazioni accese si sceglie
 // "Automatica" (come prima) o la percentuale per ogni destinazione (es. 50% e 50%, o 100% a una).
-function splitSection(box, b) {
+function splitSection(box, b, inSub) {
   const rows = goodsOut(b).map(g => ({ g, ws: b.dests.map(id => game.buildings.get(id)).filter(w => w && takesGood(w, g)) }))
     .filter(r => r.ws.length >= 2);
-  box.appendChild(el('div', 'plabel', TR('Distribuzione per merce')));
+  if (!inSub) box.appendChild(el('div', 'plabel', TR('Distribuzione per merce')));
+  // tante merci (es. un magazzino con due uscite): la distribuzione va nella finestra a parte
+  if (!inSub && rows.length > 3) { box.appendChild(subButton('split', TR('Distribuzione ({n} merci)', { n: rows.length }))); return; }
   if (!rows.length) {   // la sezione si vede sempre, con la spiegazione di come accenderla
     box.appendChild(el('div', 'pnote psplit', TR('Accendi almeno due destinazioni che accettano la stessa merce: qui potrai decidere quanta ne va a ognuna (es. 50% e 50%, o 100% a una sola).')));
     return;
@@ -202,16 +207,19 @@ function subButton(kind, text) {
 function closeSubpanel() { subOpen = null; document.getElementById('subpanel').hidden = true; }
 function renderSubpanel(b) {
   const box = document.getElementById('subpanel');
-  const ok = b && ((subOpen === 'accept' && isWarehouse(b)) || (subOpen === 'recipes' && isProcessor(b)));
+  const ok = b && ((subOpen === 'accept' && isWarehouse(b)) || (subOpen === 'recipes' && isProcessor(b)) || (subOpen === 'split' && b.dests));
   if (!ok) { box.hidden = true; if (subOpen && b) subOpen = null; return; }
   box.textContent = '';
   const head = el('div', 'phead');
-  head.appendChild(el('b', 'pname', subOpen === 'accept' ? TR('Cosa accetta') : TR('Ricette')));
+  head.appendChild(el('b', 'pname', subOpen === 'accept' ? TR('Cosa accetta') : subOpen === 'split' ? TR('Distribuzione per merce') : TR('Ricette')));
   const x = el('button', 'pclose', '✕');
   x.addEventListener('click', () => { subOpen = null; renderPanel(); });
   head.appendChild(x);
   box.appendChild(head);
-  if (subOpen === 'accept') {
+  if (subOpen === 'split') {
+    box.appendChild(el('div', 'pnote', TR('Per ogni merce: Automatica, oppure Personalizzata con la percentuale per ogni uscita.')));
+    splitSection(box, b, true);
+  } else if (subOpen === 'accept') {
     box.appendChild(el('div', 'pnote', TR('Clic su una merce per accettarla o rifiutarla.')));
     const grid = el('div', 'pgrid');
     for (const g of Object.keys(GOODS).filter(g => warehouseTakes(b.kind, g))) {

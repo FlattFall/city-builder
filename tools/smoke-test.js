@@ -1633,6 +1633,32 @@ function check(cond, msg) {
   });
   check(vq.vans >= 2 && vq.overlap === 0, `furgoni: mai uno sopra l'altro nella stessa direzione (${vq.overlap}, fino a ${vq.vans} furgoni insieme)`);
 
+  // 57. velocità del gioco, tasto I con 10 milioni, distribuzione del magazzino vuoto
+  const sp2 = await page.evaluate(() => {
+    clearVehicles(); newGame(18, 128); game.started = true; if (menuIsOpen()) closeMenu();
+    const r = { speed1: game.speed === 1 };
+    const m0 = game.money; cheatUnlockAll(); r.money = game.money - m0 === 10000000;
+    const N = game.size, c = N / 2;
+    for (let y = c - 10; y < c + 10; y++) for (let x = c - 10; x < c + 10; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, elev: 2, bridge: null });
+    game.rotation = 0; useTool('warehouse', c - 6, c); useTool('supermarket', c, c); useTool('factory', c, c + 4);
+    const wh = game.map[c][c - 6].building, sm = game.map[c][c].building, fa = game.map[c + 4][c].building;
+    wh.store = {}; wh.dests = [sm.id, fa.id];
+    openBuildingPanel(wh);
+    r.splitUi = document.querySelectorAll('#panel .psplit-mode, #panel .psub-open').length > 1;
+    closePanel();
+    document.querySelector('#speed-btns button[data-speed="5"]').click();
+    r.fast = game.speed === 5 && document.querySelector('#speed-btns button[data-speed="5"]').classList.contains('active');
+    document.querySelector('#speed-btns button[data-speed="0"]').click();
+    r.paused = game.speed === 0;
+    setSpeed(1);
+    return r;
+  });
+  await page.keyboard.press('Space');
+  const paused2 = await page.evaluate(() => { const p = game.speed === 0; setSpeed(1); return p; });
+  check(sp2.speed1 && sp2.fast && sp2.paused && paused2, 'velocità: pausa, normale, super rapido (pulsanti e Spazio)');
+  check(sp2.money, 'tasto I: sblocca tutto e dà 10 milioni');
+  check(sp2.splitUi, 'magazzino vuoto con due uscite: c\'è già la distribuzione per merce');
+
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();
 })();

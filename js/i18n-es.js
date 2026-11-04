@@ -4,8 +4,8 @@ DICT.es = {
   // menú y barra superior
   'Fondi:': 'Fondos:', 'Abitanti:': 'Habitantes:', 'Disoccupati:': 'Desempleados:', 'Case:': 'Casas:', 'Industrie:': 'Industrias:',
   'Manuale (M)': 'Manual (M)', 'Progressi (P)': 'Progreso (P)', 'Menu (Esc)': 'Menú (Esc)', 'Fatto': 'Hecho', '↻ Ruota (R)': '↻ Girar (R)',
-  'Sinistro: usa lo strumento<br>Mano: trascina la mappa, clic su edificio = info<br>Destro/centrale + trascina: muovi | Rotella: zoom<br>WASD/frecce: muovi | 1-8: strumenti | R: ruota<br>M: manuale | P: progressi | I: sblocca tutto | Esc: menu':
-    'Clic izquierdo: usar la herramienta<br>Mano: arrastrar el mapa, clic en edificio = info<br>Derecho/central + arrastrar: mover | Rueda: zoom<br>WASD/flechas: mover | 1-8: herramientas | R: girar<br>M: manual | P: progreso | I: desbloquear todo | Esc: menú',
+  'Sinistro: usa lo strumento<br>Mano: trascina la mappa, clic su edificio = info<br>Destro/centrale + trascina: muovi | Rotella: zoom<br>WASD/frecce: muovi | 1-8: strumenti | R: ruota<br>M: manuale | P: progressi | I: sblocca tutto | Esc: menu<br>Spazio: pausa | ▶ ▶▶ ▶▶▶ in alto: velocità':
+    'Clic izquierdo: usar la herramienta<br>Mano: arrastrar el mapa, clic en edificio = info<br>Derecho/central + arrastrar: mover | Rueda: zoom<br>WASD/flechas: mover | 1-8: herramientas | R: girar<br>M: manual | P: progreso | I: desbloquear todo | Esc: menú<br>Espacio: pausa | ▶ ▶▶ ▶▶▶ arriba: velocidad',
   'Progressi': 'Progreso', 'Manuale': 'Manual', 'Come funziona ogni settore': 'Cómo funciona cada sector',
   'Riprendi': 'Continuar', 'Salva partita': 'Guardar partida', 'Nuova mappa': 'Nuevo mapa', 'Carica mappa': 'Cargar mapa', 'Opzioni': 'Opciones', 'Esci': 'Salir',
   'Nuova mappa: grandezza': 'Nuevo mapa: tamaño', 'Indietro': 'Atrás', 'Lingua': 'Idioma', 'Audio, grafica e controlli: ci stiamo lavorando!': 'Audio, gráficos y controles: ¡estamos trabajando en ello!',
@@ -65,7 +65,7 @@ DICT.es = {
   'Pozzo petrolifero (e magazzino merci).': 'Pozo petrolífero (y almacén de mercancías).',
   'Già sbloccato': 'Ya desbloqueado', 'Prima sblocca: {list}': 'Primero desbloquea: {list}', 'Fondi insufficienti (servono {m})': 'Fondos insuficientes (hacen falta {m})',
   'Sbloccato: {x}': 'Desbloqueado: {x}', 'Sbloccati {a} di {b} - Fondi: {m}': 'Desbloqueados {a} de {b} - Fondos: {m}', 'Già disponibili:': 'Ya disponibles:', 'colture:': 'cultivos:',
-  'Serve prima: {list}': 'Necesita antes: {list}', 'Sbloccato': 'Desbloqueado', 'Sblocca - {m}': 'Desbloquear - {m}', 'Tutto sbloccato (tasto I)': 'Todo desbloqueado (tecla I)',
+  'Serve prima: {list}': 'Necesita antes: {list}', 'Sbloccato': 'Desbloqueado', 'Sblocca - {m}': 'Desbloquear - {m}', 'Tutto sbloccato e 10 milioni di fondi (tasto I)': 'Todo desbloqueado y 10 millones de fondos (tecla I)',
   'Bloccato: sbloccalo nei Progressi (P)': 'Bloqueado: desbloquéalo en Progreso (P)',
   // mensajes de construcción y carreteras
   'Fondi insufficienti': 'Fondos insuficientes', 'Fuori dalla mappa': 'Fuera del mapa', "C'è già un binario": 'Ya hay vías de tren', "C'è già una strada": 'Ya hay una carretera',
@@ -126,6 +126,14 @@ DICT.es = {
   'Solo merci (legno, mobili, cotone, lana, tessuti, vestiti, energia). Manda la merce solo agli edifici che scegli qui sotto come uscita.': 'Solo mercancías (madera, muebles, algodón, lana, telas, ropa, energía). Envía la mercancía solo a los edificios que elijas abajo como salida.',
   'Si rifornisce dai magazzini che lo hanno come uscita. Tasse: {n}% del prezzo.': 'Se abastece de los almacenes que lo tienen como salida. Impuestos: {n}% del precio.',
   'Un magazzino rifornisce solo gli edifici che hai scelto come sua uscita (nel suo pannello): da lì fabbriche e negozi chiedono prima quello che gli manca. Il supermercato lascia la precedenza alle fabbriche per le merci che loro trasformano (es. la farina va prima al panificio).': 'Un almacén solo abastece a los edificios que elegiste como su salida (en su panel): de ahí fábricas y tiendas piden primero lo que les falta. El supermercado da prioridad a las fábricas para las mercancías que transforman (p. ej. la harina va primero a la panadería).',
+  'Pausa (Spazio)': 'Pausa (Espacio)',
+  'Normale': 'Normal',
+  'Veloce': 'Rápido',
+  'Super rapido': 'Superrápido',
+  'Gioco in pausa (Spazio per riprendere)': 'Juego en pausa (Espacio para seguir)',
+  'Il gioco riprende': 'El juego sigue',
+  'Distribuzione ({n} merci)': 'Distribución ({n} mercancías)',
+  'Per ogni merce: Automatica, oppure Personalizzata con la percentuale per ogni uscita.': 'Para cada mercancía: Automática, o Personalizada con el porcentaje de cada salida.',
   'Distribuzione per merce': 'Distribución por mercancía', 'Personalizzata': 'Personalizada', 'Automatica': 'Automática',
   'Clic per tornare alla distribuzione automatica': 'Clic para volver a la distribución automática', 'Clic per scegliere quanto mandare a ogni destinazione': 'Clic para elegir cuánto enviar a cada destino',
   'Questa merce non va da nessuna parte: metti almeno una percentuale.': 'Esta mercancía no va a ninguna parte: pon al menos un porcentaje.', 'Va alla destinazione che ne ha bisogno.': 'Va al destino que la necesita.',
