@@ -419,13 +419,27 @@ function drawVehicle(c, v) {
     const [sx, sy] = iso(0, 0, mx, my, h);
     c.fillStyle = 'rgba(0,0,0,0.2)'; c.beginPath(); c.ellipse(sx, sy + 0.5, (van ? 6 : 5), 2.4, 0, 0, Math.PI * 2); c.fill();
   }
-  // ruote: piccole, appena fuori dalla carrozzeria; prima quelle lontane dallo schermo, poi la
-  // carrozzeria, poi le vicine
-  const wheels = [];
-  for (const a of [-L + 0.06, L - 0.06]) for (const w of [-W - 0.012, W - 0.004]) wheels.push(R(a - 0.026, a + 0.026, w, w + 0.016));
-  const wheelCol = { l: '#2a2a30', r: '#1e1e22', t: '#3a3a40' };
-  const far = rc => rc[0] + rc[1] < mx + my;
-  wheels.filter(far).forEach(rc => vbox(rc, 0, 2, wheelCol));
+  // ruote: dischi sul fianco (gomma, cerchione e mozzo), disegnati nel piano del fianco.
+  // Quelle del fianco lontano prima della carrozzeria (si vedono appena sotto), quelle del fianco
+  // che guarda lo schermo dopo, come i parafanghi.
+  const nearSide = (sd[0] + sd[1]) > 0 ? 1 : -1;           // lato (w = +W o -W) verso lo schermo
+  const LP = (a, w, z) => iso(0, 0, mx + f.dx * a + sd[0] * w, my + f.dy * a + sd[1] * w, h + z / STEP);
+  const WR = 1.35, WA = 0.052;                             // raggio: in altezza (pixel) e lungo la marcia (tile)
+  const disc = (a, w, r, col) => {
+    const pts = [];
+    for (let k = 0; k < 14; k++) { const t = k / 14 * Math.PI * 2; pts.push(LP(a + Math.cos(t) * WA * r, w, WR + Math.sin(t) * WR * r)); }
+    poly(c, pts, col);
+  };
+  const axles = [-L + 0.065, L - 0.065];
+  const wheel = (a, w, near) => {
+    disc(a, w, 1, '#1b1b20');                                // gomma
+    if (!near || !DETAIL) return;
+    disc(a, w + 0.002 * Math.sign(w), 0.62, '#9aa1aa');        // cerchione
+    disc(a, w + 0.003 * Math.sign(w), 0.28, '#4a4f56');        // mozzo
+    const hl = LP(a - WA * 0.25, w + 0.003 * Math.sign(w), WR + WR * 0.3);  // riflesso
+    c.fillStyle = '#dfe4ea'; c.fillRect(hl[0] - 0.25, hl[1] - 0.25, 0.5, 0.5);
+  };
+  for (const a of axles) wheel(a, -nearSide * (W - 0.01), false);
   const body = v.color || '#d94141', stripe = v.stripe || '#3fa34d';
   if (van) {
     // cassone dietro, muso con la cabina davanti. Se il muso guarda verso il fondo dello schermo
@@ -447,7 +461,7 @@ function drawVehicle(c, v) {
     vbox(R(-L, L, -W, W), 1, 3.6, { l: body, r: shade(body, -0.25), t: shade(body, 0.12) });             // carrozzeria
     vbox(R(-L * 0.55, L * 0.35, -W * 0.86, W * 0.86), 4.6, 3, { l: '#8fc8e2', r: '#6fa6c2', t: shade(body, 0.2) });   // abitacolo con i vetri
   }
-  wheels.filter(rc => !far(rc)).forEach(rc => vbox(rc, 0, 2, wheelCol));
+  for (const a of axles) wheel(a, nearSide * (W + 0.004), true);
   if (!DETAIL) return;
   // fari: sul muso se guarda verso lo schermo (+u o +v), altrimenti luci rosse sul retro
   const front = d === 1 || d === 2, a = front ? L : -L, col = front ? '#fff3b0' : '#e83a3a';
