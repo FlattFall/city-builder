@@ -1328,6 +1328,13 @@ function drawStamp(N) {
   return drawStampData;
 }
 
+let drawStampData2 = null;
+function drawStamp2(N) {
+  if (!drawStampData2 || drawStampData2.arr.length !== N * N) drawStampData2 = { arr: new Uint32Array(N * N), id: 0 };
+  drawStampData2.id++;
+  return drawStampData2;
+}
+
 function drawFrame() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = '#1a1c2c';
@@ -1375,6 +1382,7 @@ function drawFrame() {
     return !(gy - game.map[y][x].elev * STEP > bottomY || gy + TH < topY);
   };
   const stamp = drawStamp(N);
+  const onStack = drawStamp2(N);
   const isDone = k => stamp.arr[k] === stamp.id;
   // tile da aspettare al posto di (px, py), visto da (x, y)
   const before = (px, py, x, y) => {
@@ -1387,7 +1395,13 @@ function drawFrame() {
         return inMap(fx, fy) && visible(fx, fy) ? fy * N + fx : -1;
       }
     }
-    return py * N + px;
+    const pk = py * N + px, va = vmap.foot.get(pk);
+    // un veicolo che sporge in questo tile: chi gli sta davanti aspetta il tile dove si disegna il veicolo
+    if (va !== undefined && va !== y * N + x && vmap.foot.get(y * N + x) !== va) {
+      const ax = va % N, ay = (va - ax) / N;
+      if (visible(ax, ay)) return va;
+    }
+    return pk;
   };
   const drawNode = (x, y) => {
     drawTile(ctx, x, y, detail);
@@ -1422,8 +1436,9 @@ function drawFrame() {
       if (isDone(k)) { stack.pop(); continue; }
       const x = k % N, y = (k - x) / N;
       const a = before(x - 1, y, x, y), b = before(x, y - 1, x, y);
-      if (a >= 0 && !isDone(a) && a !== k) { stack.push(a); continue; }
-      if (b >= 0 && !isDone(b) && b !== k) { stack.push(b); continue; }
+      // (onStack: se un tile è già in attesa più giù nella pila non si aspetta di nuovo: niente giri infiniti)
+      if (a >= 0 && !isDone(a) && a !== k && onStack.arr[a] !== onStack.id) { onStack.arr[a] = onStack.id; stack.push(a); continue; }
+      if (b >= 0 && !isDone(b) && b !== k && onStack.arr[b] !== onStack.id) { onStack.arr[b] = onStack.id; stack.push(b); continue; }
       stamp.arr[k] = stamp.id;
       stack.pop();
       drawNode(x, y);

@@ -295,16 +295,19 @@ function blockedAhead(v) {
       const ox = ob[0] - oa[0], oy = ob[1] - oa[1];
       if (ox * dx + oy * dy <= 0) continue;
       const rx = q.mx - p.mx, ry = q.my - p.my, ahead = rx * dx + ry * dy, side = Math.abs(-rx * dy + ry * dx);
-      if (ahead > 0 && ahead < 1.1 && side < 0.3) return true;
+      if (ahead > 0 && ahead < 1.1 && side < 0.3) return o;
       continue;
     }
     if (Math.abs(q.h - p.h) > 0.7) continue;   // uno sul ponte e uno sotto: non si danno fastidio
     const rx = q.mx - p.mx, ry = q.my - p.my;
     const ahead = rx * dx + ry * dy, side = Math.abs(-rx * dy + ry * dx);
-    if (ahead > 0 && ahead < 0.5 && side < 0.12) return true;
+    // distanza minima = mezza lunghezza di tutti e due + un po' di spazio (il furgone è più lungo)
+    const gap = halfLen(v) + halfLen(o) + 0.1;
+    if (ahead > 0 && ahead < gap && side < 0.14) return o;
   }
-  return false;
+  return null;
 }
+function halfLen(v) { return v.kind === 'van' ? 0.27 : 0.22; }
 
 function simUpdate(dt) {
   if (!game.started || menuIsOpen()) return;
@@ -313,10 +316,17 @@ function simUpdate(dt) {
   for (const v of vehicles) {
     // fermo troppo a lungo: riparte e per un po' non si ferma (prima ripartiva per un attimo e si
     // fermava di nuovo, e due veicoli uno contro l'altro sembravano bloccati per sempre)
+    // Un veicolo non passa mai attraverso quello davanti: aspetta. Solo se si bloccano a vicenda
+    // (incrocio, rotonda piena) dopo 3 s uno dei due passa per primo, e gli altri aspettano lui.
     if (v.force > 0) v.force -= dt;
-    else if (blockedAhead(v)) {
-      if ((v.waited = (v.waited || 0) + dt) < 3) continue;
-      v.force = 1.5;
+    else {
+      const o = blockedAhead(v);
+      if (o) {
+        v.waited = (v.waited || 0) + dt;
+        const deadlock = v.waited >= 3 && (o.waited || 0) > 0.5 && !(o.force > 0);
+        if (!deadlock) continue;
+        v.force = 1.5;
+      }
     }
     v.waited = 0;
     if (moveVehicle(v, dt)) done.push(v);
@@ -395,22 +405,32 @@ function vehiclePos(v) {
 // Veicoli raggruppati per tile: ognuno si disegna dopo il tile più avanti che occupa,
 // così i tile sotto sono già disegnati e i blocchi davanti lo coprono
 function vehiclesByTile() {
-  const m = new Map();
+  const m = new Map(), foot = new Map();
+  m.foot = foot;
   for (const v of vehicles) {
     const p = vehiclePos(v);
     v.pos = p;
-    // il tile è quello dove arriva la punta più avanti del veicolo (in +x e +y): così il tile dopo,
-    // disegnato più tardi, non copre il muso o il retro che ci sporge dentro
-    const along = v.kind === 'ship' ? 0.5 : v.kind === 'van' ? 0.25 : 0.2, side = v.kind === 'ship' ? 0.3 : 0.12;
-    const d = v.pts ? vehicleDir(v) : 1, ex = d === 1 || d === 3 ? along : side, ey = d === 1 || d === 3 ? side : along;
-    const tx = Math.min(game.size - 1, Math.max(0, Math.floor(p.mx + ex - 0.01)));
-    const ty = Math.min(game.size - 1, Math.max(0, Math.floor(p.my + ey - 0.01)));
+    // ingombro del veicolo (con la scia per le navi): si disegna dopo l'ultimo tile che tocca
+    // (quello più avanti in +x e +y), così nessun tile disegnato dopo (strada, terreno, acqua) lo copre;
+    // i tile che stanno davanti a una parte del veicolo aspettano lui (m.foot, usato da drawFrame)
+    const dd = v.pts ? vehicleDir(v) : 1, F = DIRS[dd];
+    const [front, back, side] = v.kind === 'ship' ? [0.62, 1.1, 0.3] : v.kind === 'van' ? [0.27, 0.27, 0.13] : [0.22, 0.22, 0.12];
+    const xs = [p.mx + F.dx * front, p.mx - F.dx * back], ys = [p.my + F.dy * front, p.my - F.dy * back];
+    const sx = Math.abs(F.dy) * side, sy = Math.abs(F.dx) * side;
+    const cl = n => Math.min(game.size - 1, Math.max(0, n));
+    const x0 = cl(Math.floor(Math.min(...xs) - sx)), x1 = cl(Math.floor(Math.max(...xs) + sx - 0.001));
+    const y0 = cl(Math.floor(Math.min(...ys) - sy)), y1 = cl(Math.floor(Math.max(...ys) + sy - 0.001));
+    const tx = x1, ty = y1;
     // dentro un tunnel non si vedono
     const inT = p.layer && bridgeAt(Math.floor(p.mx), Math.floor(p.my));
     if (inT && isTunnel(inT) && game.map[Math.floor(p.my)][Math.floor(p.mx)].bridge.id === inT.id) continue;
     const k = nodeKey(tx, ty, p.layer);   // quelli sul ponte si disegnano dopo l'impalcato
     if (!m.has(k)) m.set(k, []);
     m.get(k).push(v);
+    if (!p.layer) for (let yy = y0; yy <= y1; yy++) for (let xx = x0; xx <= x1; xx++) {
+      const fk = yy * game.size + xx;
+      if (fk !== k && (!foot.has(fk) || foot.get(fk) < k)) foot.set(fk, k);   // se più veicoli: aspetta l'ultimo
+    }
   }
   // nello stesso tile prima quelli dietro (somma delle coordinate più piccola)
   for (const list of m.values()) if (list.length > 1) list.sort((a, b) => (a.pos.mx + a.pos.my) - (b.pos.mx + b.pos.my));
@@ -616,6 +636,21 @@ function drawShip(c, v) {
     c.beginPath(); c.moveTo(...LP(-L + 0.02, -W * 0.9, 0)); c.lineTo(...LP(-L - 0.38, -W * 0.25, 0)); c.lineTo(...LP(-L - 0.38, W * 0.25, 0)); c.lineTo(...LP(-L + 0.02, W * 0.9, 0)); c.closePath(); c.fill();
     c.strokeStyle = 'rgba(255,255,255,0.7)'; c.lineWidth = 0.6;
     for (const s of [-1, 1]) { c.beginPath(); c.moveTo(...LP(L, 0, 0)); c.lineTo(...LP(L * 0.55, s * W * 1.45, 0)); c.stroke(); }
+    // acqua che si muove: anelli che si allargano dietro la poppa e schiuma che scorre lungo i fianchi
+    const ph = animT + (v.from || 0) * 0.37;
+    for (let i = 0; i < 3; i++) {
+      const t = (ph * 0.7 + i / 3) % 1, a0 = -L - 0.12 - t * 0.55, r = 0.05 + t * 0.16;
+      c.strokeStyle = 'rgba(255,255,255,' + (0.55 * (1 - t)).toFixed(2) + ')'; c.lineWidth = 0.7;
+      c.beginPath();
+      for (let k = 0; k <= 12; k++) { const q = k / 12 * Math.PI * 2, P = LP(a0 + Math.cos(q) * r * 0.7, Math.sin(q) * r * 1.4, 0); k ? c.lineTo(...P) : c.moveTo(...P); }
+      c.stroke();
+    }
+    c.strokeStyle = 'rgba(255,255,255,0.75)'; c.lineWidth = 0.6;
+    for (const s2 of [-1, 1]) for (let i = 0; i < 4; i++) {
+      const t = (ph * 1.1 + i / 4) % 1, a1 = L * 0.55 - t * (L * 1.5);
+      c.beginPath(); c.moveTo(...LP(a1, s2 * W * 1.2, 0)); c.lineTo(...LP(a1 - 0.07, s2 * W * (1.3 + t * 0.4), 0)); c.stroke();
+    }
+    waterSeen = true;   // così il gioco continua a ridisegnare e l'acqua si vede muovere
   }
   // scafo: contorno con la prua a punta e la poppa squadrata
   const out = [[-L, -W], [L * 0.5, -W], [L * 0.82, -W * 0.62], [L, 0], [L * 0.82, W * 0.62], [L * 0.5, W], [-L, W]];

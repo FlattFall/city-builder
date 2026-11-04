@@ -1603,6 +1603,36 @@ function check(cond, msg) {
   check(bal.small === 12 && bal.big === 172, `raccolto in proporzione ai campi: 12 campi = ${bal.small}, 172 campi = ${bal.big}`);
   check(bal.notChosen && bal.chosen, 'il supermercato prende dal magazzino solo se il magazzino lo ha come uscita');
 
+  // 56. furgoni: dal magazzino non escono due insieme e non si passano attraverso
+  const vq = await page.evaluate(() => {
+    clearVehicles(); newGame(17, 128); unlockAll(); game.started = true; if (menuIsOpen()) closeMenu();
+    const N = game.size, c = N / 2;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, rb: null, elev: 2, bridge: null });
+    game.bridges = new Map(); rebuildBridgeIndex(); recount(); game.money = 1e7;
+    for (let x = 0; x < N; x++) { useTool('road', x, c); game.map[c][x].main = true; }
+    game.entries = [{ x: 0, y: c }, { x: N - 1, y: c }];
+    game.rotation = 2; useTool('warehouse', c - 30, c + 1); useTool('supermarket', c + 30, c + 1); useTool('factory', c + 20, c + 1);
+    for (let hx = c - 34; hx <= c + 34; hx++) useTool('house', hx, c - 1);
+    for (const h of game.buildings.values()) if (h.kind === 'house') h.residents = HOUSE_CAPACITY;
+    recount();
+    const B = k => [...game.buildings.values()].find(b => b.kind === k);
+    const wh = B('warehouse'), sm = B('supermarket'), fa = B('factory');
+    wh.store = { carrot: 200, potato: 200, wheat: 200 }; wh.dests = [sm.id, fa.id];
+    let overlap = 0, vans = 0;
+    for (let i = 0; i < 3000; i++) {
+      simUpdate(0.1);
+      const vs = vehicles.filter(v => v.kind === 'van');
+      vans = Math.max(vans, vs.length);
+      for (let a = 0; a < vs.length; a++) for (let b2 = a + 1; b2 < vs.length; b2++) {
+        if (vehicleDir(vs[a]) !== vehicleDir(vs[b2])) continue;
+        const p = vehiclePos(vs[a]), q = vehiclePos(vs[b2]);
+        if (Math.hypot(p.mx - q.mx, p.my - q.my) < 0.4) overlap++;
+      }
+    }
+    return { overlap, vans, sold: sm.sold };
+  });
+  check(vq.vans >= 2 && vq.overlap === 0, `furgoni: mai uno sopra l'altro nella stessa direzione (${vq.overlap}, fino a ${vq.vans} furgoni insieme)`);
+
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();
 })();

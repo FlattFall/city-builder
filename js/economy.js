@@ -107,6 +107,11 @@ function sendGoods(from, to, g, q) {
   if (bySea(from, to)) return sendByShip(from, to, g, q);   // dal mare o da porto a porto: in nave (vehicles.js)
   const route = findRoute(accessTiles(from), accessTiles(to));
   if (!route) { from.status = TR('Nessuna strada verso {b}', { b: buildingLabel(to) }); from.retry = 3; return false; }
+  // un furgone alla volta dalla stessa entrata: il prossimo parte quando il primo si è allontanato
+  // (prima dal magazzino ne uscivano due insieme, uno sopra l'altro)
+  const st = route[0];
+  if (vehicles.some(o => o.kind === 'van' && o.tiles[0][0] === st[0] && o.tiles[0][1] === st[1] && o.seg < 6 &&
+    Math.hypot(vehiclePos(o).mx - o.pts[0][0], vehiclePos(o).my - o.pts[0][1]) < 0.75)) return false;
   addTo(from.store, g, -q);
   to.expect = to.expect || {};
   addTo(to.expect, g, q);
