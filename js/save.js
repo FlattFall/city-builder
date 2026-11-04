@@ -94,6 +94,7 @@ function loadGame(id) {
     rebuildBridgeIndex();
     for (const [x, y, farm] of d.fields) { game.map[y][x].field = true; game.map[y][x].farm = farm || null; }
     for (const bd of d.buildings) {
+      if (LIVESTOCK[bd.kind]) { bd.animal = bd.kind; bd.kind = 'livestock'; }   // allevamenti separati di prima
       if (!BUILDINGS[bd.kind]) continue;
       const b = initEconomy(Object.assign({}, bd, bd.kind === 'house' ? { incoming: 0 } : {}));
       for (const p of footprint(b.kind, b.ax, b.ay)) if (inMap(p.x, p.y)) game.map[p.y][p.x].building = b;

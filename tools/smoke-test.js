@@ -187,14 +187,16 @@ function check(cond, msg) {
 
   // 11. rampe: cerca A (livello e), B davanti ad A in una direzione (livello e+1), C dietro ad A (livello e)
   const ramp = await page.evaluate(() => {
-    const ok = t => t.type === T.SAND || t.type === T.GRASS || t.type === T.FOREST;
     const N = game.size;
+    // terreno libero, lontano da altre strade (altrimenti la rampa cambia per colpa loro)
+    const free = (x, y) => { for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const t = game.map[y + dy] && game.map[y + dy][x + dx]; if (!t || t.path || t.bridge || t.building) return false; } return true; };
+    const ok = t => (t.type === T.SAND || t.type === T.GRASS || t.type === T.FOREST);
     for (let y = 3; y < N - 3; y++) for (let x = 3; x < N - 3; x++) for (let d = 0; d < 4; d++) {
       const A = game.map[y][x], D = DIRS[d];
       const B = game.map[y + D.dy][x + D.dx], C = game.map[y - D.dy][x - D.dx];
       const s1 = DIRS[(d + 1) % 4], s2 = DIRS[(d + 3) % 4];
       const S1 = game.map[y + s1.dy][x + s1.dx], S2 = game.map[y + s2.dy][x + s2.dx];
-      if (ok(A) && ok(B) && ok(C) && ok(S1) && ok(S2) && B.elev === A.elev + 1 && C.elev === A.elev && S1.elev === A.elev) {
+      if (ok(A) && ok(B) && ok(C) && ok(S1) && ok(S2) && B.elev === A.elev + 1 && C.elev === A.elev && S1.elev === A.elev && free(x, y)) {
         // costruisce C, A, B (strada che sale dritta)
         for (const [px, py] of [[x - D.dx, y - D.dy], [x, y], [x + D.dx, y + D.dy]]) buildRoad(px, py);
         const res = {
@@ -620,7 +622,7 @@ function check(cond, msg) {
     useTool('supermarket', c + 1, c + 1); useTool('bakery', c + 4, c + 1);
     game.rotation = 0;
     for (let x = c - 9; x <= c + 6; x++) useTool('house', x, c - 1);
-    const B = k => [...game.buildings.values()].find(b => b.kind === k);
+    const B = k => [...game.buildings.values()].find(b => b.kind === k || b.animal === k);
     const farm = B('farm'), fac = B('factory'), wh = B('warehouse'), sm = B('supermarket'), bk = B('bakery');
     r.crops = Object.keys(CROPS).join(',');
     farm.crop = 'wheat'; farm.store = { wheat: 60 };
@@ -671,12 +673,14 @@ function check(cond, msg) {
     game.entries = [{ x: 0, y: c }, { x: N - 1, y: c }];
     game.rotation = 2;
     for (const [k, x] of [['cowFarm', -12], ['chickenFarm', -9], ['pigFarm', -6], ['sheepFarm', -3], ['dairy', 0], ['slaughterhouse', 3], ['supermarket', 6], ['farm', 9]]) {
-      useTool(k, c + x, c + 1);
+      // gli allevamenti sono un solo edificio: l'animale si sceglie dopo
+      useTool(LIVESTOCK[k] ? 'livestock' : k, c + x, c + 1);
+      if (LIVESTOCK[k]) setAnimal(game.map[c + 1][c + x].building, k);
       if (k === 'farm') exitFieldMode();
     }
     game.rotation = 0;
     for (let x = c - 13; x <= c + 10; x++) useTool('house', x, c - 1);
-    const B = k => [...game.buildings.values()].find(b => b.kind === k);
+    const B = k => [...game.buildings.values()].find(b => b.kind === k || b.animal === k);
     const cow = B('cowFarm'), chk = B('chickenFarm'), pig = B('pigFarm'), sh = B('sheepFarm'), da = B('dairy'), sl = B('slaughterhouse'), sm = B('supermarket'), fa = B('farm');
     // le mucche mandano il latte al caseificio e i bovini al macello: due destinazioni
     cow.dests = [da.id, sl.id]; chk.dests = [sl.id, sm.id]; pig.dests = [sl.id];
@@ -691,7 +695,9 @@ function check(cond, msg) {
     }
     r.seen = seen; r.wool = sh.store.wool || 0; r.sold = sm.sold; r.taxes = sm.taxes;
     r.sheepMountain = (() => { for (let y = c + 20; y < c + 22; y++) for (let x = c; x < c + 2; x++) game.map[y][x].type = T.ROCK;
-      return useTool('sheepFarm', c, c + 20).ok && !useTool('cowFarm', c, c + 20).ok; })();
+      if (!useTool('livestock', c, c + 20).ok) return false;
+      const lv = game.map[c + 20][c].building;
+      return lv.animal === 'sheepFarm' && !setAnimal(lv, 'cowFarm') && lv.animal === 'sheepFarm'; })();
     // casa senza strada: simbolo "non collegata"; casa collegata: nessun simbolo
     useTool('house', c + 30, c + 15);
     const lonely = [...game.buildings.values()].find(b => b.kind === 'house' && b.ax === c + 30);
@@ -1023,7 +1029,8 @@ function check(cond, msg) {
     game.rotation = 2;
     const B = {};
     for (const [k, x] of [['farm', 8], ['sheepFarm', 14], ['textileMill', 20], ['clothingFactory', 26], ['clothingStore', 32], ['warehouse', 40], ['goodsWarehouse', 46]]) {
-      useTool(k, x, c + 1); if (k === 'farm') exitFieldMode(); B[k] = [...game.buildings.values()].find(b => b.ax === x);
+      useTool(LIVESTOCK[k] ? 'livestock' : k, x, c + 1); if (k === 'farm') exitFieldMode(); B[k] = [...game.buildings.values()].find(b => b.ax === x);
+      if (LIVESTOCK[k]) setAnimal(B[k], k);
     }
     game.rotation = 0;
     for (let x = 6; x <= 50; x++) useTool('house', x, c - 1);
@@ -1066,6 +1073,34 @@ function check(cond, msg) {
   await page.evaluate(() => closePanel());
   const bar = await page.evaluate(() => [...document.querySelectorAll('#toolbar .lbl')].map(e => e.textContent).join(','));
   check(bar === 'Mano,Strade,Case,Agroalimentare,Legno,Tessile,Demolisci', 'barra: ' + bar);
+
+  // 34. allevamento unico: scelta dell'animale dal pannello, vecchi salvataggi convertiti
+  const lvs = await page.evaluate(() => {
+    clearVehicles(); newGame(1, 128);
+    const N = game.size, c = N / 2, r = {};
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, rb: null, bridge: null, elev: 2 });
+    recount(); resetBridges(); game.money = 1e7; game.started = true;
+    useTool('livestock', 20, 20);
+    const b = game.map[20][20].building;
+    r.default = b.kind === 'livestock' && b.animal === 'cowFarm';
+    r.pigs = setAnimal(b, 'pigFarm') && b.animal === 'pigFarm';
+    // salvataggio "vecchio" con un allevamento di polli separato
+    saveGame(); const sid = game.saveId;
+    const list = JSON.parse(localStorage.getItem('citybuilder.saves.v1'));
+    const e = list.find(x => x.id === sid);
+    e.data.buildings[0].kind = 'chickenFarm'; delete e.data.buildings[0].animal;
+    localStorage.setItem('citybuilder.saves.v1', JSON.stringify(list));
+    loadGame(sid); deleteSave(sid);
+    const b2 = game.map[20][20].building;
+    r.migrated = b2 && b2.kind === 'livestock' && b2.animal === 'chickenFarm';
+    openBuildingPanel(b2);
+    return r;
+  });
+  await page.click('#panel .pchoice:has-text("Pecore")');
+  const lvs2 = await page.evaluate(() => { const b = game.map[20][20].building; closePanel(); return b.animal; });
+  check(lvs.default && lvs.pigs, 'allevamento unico: mucche all\'inizio, poi si cambia animale');
+  check(lvs.migrated, 'vecchi salvataggi: allevamento di polli convertito');
+  check(lvs2 === 'sheepFarm', 'scelta dell\'animale dal pannello: ' + lvs2);
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();

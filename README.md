@@ -57,7 +57,7 @@ Le partite salvate restano sul PC (versione programma) o nel browser usato (vers
 - Colture: grano, carote, patate, mais, pomodori, cavoli. Il raccolto va a un **magazzino** o alla **fabbrica alimentare**.
 - **Fabbrica alimentare**: grano → farina, patate → patatine confezionate, carote → carote confezionate, pomodori → salsa, mais → farina di mais, grano + pomodori → pasta. Ricette accendibili dal pannello.
 - **Panificio**: farina → pane, biscotti, torte.
-- **Allevamenti**: mucche → latte e carne, polli → uova e carne, maiali → carne, pecore → lana (le pecore si possono mettere anche in montagna).
+- **Allevamento**: uno solo, scegli nel pannello cosa allevare: mucche → latte e carne, polli → uova e carne, maiali → carne, pecore → lana (le pecore si possono mettere anche in montagna).
 - **Caseificio**: latte → formaggio, burro, yogurt.
 - **Macello e industria della carne**: animali → carne fresca, salsicce, prosciutto, carne confezionata.
 - Ogni attività può mandare la merce a più destinazioni (scegline una o più nel pannello).

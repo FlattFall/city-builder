@@ -71,46 +71,125 @@ function drawTree(c, sx, sy, x, y) {
 const EDGE_UV = [[[0, 0], [1, 0]], [[1, 0], [1, 1]], [[1, 1], [0, 1]], [[0, 1], [0, 0]]];
 const MID_UV = [[0.5, 0], [1, 0.5], [0.5, 1], [0, 0.5]];
 
-// Strada asfaltata: cordoli sui lati non collegati, linea gialla verso i vicini collegati
-function drawRoad(c, P, links) {
-  const center = P(0.5, 0.5);
-  for (let d = 0; d < 4; d++) {
-    if (links[d]) line(c, center, P(...MID_UV[d]), LANE_COLOR);
-    else line(c, P(...EDGE_UV[d][0]), P(...EDGE_UV[d][1]), CURB_COLOR);
+// ---------- Strade più dettagliate ----------
+// Asfalto con un po' di grana, marciapiedi lastricati con cordolo sui lati senza collegamento,
+// angoli di marciapiede agli incroci, mezzeria tratteggiata, qualche tombino.
+// (x, y) servono solo per scegliere sempre gli stessi dettagli per ogni tile; detail = zoom vicino.
+const SIDEWALK = '#b9b5ab', SIDE_CURB = '#8b877e', SIDE_JOINT = '#a6a298', SIDE_LIGHT = '#cfcbc1';
+const SW = 0.15;                                   // larghezza del marciapiede (in tile)
+const INWARD = DIRS.map(D => [-D.dx, -D.dy]);       // dal bordo d verso il centro
+
+function uvAt(a, inw, w) { return [a[0] + inw[0] * w, a[1] + inw[1] * w]; }
+
+function asphaltGrain(c, P, x, y, light, dark) {
+  for (let i = 0; i < 9; i++) {
+    const u = 0.08 + hash(x, y, 60 + i) * 0.84, v = 0.08 + hash(x, y, 80 + i) * 0.84;
+    const p = P(u, v);
+    c.fillStyle = i % 3 ? dark : light;
+    c.fillRect(p[0], p[1], 0.5, 0.5);
   }
 }
 
-// Strada a senso unico: cordoli sui lati non collegati e freccia bianca nella direzione di marcia
-function drawOneway(c, P, links, dir) {
-  for (let d = 0; d < 4; d++) if (!links[d]) line(c, P(...EDGE_UV[d][0]), P(...EDGE_UV[d][1]), CURB_COLOR);
-  const { dx, dy } = DIRS[dir ?? 1];
-  const at = (s, o) => P(0.5 + dx * s - dy * o, 0.5 + dy * s + dx * o);   // s lungo la freccia, o di lato
-  line(c, at(-0.3, 0), at(0.18, 0), HW_LINE);
-  poly(c, [at(0.34, 0), at(0.14, -0.13), at(0.14, 0.13)], HW_LINE);
+// marciapiedi sui lati liberi e angoli tra due bracci collegati (da lontano solo il cordolo)
+function sidewalks(c, P, links, detail) {
+  if (!detail) { for (let d = 0; d < 4; d++) if (!links[d]) line(c, P(...EDGE_UV[d][0]), P(...EDGE_UV[d][1]), SIDEWALK); return; }
+  for (let d = 0; d < 4; d++) {
+    if (links[d]) continue;
+    const [A, B] = EDGE_UV[d], inw = INWARD[d];
+    const A2 = uvAt(A, inw, SW), B2 = uvAt(B, inw, SW);
+    poly(c, [P(...A), P(...B), P(...B2), P(...A2)], SIDEWALK);
+    line(c, P(...A2), P(...B2), SIDE_CURB);                         // cordolo verso la strada
+    line(c, P(...A), P(...B), SIDE_LIGHT);                          // bordo esterno
+    if (detail) for (const f of [0.25, 0.5, 0.75]) {               // giunti delle lastre
+      const q = [A[0] + (B[0] - A[0]) * f, A[1] + (B[1] - A[1]) * f];
+      line(c, P(...q), P(...uvAt(q, inw, SW)), SIDE_JOINT);
+    }
+  }
+  for (let d = 0; d < 4; d++) {                                     // angoli agli incroci e nelle curve
+    const e = (d + 1) % 4;
+    if (!links[d] || !links[e]) continue;
+    const C = EDGE_UV[d][1];
+    const a = uvAt(C, INWARD[d], SW), b = uvAt(a, INWARD[e], SW), cc = uvAt(C, INWARD[e], SW);
+    poly(c, [P(...C), P(...a), P(...b), P(...cc)], SIDEWALK);
+    line(c, P(...a), P(...b), SIDE_CURB); line(c, P(...b), P(...cc), SIDE_CURB);
+  }
 }
 
-// Autostrada: asfalto scuro, linee bianche tratteggiate verso i vicini, guardrail sui lati liberi
-function drawHighway(c, P, links) {
-  for (let d = 0; d < 4; d++) {
+// tratti di linea lungo il braccio d, da s0 a s1 dal centro, spostati di o di lato
+function armLine(c, P, d, s0, s1, o, color) {
+  const { dx, dy } = DIRS[d];
+  line(c, P(0.5 + dx * s0 - dy * o, 0.5 + dy * s0 + dx * o), P(0.5 + dx * s1 - dy * o, 0.5 + dy * s1 + dx * o), color);
+}
+
+// Strada asfaltata
+function drawRoad(c, P, links, x, y, detail) {
+  if (detail) asphaltGrain(c, P, x || 0, y || 0, '#6c6c76', '#4e4e57');
+  sidewalks(c, P, links, detail);
+  const n = links.filter(Boolean).length;
+  if (!detail) { if (n <= 2) for (let d = 0; d < 4; d++) if (links[d]) line(c, P(0.5, 0.5), P(...MID_UV[d]), LANE_COLOR); return; }
+  if (n <= 2) for (let d = 0; d < 4; d++) if (links[d]) {         // mezzeria tratteggiata (agli incroci niente)
+    armLine(c, P, d, 0.02, 0.16, 0, LANE_COLOR);
+    armLine(c, P, d, 0.3, 0.44, 0, LANE_COLOR);
+  }
+  if (n >= 3) for (let d = 0; d < 4; d++) if (links[d]) {          // strisce di stop all'ingresso dell'incrocio
     const { dx, dy } = DIRS[d];
+    const at = (s, o) => P(0.5 + dx * s - dy * o, 0.5 + dy * s + dx * o);
+    line(c, at(0.36, 0.02), at(0.36, 0.33), '#e8e8e8');
+  }
+  if (detail && n <= 2 && hash(x || 0, y || 0, 91) > 0.82) {      // tombino
+    const u = 0.3 + hash(x, y, 92) * 0.4, v = 0.3 + hash(x, y, 93) * 0.4;
+    poly(c, [P(u - 0.05, v), P(u, v - 0.05), P(u + 0.05, v), P(u, v + 0.05)], '#3e3e46');
+  }
+}
+
+// Strada a senso unico: come la strada, con le frecce bianche nella direzione di marcia
+function drawOneway(c, P, links, dir, x, y, detail) {
+  if (detail) asphaltGrain(c, P, x || 0, y || 0, '#6c6c76', '#4e4e57');
+  sidewalks(c, P, links, detail);
+  const { dx, dy } = DIRS[dir ?? 1];
+  const at = (s, o) => P(0.5 + dx * s - dy * o, 0.5 + dy * s + dx * o);   // s lungo la freccia, o di lato
+  line(c, at(-0.3, 0), at(0.16, 0), HW_LINE);
+  poly(c, [at(0.33, 0), at(0.12, -0.13), at(0.12, 0.13)], HW_LINE);
+}
+
+// Autostrada: asfalto scuro, linee bianche (tratteggiate in mezzo, continue sui bordi), guardrail
+function drawHighway(c, P, links, x, y, detail) {
+  if (detail) asphaltGrain(c, P, x || 0, y || 0, '#5a5a64', '#34343c');
+  const n = links.filter(Boolean).length;
+  for (let d = 0; d < 4; d++) {
     if (links[d]) {
-      for (const [s0, s1] of [[0.06, 0.2], [0.34, 0.48]]) line(c, P(0.5 + dx * s0, 0.5 + dy * s0), P(0.5 + dx * s1, 0.5 + dy * s1), HW_LINE);
+      armLine(c, P, d, 0.06, 0.2, 0, HW_LINE);
+      armLine(c, P, d, 0.34, 0.48, 0, HW_LINE);
+      if (n === 1 || (n === 2 && links[(d + 2) % 4])) for (const o of [-0.4, 0.4]) armLine(c, P, d, 0, 0.5, o, '#d8d8dc');   // bordi (sui rettilinei)
       continue;
     }
     const a = P(...EDGE_UV[d][0]), b = P(...EDGE_UV[d][1]);
     const up = p => [p[0], p[1] - 2];
-    for (const f of [0.1, 0.5, 0.9]) {
+    for (const f of [0.1, 0.36, 0.63, 0.9]) {
       const q = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
       line(c, q, up(q), GUARD_POST);
     }
     line(c, up(a), up(b), RAIL_GUARD);
+    line(c, [a[0], a[1] - 1], [b[0], b[1] - 1], '#a8adb4');
   }
 }
 
-// Strada di terra: bordi scuri e due solchi delle ruote verso i vicini collegati
-function drawDirt(c, P, links) {
+// Strada di terra: bordi d'erba, due solchi delle ruote verso i vicini collegati, sassolini
+function drawDirt(c, P, links, x, y, detail) {
+  if (detail) for (let i = 0; i < 8; i++) {
+    const p = P(0.1 + hash(x || 0, y || 0, 70 + i) * 0.8, 0.1 + hash(x || 0, y || 0, 50 + i) * 0.8);
+    c.fillStyle = i % 2 ? '#7d5f38' : '#c2a378'; c.fillRect(p[0], p[1], 0.5, 0.5);
+  }
   for (let d = 0; d < 4; d++) {
-    if (!links[d]) { line(c, P(...EDGE_UV[d][0]), P(...EDGE_UV[d][1]), DIRT_EDGE); continue; }
+    if (!links[d]) {
+      line(c, P(...EDGE_UV[d][0]), P(...EDGE_UV[d][1]), DIRT_EDGE);
+      if (detail) for (const f of [0.2, 0.5, 0.8]) {                 // ciuffi d'erba sul bordo
+        const [A, B] = EDGE_UV[d], q = [A[0] + (B[0] - A[0]) * f, A[1] + (B[1] - A[1]) * f];
+        const p = P(...uvAt(q, INWARD[d], 0.05));
+        c.fillStyle = '#5aa845'; c.fillRect(p[0] - 0.5, p[1] - 1, 1, 1);
+      }
+      continue;
+    }
     const [mu, mv] = MID_UV[d];
     for (const o of [-0.17, 0.17]) {
       const a = d % 2 === 0 ? [0.5 + o, 0.5] : [0.5, 0.5 + o];
@@ -568,7 +647,7 @@ function drawBuildingOn(c, x, y, b) {
   else if (b.kind === 'sawmill') drawSawmill(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'furnitureFactory') drawFurnitureFactory(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'furnitureStore') drawFurnitureStore(c, b.ax, b.ay, base, b.rot || 0);
-  else if (LIVESTOCK[b.kind]) drawLivestock(c, b.ax, b.ay, base, b.rot || 0, b.kind);
+  else if (b.kind === 'livestock') drawLivestock(c, b.ax, b.ay, base, b.rot || 0, b.animal || 'cowFarm');
 }
 
 // ---------- Allevamenti ----------
@@ -762,7 +841,7 @@ function drawTile(c, x, y, detail, onlyTop) {
   else if (t.path === 'highway') top = slopeShade(x, y, HW_COLORS);
   else if (t.path === 'dirt') top = slopeShade(x, y, DIRT_COLORS);
   else if (t.field) top = SOIL;
-  else if (t.building && GROUND[t.building.kind]) top = GROUND[t.building.kind];
+  else if (t.building && GROUND[t.building.kind === 'livestock' ? t.building.animal : t.building.kind]) top = GROUND[t.building.kind === 'livestock' ? t.building.animal : t.building.kind];
   poly(c, [P(0, 0), P(1, 0), P(1, 1), P(0, 1)], top);
 
   // bordo scuro sui lati dietro dove il terreno scende: si vede subito che dietro c'è un salto
@@ -780,10 +859,10 @@ function drawTile(c, x, y, detail, onlyTop) {
     // collegato anche verso un ponte che parte da qui
     const links = [0, 1, 2, 3].map(d => roadLinked(x, y, d) || !!bridgeFromHead(x, y, d));
     if (t.rb) drawRoundabout(c, x, y, P);
-    else if (t.path === 'road') drawRoad(c, P, links);
-    else if (t.path === 'oneway') drawOneway(c, P, links, t.dir);
-    else if (t.path === 'highway') drawHighway(c, P, links);
-    else if (t.path === 'dirt') drawDirt(c, P, links);
+    else if (t.path === 'road') drawRoad(c, P, links, x, y, detail);
+    else if (t.path === 'oneway') drawOneway(c, P, links, t.dir, x, y, detail);
+    else if (t.path === 'highway') drawHighway(c, P, links, x, y, detail);
+    else if (t.path === 'dirt') drawDirt(c, P, links, x, y, detail);
     else drawRail(c, P, links);
     return;
   }
@@ -829,7 +908,7 @@ function drawBridgeSpan(c, x, y, b, i) {
   else poly(c, [P(1, 0), P(1, 1), Pd(1, 1, DECK_T), Pd(1, 0, DECK_T)], DECK.r);
   poly(c, [P(0, 0), P(1, 0), P(1, 1), P(0, 1)], DECK.top);
   const links = [0, 1, 2, 3].map(d => d === b.d || d === (b.d + 2) % 4);
-  drawRoad(c, P, links);
+  drawRoad(c, P, links, x, y, true);
   // ringhiere sui due lati lunghi
   const sides = alongU ? [[[0, 0], [1, 0]], [[0, 1], [1, 1]]] : [[[0, 0], [0, 1]], [[1, 0], [1, 1]]];
   for (const [A, B] of sides) {
@@ -926,7 +1005,7 @@ function withPreview(p, draw) {
   }
   else if (tool === 'field') t.field = true;
   else if (BUILDINGS[tool]) {
-    const b = { kind: tool, variant: houseVariant(p.x, p.y), ax: p.x, ay: p.y, rot: game.rotation };
+    const b = { kind: tool, variant: houseVariant(p.x, p.y), ax: p.x, ay: p.y, rot: game.rotation, animal: tool === 'livestock' ? defaultAnimal(p.x, p.y) : undefined };
     for (const [q] of saved) game.map[q.y][q.x].building = b;
   }
   try { draw(); } finally {

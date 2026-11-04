@@ -83,7 +83,7 @@ function sendGoods(from, to, g, q) {
   to.expect = to.expect || {};
   addTo(to.expect, g, q);
   from.status = 'Furgone in viaggio verso ' + buildingLabel(to);
-  const fid = from.id, tid = to.id, stripe = VAN_STRIPES[from.kind];
+  const fid = from.id, tid = to.id, stripe = VAN_STRIPES[from.kind === 'livestock' ? from.animal : from.kind];
   from.van = spawnVehicle({
     kind: 'van', from: fid, to: tid, good: g, load: q, stripe, tiles: route, pts: routePoints(route, false), speed: VAN_SPEED,
     arrive() {
@@ -184,7 +184,7 @@ function treesNear(b, radius) {
 }
 
 function updateLivestock(b, dt) {
-  const L = NATURE[b.kind], cap = CAPS[b.kind].store;
+  const L = natureOf(b), cap = CAPS[b.kind].store;
   let staff = (b.workers || 0) / JOBS[b.kind];
   if (L.trees) {   // azienda forestale: più bosco vicino = più legno (fino a L.trees tile)
     if (!(b.treeTimer > 0)) { b.trees = treesNear(b, L.radius); b.treeTimer = 5; }
@@ -261,7 +261,7 @@ function economyUpdate(dt) {
     if (b.retry > 0) b.retry -= dt;
     if (b.pullTimer > 0) b.pullTimer -= dt;
     if (b.kind === 'farm') updateFarm(b, dt);
-    else if (NATURE[b.kind]) updateLivestock(b, dt);
+    else if (natureOf(b)) updateLivestock(b, dt);
     else if (isProcessor(b)) updateProducer(b, dt);
     else if (SHOPS[b.kind]) updateShop(b, dt);
     else if (isWarehouse(b)) {

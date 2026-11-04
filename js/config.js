@@ -43,10 +43,7 @@ const TUNNEL = { costPerTile: 80 };
 const BUILDINGS = {
   house:     { name: 'Casa', w: 1, h: 1, cost: 100, height: 22, group: 'homes' },
   farm:      { name: 'Fattoria', w: 2, h: 2, cost: 500, height: 34, group: 'industry', grass: true },
-  cowFarm:   { name: 'Allevamento di mucche', w: 2, h: 2, cost: 700, height: 22, group: 'industry', grass: true },
-  chickenFarm: { name: 'Allevamento di polli', w: 2, h: 2, cost: 450, height: 18, group: 'industry', grass: true },
-  pigFarm:   { name: 'Allevamento di maiali', w: 2, h: 2, cost: 550, height: 18, group: 'industry', grass: true },
-  sheepFarm: { name: 'Allevamento di pecore', w: 2, h: 2, cost: 500, height: 18, group: 'industry' },
+  livestock: { name: 'Allevamento', w: 2, h: 2, cost: 600, height: 22, group: 'industry' },   // l'animale si sceglie nel pannello
   warehouse: { name: 'Magazzino alimenti', w: 2, h: 2, cost: 400, height: 20, group: 'industry' },
   factory:   { name: 'Fabbrica alimentare', w: 2, h: 2, cost: 1500, height: 40, group: 'industry' },
   bakery:    { name: 'Panificio', w: 1, h: 1, cost: 400, height: 18, group: 'industry' },
@@ -201,16 +198,20 @@ const RECIPES = {
 const PRODUCE_TICK = { factory: 4, bakery: 5, dairy: 5, slaughterhouse: 6, sawmill: 5, furnitureFactory: 8, textileMill: 5, clothingFactory: 7 };   // secondi per ciclo con tutto il personale
 
 // Allevamenti: ogni "every" secondi (con tutto il personale) producono queste merci
+// Un solo edificio "Allevamento": b.animal sceglie quale (le chiavi sono quelle dei vecchi
+// allevamenti separati, così i salvataggi di prima si convertono). grass = vuole l'erba.
 const LIVESTOCK = {
-  cowFarm:     { animal: 'Mucche', every: 40, out: { milk: 6, cattle: 2 } },
-  chickenFarm: { animal: 'Polli', every: 30, out: { eggs: 8, poultry: 3 } },
-  pigFarm:     { animal: 'Maiali', every: 40, out: { pigs: 4 } },
-  sheepFarm:   { animal: 'Pecore', every: 45, out: { wool: 6 } },
+  cowFarm:     { animal: 'Mucche', every: 40, out: { milk: 6, cattle: 2 }, grass: true, icon: 'cattle' },
+  chickenFarm: { animal: 'Polli', every: 30, out: { eggs: 8, poultry: 3 }, grass: true, icon: 'poultry' },
+  pigFarm:     { animal: 'Maiali', every: 40, out: { pigs: 4 }, grass: true, icon: 'pigs' },
+  sheepFarm:   { animal: 'Pecore', every: 45, out: { wool: 6 }, icon: 'wool' },
 };
 // Azienda forestale: taglia nei boschi vicini (gli alberi ricrescono, il bosco resta).
 // Lavora a pieno ritmo con almeno "trees" tile di bosco entro "radius" tile.
 const FORESTRY = { forestry: { every: 40, out: { logs: 6, firewood: 3 }, trees: 12, radius: 5 } };
-const NATURE = Object.assign({}, LIVESTOCK, FORESTRY);   // chi produce dalla natura (animali, boschi)
+const NATURE = Object.assign({}, FORESTRY);   // chi produce dalla natura (boschi; gli animali con natureOf)
+// Cosa produce un edificio dalla natura: l'animale dell'allevamento o il bosco
+function natureOf(b) { return b.kind === 'livestock' ? LIVESTOCK[b.animal] : NATURE[b.kind]; }
 
 // Capienze: input = materie prime in attesa, store = merce pronta (o in deposito)
 const CAPS = {
@@ -220,7 +221,7 @@ const CAPS = {
   bakery: { input: 40, store: 40 },
   dairy: { input: 80, store: 50 },
   slaughterhouse: { input: 60, store: 50 },
-  cowFarm: { store: 80 }, chickenFarm: { store: 80 }, pigFarm: { store: 80 }, sheepFarm: { store: 80 },
+  livestock: { store: 80 },
   supermarket: { store: 200 },
   forestry: { store: 80 }, sawmill: { input: 80, store: 50 }, furnitureFactory: { input: 80, store: 40 },
   furnitureStore: { store: 150 }, goodsWarehouse: { store: WAREHOUSE_CAPACITY },
@@ -247,11 +248,14 @@ const DEST_KINDS = {
   bakery: ['warehouse', 'supermarket'],
   dairy: ['warehouse', 'supermarket'],
   slaughterhouse: ['warehouse', 'supermarket'],
+  // allevamento: dipende dall'animale (destKindsOf)
   cowFarm: ANIMAL_DESTS, chickenFarm: ANIMAL_DESTS, pigFarm: ANIMAL_DESTS, sheepFarm: ['goodsWarehouse', 'textileMill'],
 };
 
 // ---------- Supermercato e tasse ----------
 // Negozi: ogni "tick" secondi una parte (buyRate) degli abitanti entro "radius" compra qualcosa
+function destKindsOf(b) { return DEST_KINDS[b.kind === 'livestock' ? b.animal : b.kind] || []; }
+
 const SHOPS = {
   supermarket: { tick: 10, radius: 25, buyRate: 0.25 },
   furnitureStore: { tick: 20, radius: 30, buyRate: 0.06 },   // i mobili si comprano di rado
@@ -264,7 +268,7 @@ const TAX_RATE = 0.3;                                 // tasse sulle vendite che
 // Persone che servono per far funzionare un'attività; lavorano lì gli abitanti delle case
 // entro JOB_RADIUS tile
 const JOBS = { farm: 4, warehouse: 2, factory: 6, bakery: 2, supermarket: 3,
-  cowFarm: 3, chickenFarm: 2, pigFarm: 2, sheepFarm: 2, dairy: 5, slaughterhouse: 5,
+  livestock: 3, dairy: 5, slaughterhouse: 5,
   forestry: 3, sawmill: 4, furnitureFactory: 5, furnitureStore: 3, goodsWarehouse: 2,
   textileMill: 5, clothingFactory: 5, clothingStore: 3 };
 const JOB_RADIUS = 12;

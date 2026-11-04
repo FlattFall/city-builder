@@ -258,11 +258,25 @@ function farmFieldCount(farm) {
   return n;
 }
 
+// ---------- Allevamento ----------
+// Mucche, polli e maiali vogliono l'erba; le pecore stanno anche in montagna e sulla sabbia
+function grassyFootprint(x, y) { return footprint('livestock', x, y).every(p => inMap(p.x, p.y) && !isMountain(game.map[p.y][p.x]) && game.map[p.y][p.x].type !== T.SAND); }
+function defaultAnimal(x, y) { return grassyFootprint(x, y) ? 'cowFarm' : 'sheepFarm'; }
+function animalAllowed(b, a) { return !LIVESTOCK[a].grass || grassyFootprint(b.ax, b.ay); }
+function setAnimal(b, a) {
+  if (!LIVESTOCK[a] || !animalAllowed(b, a)) return false;
+  if (b.animal === a) return true;
+  b.animal = a; b.growth = 0; b.status = '';
+  b.dests = b.dests.filter(id => { const d = game.buildings.get(id); return d && DEST_KINDS[a].includes(d.kind); });
+  return true;
+}
+
 // Dati iniziali di un edificio appena costruito
 function newBuilding(kind, x, y) {
   const b = { id: game.nextId++, kind, variant: houseVariant(x, y), ax: x, ay: y, rot: game.rotation || 0 };
   if (kind === 'house') { b.residents = 0; b.incoming = 0; }
   if (kind === 'farm') { b.crop = 'wheat'; b.growth = 0; b.fields = 0; }
+  if (kind === 'livestock') { b.animal = defaultAnimal(x, y); b.growth = 0; }
   return initEconomy(b);
 }
 

@@ -12,6 +12,8 @@ const root = path.join(__dirname, '..', '..');
 // cols = rotazioni (0..3), rows = varianti di colore
 const SHEETS = {
   house: { file: 'house.png', cell: [64, 84], anchor: [32, 52], cols: 4, rows: 3 },
+  // veicoli: colonne = direzione di marcia (0..3), righe = berlina, utilitaria, furgone; anchor = centro a terra
+  vehicles: { file: 'vehicles.png', cell: [40, 32], anchor: [20, 22], cols: 4, rows: 3 },
 };
 
 let out = '// ---------- Sprite in pixel art (file generato da tools/sprites/build.js: non modificare a mano) ----------\n';

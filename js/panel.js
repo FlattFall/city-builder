@@ -55,7 +55,7 @@ function goodsList(mapFn, emptyText) {
 function panelShapeOf(b) {
   if (!b) return '';
   const others = [...game.buildings.values()].filter(w => w.kind !== 'house').map(w => w.id).join(',');
-  return [b.id, b.crop, JSON.stringify(b.dests || []), b.fields, others, b.residents >= HOUSE_CAPACITY, !!b.unreachable, accessTiles(b).length,
+  return [b.id, b.crop, b.animal, b.name, JSON.stringify(b.dests || []), b.fields, others, b.residents >= HOUSE_CAPACITY, !!b.unreachable, accessTiles(b).length,
     !!b.incoming, Object.keys(b.store || {}).join(), Object.keys(b.input || {}).join(),
     JSON.stringify(b.accept || {}), JSON.stringify(b.recipes || {})].join('|');
 }
@@ -80,7 +80,7 @@ function onBuildingRemoved(b) { if (game.selected === b.id) closePanel(); }
 // Destinazioni possibili per la merce di un edificio, con raggiungibilità su strada
 function destChoices(b) {
   const from = accessTiles(b);
-  return [...game.buildings.values()].filter(w => w !== b && (DEST_KINDS[b.kind] || []).includes(w.kind))
+  return [...game.buildings.values()].filter(w => w !== b && destKindsOf(b).includes(w.kind))
     .map(w => ({ w, ok: !!findRoute(from, accessTiles(w)) }));
 }
 
@@ -102,7 +102,7 @@ function destSection(box, b) {
     list.appendChild(btn);
   }
   box.appendChild(list);
-  if (!choices.length) box.appendChild(el('div', 'pnote', 'Costruisci ' + DEST_KINDS[b.kind].map(k => BUILDINGS[k].name.toLowerCase()).join(', ') + ' (gruppo 4).'));
+  if (!choices.length) box.appendChild(el('div', 'pnote', 'Costruisci ' + destKindsOf(b).map(k => BUILDINGS[k].name.toLowerCase()).join(', ') + ' (gruppo 4).'));
   if (b.dests.length) box.appendChild(liveText('div', 'pnote', () => b.status || (b.van ? 'Furgone in viaggio' : 'Il furgone parte con almeno ' + VAN_MIN_LOAD + ' unità')));
 }
 
@@ -209,8 +209,22 @@ function renderPanel() {
     destSection(box, b);
   }
 
-  if (NATURE[b.kind]) {
-    const L = NATURE[b.kind];
+  if (b.kind === 'livestock') {
+    box.appendChild(el('div', 'plabel', 'Cosa allevare'));
+    const row = el('div', 'pchoices pwrap');
+    for (const [a, A] of Object.entries(LIVESTOCK)) {
+      const ok = animalAllowed(b, a);
+      const btn = el('button', 'pchoice' + (b.animal === a ? ' active' : '') + (ok ? '' : ' bad'));
+      btn.append(goodImg(A.icon), el('span', null, A.animal));
+      btn.title = ok ? 'Produce: ' + Object.keys(A.out).map(g => GOODS[g].name.toLowerCase()).join(', ') : 'Qui non c\'è erba: solo pecore';
+      btn.addEventListener('click', () => { if (setAnimal(b, a)) { game.dirty = true; renderPanel(); requestDraw(); } else toast('In montagna e sulla sabbia non c\'è erba: qui solo pecore'); });
+      row.appendChild(btn);
+    }
+    box.appendChild(row);
+  }
+
+  if (natureOf(b)) {
+    const L = natureOf(b);
     if (L.trees) {
       box.appendChild(liveText('div', 'prow', () => 'Bosco vicino: ' + (b.trees || 0) + ' tile (a pieno ritmo con ' + L.trees + ', entro ' + L.radius + ' tile)'));
       box.appendChild(liveText('div', 'pwarn', () => !b.trees ? 'Nessun bosco vicino: mettila accanto a una foresta.' : ''));

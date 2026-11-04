@@ -392,8 +392,24 @@ function vehiclesByTile() {
   return m;
 }
 
+// Veicoli in pixel art: sprite "vehicles" ricolorato con il colore dell'auto (o la striscia del furgone),
+// girato nella direzione in cui sta andando. Finché l'immagine non c'è, le scatoline di prima.
+function vehicleDir(v) {
+  const a = v.pts[v.seg], b = v.pts[Math.min(v.seg + 1, v.pts.length - 1)];
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? 1 : 3;
+  return dy >= 0 ? 2 : 0;
+}
 function drawVehicle(c, v) {
   const { mx, my, h, alongU } = v.pos;
+  const img = tintedSprite('vehicles', v.kind === 'van' ? (v.stripe || '#3fa34d') : v.color);
+  if (img) {
+    if (v.model == null) v.model = Math.random() < 0.5 ? 0 : 1;   // berlina o utilitaria
+    let [wx, wy] = iso(0, 0, mx, my, h);
+    wx = Math.round(wx * 2) / 2; wy = Math.round(wy * 2) / 2;   // pixel dello sprite allineati allo schermo
+    drawSpriteImage(c, 'vehicles', img, vehicleDir(v), v.kind === 'van' ? 2 : v.model, wx, wy);
+    return;
+  }
   const L = v.kind === 'van' ? 0.24 : 0.19, W = v.kind === 'van' ? 0.12 : 0.1;
   const [hu, hv] = alongU ? [L, W] : [W, L];
   if (v.kind === 'van') {

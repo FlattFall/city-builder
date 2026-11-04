@@ -19,10 +19,7 @@ const TOOL_INFO = {
   factory:   { label: 'Fabbrica alimentare (2x2)', cost: BUILDINGS.factory.cost, desc: 'Trasforma i raccolti in cibo confezionato.' },
   bakery:    { label: 'Panificio', cost: BUILDINGS.bakery.cost, desc: 'Fa pane, biscotti e torte con la farina della fabbrica alimentare.' },
   supermarket: { label: 'Supermercato (2x2)', cost: BUILDINGS.supermarket.cost, desc: 'Vende cibo agli abitanti vicini: per ogni vendita incassi le tasse.' },
-  cowFarm:   { label: 'Allevamento di mucche', cost: BUILDINGS.cowFarm.cost, desc: 'Il latte va al caseificio (o fresco al supermercato), i bovini al macello. Vuole erba.' },
-  chickenFarm: { label: 'Allevamento di polli', cost: BUILDINGS.chickenFarm.cost, desc: 'Le uova vanno al supermercato, i polli al macello. Vuole erba.' },
-  pigFarm:   { label: 'Allevamento di maiali', cost: BUILDINGS.pigFarm.cost, desc: 'I maiali vanno al macello (salsicce e prosciutto). Vuole erba.' },
-  sheepFarm: { label: 'Allevamento di pecore', cost: BUILDINGS.sheepFarm.cost, desc: 'Fa lana per la fabbrica tessile (stoffe lavorate per giacche, scarpe e cappotti). Si può mettere anche in montagna.' },
+  livestock: { label: 'Allevamento (2x2)', cost: BUILDINGS.livestock.cost, desc: "Scegli cosa allevare nel pannello: mucche (latte per il caseificio, bovini per il macello), polli (uova, polli per il macello), maiali (per il macello) o pecore (lana per la fabbrica tessile). Mucche, polli e maiali vogliono l'erba; le pecore stanno anche in montagna." },
   dairy:     { label: 'Caseificio (2x2)', cost: BUILDINGS.dairy.cost, desc: "Trasforma il latte degli allevamenti di mucche in latticini." },
   slaughterhouse: { label: 'Macello e carne (2x2)', cost: BUILDINGS.slaughterhouse.cost, desc: 'Trasforma gli animali degli allevamenti in carne.' },
   forestry:  { label: 'Azienda forestale (2x2)', cost: BUILDINGS.forestry.cost, desc: 'Taglia legna nei boschi vicini: mettila accanto a una foresta (gli alberi restano). Più bosco = più legno.' },
@@ -40,7 +37,7 @@ const TOOL_GROUPS = [
   { key: '1', id: 'hand',     label: 'Mano',      tools: ['hand'] },
   { key: '2', id: 'paths',    label: 'Strade',    tools: ['road', 'oneway', 'highway', 'bridge', 'tunnel', 'dirt', 'rail'] },
   { key: '3', id: 'homes',    label: 'Case',      tools: ['house'] },
-  { key: '4', id: 'industry', label: 'Agroalimentare', tools: ['farm', 'cowFarm', 'chickenFarm', 'pigFarm', 'sheepFarm',
+  { key: '4', id: 'industry', label: 'Agroalimentare', tools: ['farm', 'livestock',
     'warehouse', 'factory', 'dairy', 'slaughterhouse', 'bakery', 'supermarket'] },
   { key: '5', id: 'wood',     label: 'Legno',     tools: ['forestry', 'sawmill', 'furnitureFactory', 'furnitureStore', 'goodsWarehouse'] },
   { key: '6', id: 'textile',  label: 'Tessile',   tools: ['textileMill', 'clothingFactory', 'clothingStore', 'goodsWarehouse'] },
@@ -195,6 +192,7 @@ function chainLines(id) {
   const out = [];
   if (RECIPES[id]) out.push(...RECIPES[id].map(r => goodList(r.in) + ' → ' + GOODS[r.out].name.toLowerCase()));
   if (NATURE[id]) out.push('Produce: ' + goodList(NATURE[id].out) + ' (ogni ' + NATURE[id].every + ' s)');
+  if (id === 'livestock') for (const A of Object.values(LIVESTOCK)) out.push(A.animal + ': ' + goodList(A.out) + ' (ogni ' + A.every + ' s)');
   if (SHOPS[id]) out.push('Vende: ' + Object.keys(GOODS).filter(g => shopOf(g) === id).map(g => GOODS[g].name.toLowerCase()).join(', '));
   if (DEST_KINDS[id]) out.push('Manda la merce a: ' + DEST_KINDS[id].map(k => BUILDINGS[k].name.toLowerCase()).join(', '));
   if (JOBS[id]) out.push('Lavoratori: ' + JOBS[id]);
@@ -255,9 +253,9 @@ function buildIcons() {
   }
   const diamond = (c, P, color) => poly(c, [P(0, 0), P(1, 0), P(1, 1), P(0, 1)], color);
   const straight = [false, true, false, true];
-  ICONS.road = tileIcon((c, P) => { diamond(c, P, ROAD_COLOR); drawRoad(c, P, straight); });
-  ICONS.oneway = tileIcon((c, P) => { diamond(c, P, ROAD_COLOR); drawOneway(c, P, straight, 1); });
-  ICONS.highway = tileIcon((c, P) => { diamond(c, P, HW_COLORS[0]); drawHighway(c, P, straight); });
+  ICONS.road = tileIcon((c, P) => { diamond(c, P, ROAD_COLOR); drawRoad(c, P, straight, 3, 7, true); });
+  ICONS.oneway = tileIcon((c, P) => { diamond(c, P, ROAD_COLOR); drawOneway(c, P, straight, 1, 3, 7, true); });
+  ICONS.highway = tileIcon((c, P) => { diamond(c, P, HW_COLORS[0]); drawHighway(c, P, straight, 3, 7, true); });
   ICONS.bridge = tileIcon((c, P) => {
     diamond(c, P, COLORS[T.WATER][0]);
     const fake = { d: 1, e: [0.6, 0.6] };
@@ -285,7 +283,7 @@ function buildIcons() {
       c.fillStyle = '#3f8f3a'; c.beginPath(); c.arc(x, y - 1.5, 2.2, 0, Math.PI * 2); c.fill();
     }
   });
-  ICONS.dirt = tileIcon((c, P) => { diamond(c, P, DIRT_COLORS[0]); drawDirt(c, P, straight); });
+  ICONS.dirt = tileIcon((c, P) => { diamond(c, P, DIRT_COLORS[0]); drawDirt(c, P, straight, 3, 7, true); });
   ICONS.rail = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawRail(c, P, straight); });
   ICONS.field = tileIcon((c, P) => { diamond(c, P, SOIL); drawField(c, P, 'wheat', 3); });
   ICONS.house = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawHouse(c, 0, 0, 0); });
@@ -295,7 +293,7 @@ function buildIcons() {
   ICONS.supermarket = bigIcon(c => drawSupermarket(c, 0, 0, 0, 0), GROUND.supermarket);
   ICONS.dairy = bigIcon(c => drawDairy(c, 0, 0, 0, 0), GROUND.dairy);
   ICONS.slaughterhouse = bigIcon(c => drawSlaughterhouse(c, 0, 0, 0, 0), GROUND.slaughterhouse);
-  for (const k of Object.keys(LIVESTOCK)) ICONS[k] = bigIcon(c => drawLivestock(c, 0, 0, 0, 0, k), GROUND[k]);
+  ICONS.livestock = bigIcon(c => drawLivestock(c, 0, 0, 0, 0, 'cowFarm'), GROUND.cowFarm);
   ICONS.forestry = bigIcon(c => drawForestry(c, 0, 0, 0, 0), GROUND.forestry);
   ICONS.sawmill = bigIcon(c => drawSawmill(c, 0, 0, 0, 0), GROUND.sawmill);
   ICONS.furnitureFactory = bigIcon(c => drawFurnitureFactory(c, 0, 0, 0, 0), GROUND.furnitureFactory);
