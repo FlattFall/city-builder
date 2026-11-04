@@ -2,6 +2,7 @@
 // Uso:  node tools/smoke-test.js   (serve il pacchetto "playwright" installato)
 const path = require('path');
 const { chromium } = require('playwright');
+const SHOTS = process.env.SHOTS || require('os').tmpdir();   // senza SHOTS le foto vanno nella cartella temporanea (prima finivano in "undefined/")
 
 function check(cond, msg) {
   console.log((cond ? 'OK   ' : 'FAIL ') + msg);
@@ -22,7 +23,7 @@ function check(cond, msg) {
   // i test più vecchi provano tutti gli strumenti: le mappe nuove hanno tutto sbloccato
   // (i progressi si provano alla fine con la newGame vera, __newGame)
   await page.evaluate(() => { window.__oilAt = oilAt; window.__newGame = newGame; newGame = (...a) => { __newGame(...a); unlockAll(); }; });
-  await page.screenshot({ path: process.env.SHOTS + '/1-start.png' });
+  await page.screenshot({ path: SHOTS + '/1-start.png' });
 
   // 0. all'avvio c'è il menu principale, senza "Riprendi"; Esc non lo chiude
   const m0 = await page.evaluate(() => ({ open: !document.getElementById('menu').hidden, resume: !document.getElementById('m-resume').hidden, started: game.started }));
@@ -130,13 +131,13 @@ function check(cond, msg) {
 
   await page.mouse.move(5, 5);
   await page.mouse.move(a.x, a.y + 90);
-  await page.screenshot({ path: process.env.SHOTS + '/2-built.png' });
+  await page.screenshot({ path: SHOTS + '/2-built.png' });
 
   // 7. zoom con la rotella e screenshot ravvicinato
   await page.mouse.move(a.x + 40, a.y);
   await page.mouse.wheel(0, -100);
   await page.waitForTimeout(150);
-  await page.screenshot({ path: process.env.SHOTS + '/3-zoom.png' });
+  await page.screenshot({ path: SHOTS + '/3-zoom.png' });
 
   // 8. demolizione (tasto 8): casa e strade
   await page.keyboard.press('8');
@@ -166,7 +167,7 @@ function check(cond, msg) {
   // 10. salva, modifica, carica: torna com'era al salvataggio
   await page.keyboard.press('Escape');
   check(await page.isVisible('#m-resume') && await page.isVisible('#m-save'), 'in partita il menu mostra Riprendi e Salva');
-  await page.screenshot({ path: process.env.SHOTS + '/1b-pause-menu.png' });
+  await page.screenshot({ path: SHOTS + '/1b-pause-menu.png' });
   const savedRoads = await page.evaluate(() => game.roads);
   await page.click('#m-save');
   check(await page.isVisible('text=Partita salvata'), 'Salva partita: messaggio di conferma');
@@ -174,7 +175,7 @@ function check(cond, msg) {
   await page.evaluate(([x, y]) => { buildRoad(x, y + 3); buildRoad(x + 1, y + 3); game.dirty = true; }, [run.x, run.y]);
   await page.keyboard.press('Escape');
   await page.click('#m-load');
-  await page.screenshot({ path: process.env.SHOTS + '/1c-load-menu.png' });
+  await page.screenshot({ path: SHOTS + '/1c-load-menu.png' });
   await page.click('.save-row button:text("Carica")');
   const loaded = await page.evaluate(() => ({ roads: game.roads, open: !document.getElementById('menu').hidden }));
   check(loaded.roads === savedRoads && !loaded.open, `Carica mappa: strade ${loaded.roads} (salvate ${savedRoads})`);
@@ -237,7 +238,7 @@ function check(cond, msg) {
       game.hover = null; requestDraw();
     }, [ramp.x, ramp.y]);
     await page.waitForTimeout(100);
-    await page.screenshot({ path: process.env.SHOTS + '/4-ramp.png' });
+    await page.screenshot({ path: SHOTS + '/4-ramp.png' });
   }
 
   // 12. picking sulle pareti: un punto su una parete deve dare il tile a cui appartiene la parete
@@ -290,7 +291,7 @@ function check(cond, msg) {
     await page.mouse.move(pos.x, pos.y);
     const hov = await page.evaluate(() => game.hover);
     check(hov && hov.x === covered.x && hov.y === covered.y, 'il tile parzialmente coperto si seleziona dalla parte visibile');
-    await page.screenshot({ path: process.env.SHOTS + '/5-preview-covered.png' });
+    await page.screenshot({ path: SHOTS + '/5-preview-covered.png' });
   }
 
   // 14. rotonde: terreno artificiale con un gradino (quota 3 dietro, quota 2 davanti)
@@ -482,7 +483,7 @@ function check(cond, msg) {
   check(del.crop === 'potato' && del.storage, 'pannello: coltura patate e magazzino scelti');
   check(del.stock > 0, `il furgone ha portato le patate al magazzino: ${del.stock} (lavoratori fattoria/magazzino ${del.workers})`);
   check(del.capped, 'inventario della fattoria limitato (si ferma prima di un raccolto che non ci sta)');
-  await page.screenshot({ path: process.env.SHOTS + '/5b-farm-panel.png' });
+  await page.screenshot({ path: SHOTS + '/5b-farm-panel.png' });
 
   // 22. salva e ricarica tutto (abitanti, fattoria, magazzino, strada principale) in poco spazio
   const sv = await page.evaluate(() => {
@@ -594,7 +595,7 @@ function check(cond, msg) {
   });
   check(edge.tx >= -0.01 && edge.ty >= -0.01 && edge.tx <= edge.N + 0.01 && edge.ty <= edge.N + 0.01,
     `telecamera dentro la mappa (centro su ${edge.tx.toFixed(1)}, ${edge.ty.toFixed(1)})`);
-  await page.screenshot({ path: process.env.SHOTS + '/6-edge.png' });
+  await page.screenshot({ path: SHOTS + '/6-edge.png' });
 
   // 25. WASD: movimento continuo, anche con due tasti insieme (diagonale), sempre dentro i bordi
   await page.evaluate(() => { newGame(2, 128); cam.zi = 2; centerCamera(); });
@@ -1658,6 +1659,32 @@ function check(cond, msg) {
   check(sp2.speed1 && sp2.fast && sp2.paused && paused2, 'velocità: pausa, normale, super rapido (pulsanti e Spazio)');
   check(sp2.money, 'tasto I: sblocca tutto e dà 10 milioni');
   check(sp2.splitUi, 'magazzino vuoto con due uscite: c\'è già la distribuzione per merce');
+
+  // 58. rotta delle navi: corta, lontana dalla costa, senza angoli retti
+  const sr = await page.evaluate(() => {
+    clearVehicles(); newGame(11, 128); unlockAll(); game.started = true; if (menuIsOpen()) closeMenu();
+    const N = game.size, c = N / 2;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, rb: null, elev: 2, bridge: null });
+    for (let y = c - 18; y <= c + 18; y++) for (let x = c - 22; x <= c + 22; x++) Object.assign(game.map[y][x], { type: T.WATER, elev: 0 });
+    for (let y = c - 8; y <= c + 6; y++) for (let x = c - 6; x <= c + 5; x++) Object.assign(game.map[y][x], { type: T.GRASS, elev: 2 });
+    game.bridges = new Map(); rebuildBridgeIndex(); recount(); game.money = 1e8;
+    game.rotation = 1; useTool('port', c - 24, c - 2); game.rotation = 3; useTool('port', c + 23, c + 1);
+    const [pa, pb] = [...game.buildings.values()].filter(b => b.kind === 'port').sort((a, b) => a.ax - b.ax);
+    const route = waterRoute(shipStarts(pa), dockTiles(pb)), pts = shipPoints(route);
+    let maxTurn = 0, near = 0;
+    for (let i = 1; i < pts.length - 1; i++) {
+      const a = [pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]], b = [pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]];
+      const cos = (a[0] * b[0] + a[1] * b[1]) / (Math.hypot(...a) * Math.hypot(...b) || 1);
+      maxTurn = Math.max(maxTurn, Math.acos(Math.max(-1, Math.min(1, cos))) * 180 / Math.PI);
+      if (i > 4 && i < pts.length - 5) for (const [dx, dy] of [[0.9, 0], [-0.9, 0], [0, 0.9], [0, -0.9]]) {
+        const t = game.map[Math.floor(pts[i][1] + dy)][Math.floor(pts[i][0] + dx)]; if (t.type !== T.WATER) near++;
+      }
+    }
+    const straight = Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]);
+    let len = 0; for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+    return { maxTurn: Math.round(maxTurn), near, ratio: +(len / straight).toFixed(2) };
+  });
+  check(sr.maxTurn < 50 && sr.near === 0 && sr.ratio < 1.5, `rotta delle navi: curve dolci (al massimo ${sr.maxTurn}° per punto), lontana dalla costa (${sr.near}), lunga ${sr.ratio} volte la linea d'aria`);
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();

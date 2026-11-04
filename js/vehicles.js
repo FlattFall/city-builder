@@ -413,7 +413,7 @@ function vehiclesByTile() {
     // ingombro del veicolo (con la scia per le navi): si disegna dopo l'ultimo tile che tocca
     // (quello più avanti in +x e +y), così nessun tile disegnato dopo (strada, terreno, acqua) lo copre;
     // i tile che stanno davanti a una parte del veicolo aspettano lui (m.foot, usato da drawFrame)
-    const dd = v.pts ? vehicleDir(v) : 1, F = DIRS[dd];
+    const dd = v.pts ? vehicleDir(v) : 1, F = v.kind === 'ship' && v.pts ? shipHeading(v) : DIRS[dd];   // la nave anche in diagonale
     const [front, back, side] = v.kind === 'ship' ? [0.62, 1.1, 0.3] : v.kind === 'van' ? [0.27, 0.27, 0.13] : [0.22, 0.22, 0.12];
     const xs = [p.mx + F.dx * front, p.mx - F.dx * back], ys = [p.my + F.dy * front, p.my - F.dy * back];
     const sx = Math.abs(F.dy) * side, sy = Math.abs(F.dx) * side;
@@ -523,36 +523,120 @@ function drawVehicle(c, v) {
 // (dockTiles); scaricano nel porto (che fa da magazzino marittimo) e tornano indietro.
 const SHIP_SPEED = 1.1, SHIP_CAPACITY = 40;
 function isWaterFree(x, y) { return inMap(x, y) && game.map[y][x].type === T.WATER; }
+// Rotta delle navi (richiesta dell'utente: la più corta ma lontano dalla costa e senza angoli retti):
+// A* su 8 direzioni (in diagonale solo se i due lati sono acqua), con un costo in più vicino alla
+// terra; poi shipPoints la raddrizza e la arrotonda in curve.
+const SHIP_COAST = [0, 4, 1.5, 0.5];   // costo in più se la terra è a 1, 2, 3 tile
 function waterRoute(starts, goals) {
-  const N = game.size, goal = new Set(goals.map(([x, y]) => y * N + x)), prev = new Map(), q = [];
-  for (const [x, y] of starts) { const k = y * N + x; if (!prev.has(k)) { prev.set(k, -1); q.push(k); } }
-  for (let i = 0; i < q.length; i++) {
-    const k = q[i];
+  const N = game.size, goal = new Set(goals.map(([x, y]) => y * N + x));
+  const startSet = new Set(starts.map(([x, y]) => y * N + x));
+  if (!goal.size || !startSet.size) return null;
+  const ok = (x, y) => {
+    if (!isWaterFree(x, y)) return false;
+    const k = y * N + x, tb = game.map[y][x].building;
+    return !tb || goal.has(k) || startSet.has(k);   // altre piattaforme in mezzo: no
+  };
+  const coastMemo = new Map();
+  const coast = k => {   // quanto costa passare qui per la terra vicina
+    let c = coastMemo.get(k);
+    if (c !== undefined) return c;
+    const x = k % N, y = (k - x) / N;
+    c = 0;
+    for (let r = 1; r <= 3 && !c; r++)
+      for (let dy = -r; dy <= r && !c; dy++) for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const nx = x + dx, ny = y + dy;
+        if (inMap(nx, ny) && game.map[ny][nx].type !== T.WATER) { c = SHIP_COAST[r]; break; }
+      }
+    coastMemo.set(k, c);
+    return c;
+  };
+  const gl = goals.map(([x, y]) => [x, y]);
+  const hOf = k => { const x = k % N, y = (k - x) / N; let m = Infinity; for (const [gx, gy] of gl) { const dx = Math.abs(gx - x), dy = Math.abs(gy - y); m = Math.min(m, Math.max(dx, dy) + 0.414 * Math.min(dx, dy)); } return m; };
+  const g = new Map(), prev = new Map(), heap = [];
+  const push = (k, f) => { heap.push([f, k]); let i = heap.length - 1; while (i > 0) { const pi = (i - 1) >> 1; if (heap[pi][0] <= heap[i][0]) break; [heap[pi], heap[i]] = [heap[i], heap[pi]]; i = pi; } };
+  const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
+  for (const k of startSet) { g.set(k, 0); prev.set(k, -1); push(k, hOf(k)); }
+  const STEPS = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414]];
+  while (heap.length) {
+    const [f, k] = pop(), gk = g.get(k);
+    if (f - hOf(k) > gk + 1e-9) continue;   // voce vecchia
     if (goal.has(k)) {
       const path = [];
       for (let c = k; c !== -1; c = prev.get(c)) path.push([c % N, Math.floor(c / N), 0]);
       return path.reverse();
     }
-    const x = k % N, y = Math.floor(k / N);
-    for (const D of DIRS) {
-      const nx = x + D.dx, ny = y + D.dy, nk = ny * N + nx;
-      if (!isWaterFree(nx, ny) || prev.has(nk)) continue;
-      const tb = game.map[ny][nx].building;
-      if (tb && !goal.has(nk) && !starts.some(([sx, sy]) => sx === nx && sy === ny)) continue;   // altre piattaforme in mezzo
-      prev.set(nk, k); q.push(nk);
+    const x = k % N, y = (k - x) / N;
+    for (const [dx, dy, len] of STEPS) {
+      const nx = x + dx, ny = y + dy;
+      if (!ok(nx, ny) || (dx && dy && (!ok(x + dx, y) || !ok(x, y + dy)))) continue;
+      const nk = ny * N + nx, ng = gk + len * (1 + coast(nk));
+      if (g.has(nk) && g.get(nk) <= ng) continue;
+      g.set(nk, ng); prev.set(nk, k); push(nk, ng + hOf(nk));
     }
   }
   return null;
 }
 // Le navi tengono la destra (come le auto): così quella che va e quella che torna non si
-// sovrappongono (prima andavano sulla stessa riga e si fermavano una davanti all'altra)
+// sovrappongono. La rotta a caselle diventa una linea con pochi tratti dritti (dove si vede
+// l'acqua libera da un punto all'altro), poi gli angoli si arrotondano in curve (Chaikin) e la
+// curva si divide in punti vicini: la nave gira piano, niente angoli retti.
 const SHIP_LANE = 0.2;
+// margine dalla costa per i tratti dritti: circa un tile e mezzo intorno (dove l'acqua è stretta
+// si resta sulla rotta a caselle, che sta già in mezzo)
+const SEA_MARGIN = [[0, 0]];
+for (let i = 0; i < 12; i++) SEA_MARGIN.push([Math.cos(i * Math.PI / 6) * 1.4, Math.sin(i * Math.PI / 6) * 1.4], [Math.cos(i * Math.PI / 6) * 0.7, Math.sin(i * Math.PI / 6) * 0.7]);
+function seaClear(ax, ay, bx, by) {   // il tratto dritto passa solo sull'acqua, con un po' di margine
+  const n = Math.ceil(Math.hypot(bx - ax, by - ay) * 4) + 1;
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, x = ax + (bx - ax) * t, y = ay + (by - ay) * t;
+    for (const [ox, oy] of SEA_MARGIN) {
+      const tx = Math.floor(x + ox), ty = Math.floor(y + oy);
+      if (!isWaterFree(tx, ty)) return false;
+      const b = game.map[ty][tx].building;
+      if (b && !(t < 0.15 || t > 0.85)) return false;
+    }
+  }
+  return true;
+}
 function shipPoints(tiles) {
-  return tiles.map(([x, y], i) => {
-    const a = tiles[Math.max(0, i - 1)], b = tiles[Math.min(tiles.length - 1, i + 1)];
+  if (tiles.length < 2) return tiles.map(([x, y]) => [x + 0.5, y + 0.5, 0, 1, 0]);
+  const c = tiles.map(([x, y]) => [x + 0.5, y + 0.5]);
+  // 1) tratti dritti più lunghi possibile
+  const keep = [c[0]];
+  let i = 0;
+  while (i < c.length - 1) {
+    let j = Math.min(c.length - 1, i + 1);
+    for (let k = c.length - 1; k > i + 1; k--) if (seaClear(c[i][0], c[i][1], c[k][0], c[k][1])) { j = k; break; }
+    keep.push(c[j]); i = j;
+  }
+  // 2) angoli arrotondati (se un punto della curva finisse sulla terra si tiene la linea di prima)
+  let line = keep;
+  for (let it = 0; it < 3 && line.length > 2; it++) {
+    const nl = [line[0]];
+    for (let k = 0; k < line.length - 1; k++) {
+      const [ax, ay] = line[k], [bx, by] = line[k + 1];
+      if (k > 0) nl.push([ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25]);
+      if (k < line.length - 2) nl.push([ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75]);
+    }
+    nl.push(line[line.length - 1]);
+    if (!nl.every(([x, y]) => isWaterFree(Math.floor(x), Math.floor(y)))) break;
+    line = nl;
+  }
+  // 3) punti ogni ~0.4 tile, spostati sulla destra del senso di marcia
+  const pts = [];
+  for (let k = 0; k < line.length - 1; k++) {
+    const [ax, ay] = line[k], [bx, by] = line[k + 1], n = Math.max(1, Math.round(Math.hypot(bx - ax, by - ay) / 0.4));
+    for (let q = 0; q < n; q++) pts.push([ax + (bx - ax) * q / n, ay + (by - ay) * q / n]);
+  }
+  pts.push(line[line.length - 1]);
+  return pts.map(([x, y], q) => {
+    const a = pts[Math.max(0, q - 1)], b = pts[Math.min(pts.length - 1, q + 1)];
     let dx = b[0] - a[0], dy = b[1] - a[1];
     const l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l;
-    return [x + 0.5 - dy * SHIP_LANE, y + 0.5 + dx * SHIP_LANE, 0, 1, 0];
+    // vicino alla banchina (primo e ultimo tratto) la corsia si stringe, così la nave attracca al molo
+    const lane = SHIP_LANE * Math.min(1, q / 3, (pts.length - 1 - q) / 3);
+    return [x - dy * lane, y + dx * lane, 0, 1, 0];
   });
 }
 function platformTiles(b) { return footprint(b.kind, b.ax, b.ay).map(p => [p.x, p.y]); }
@@ -617,19 +701,40 @@ function redirectShip(v) {
 // Petroliera (petrolio, carbone, carburanti): ponte verde con il tubo e i boccaporti.
 // Portacontainer (tutte le altre merci): fiancata verde scura e container colorati su due piani.
 // Dondola un po' sull'acqua; scia e onde alla prua.
+// Direzione di marcia della nave: quella del tratto in corso, mescolata con il prossimo verso la
+// fine del tratto (così in curva gira piano)
+function shipHeading(v) {
+  const P = v.pts, i = Math.min(v.seg, P.length - 2);
+  if (i < 0) return { dx: 1, dy: 0 };
+  const d1 = [P[i + 1][0] - P[i][0], P[i + 1][1] - P[i][1]], j = Math.min(i + 1, P.length - 2);
+  const d2 = [P[j + 1][0] - P[j][0], P[j + 1][1] - P[j][1]];
+  const l1 = Math.hypot(...d1) || 1, l2 = Math.hypot(...d2) || 1, t = Math.min(1, (v.s || 0) / l1) * 0.5;
+  let dx = d1[0] / l1 * (1 - t) + d2[0] / l2 * t, dy = d1[1] / l1 * (1 - t) + d2[1] / l2 * t;
+  const l = Math.hypot(dx, dy) || 1;
+  return { dx: dx / l, dy: dy / l };
+}
 function drawShip(c, v) {
   const { mx, my } = v.pos;
-  const d = vehicleDir(v), f = DIRS[d], sd = [-f.dy, f.dx];
+  const f = shipHeading(v), sd = [-f.dy, f.dx];   // direzione di marcia qualsiasi (anche in curva)
   const bob = DETAIL ? Math.sin(animT * 2.2 + (v.from || 0)) * 0.025 : 0;
   const h = v.pos.h + bob;
   const L = 0.46, W = 0.115, DECK = 3.4, K = 1.3;   // K = grandezza della nave (tutto in proporzione)
   const LP = (a, w, z) => iso(0, 0, mx + (f.dx * a + sd[0] * w) * K, my + (f.dy * a + sd[1] * w) * K, h + z * K / STEP);
-  const R = (a0, a1, w0, w1) => {
-    const us = [], vs = [];
-    for (const a of [a0, a1]) for (const w of [w0, w1]) { us.push(mx + (f.dx * a + sd[0] * w) * K); vs.push(my + (f.dy * a + sd[1] * w) * K); }
-    return [Math.min(...us), Math.min(...vs), Math.max(...us), Math.max(...vs)];
+  // pezzi sul ponte: rettangoli nel verso della nave (a = lungo la nave, w = di lato), girati con lei
+  const R = (a0, a1, w0, w1) => ({ a0, a1, w0, w1 });
+  const W2 = (a, w) => [mx + (f.dx * a + sd[0] * w) * K, my + (f.dy * a + sd[1] * w) * K];   // punto nel mondo
+  const vbox = (rc, z0, hp, col) => {   // scatola girata: facce verso lo schermo e coperchio
+    const cs = [[rc.a0, rc.w0], [rc.a1, rc.w0], [rc.a1, rc.w1], [rc.a0, rc.w1]];
+    const lo = cs.map(([a, w]) => LP(a, w, z0)), hi = cs.map(([a, w]) => LP(a, w, z0 + hp));
+    for (let i = 0; i < 4; i++) {
+      const j = (i + 1) % 4, A = W2(...cs[i]), B = W2(...cs[j]);
+      const nu = B[1] - A[1], nv = -(B[0] - A[0]);   // normale (il giro dei vertici va in senso orario)
+      if (nu + nv <= 0) continue;                      // faccia girata dall'altra parte
+      poly(c, [lo[i], lo[j], hi[j], hi[i]], nv >= nu ? col.l : col.r);
+    }
+    poly(c, hi, col.t);
+    if (DETAIL) { c.strokeStyle = 'rgba(0,0,0,0.25)'; c.lineWidth = 0.4; c.beginPath(); c.moveTo(...hi[0]); for (const q of hi.slice(1)) c.lineTo(...q); c.closePath(); c.stroke(); }
   };
-  const vbox = (rc, z0, hp, col) => box(c, 0, 0, h + z0 * K / STEP, rc[0], rc[1], rc[2], rc[3], hp * K, Object.assign({ plain: true }, col));
   if (DETAIL) {   // scia dietro e onde ai lati della prua
     const wake = 0.35 + 0.15 * Math.sin(animT * 3);
     c.fillStyle = 'rgba(255,255,255,' + wake.toFixed(2) + ')';
@@ -704,7 +809,7 @@ function drawShip(c, v) {
     { rc: R(-L + 0.07, -L + 0.12, -0.03, 0.03), z: DECK + 4.8, hp: 3.6, col: { l: stripe, r: shadeC(stripe, -0.25), t: '#1f1f24' }, funnel: true },
     { rc: R(L * 0.72, L * 0.74, -0.01, 0.01), z: DECK, hp: 5, col: { l: '#e8e8e8', r: '#bfc3c8', t: '#ffffff' } });   // albero a prua
   // ordine: dal fondo; i pezzi uno sopra l'altro (castello, fumaiolo) dal basso verso l'alto
-  const depth = p => p.rc[0] + p.rc[1] + p.rc[2] + p.rc[3];
+  const depth = p => { const [u, vv] = W2((p.rc.a0 + p.rc.a1) / 2, (p.rc.w0 + p.rc.w1) / 2); return u + vv; };
   parts.sort((p, q) => {
     const sameSpot = p.stack && q.stack;
     if (sameSpot) return p.z - q.z;
@@ -715,10 +820,9 @@ function drawShip(c, v) {
   for (const p of parts) {
     vbox(p.rc, p.z, p.hp, p.col);
     if (p.funnel && DETAIL) {   // fascia nera in cima al fumaiolo e un filo di fumo
-      const [u0, v0, u1, v1] = p.rc, P = (u, vv, z) => iso(0, 0, u, vv, h + z * K / STEP), z0 = p.z + p.hp - 0.9, z1 = p.z + p.hp;
-      poly(c, [P(u0, v1, z0), P(u1, v1, z0), P(u1, v1, z1), P(u0, v1, z1)], '#1f1f24');
-      poly(c, [P(u1, v1, z0), P(u1, v0, z0), P(u1, v0, z1), P(u1, v1, z1)], '#16161a');
-      smokePuff(c, ...P((u0 + u1) / 2, (v0 + v1) / 2, z1), 0.5 + (v.from || 0) * 0.1);
+      const z1 = p.z + p.hp;
+      vbox(p.rc, z1 - 0.9, 0.9, { l: '#1f1f24', r: '#16161a', t: '#1f1f24' });
+      smokePuff(c, ...LP((p.rc.a0 + p.rc.a1) / 2, (p.rc.w0 + p.rc.w1) / 2, z1), 0.5 + (v.from || 0) * 0.1);
     }
   }
 }
