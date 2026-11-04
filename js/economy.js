@@ -97,8 +97,12 @@ const VAN_STRIPES = { farm: '#3fa34d', warehouse: '#3f6fd9', goodsWarehouse: '#e
 
 // Furgoni: b.van = quanti furgoni dell'edificio sono in giro. I magazzini ne hanno di più
 // (portano materie prime alle fabbriche e prodotti ai negozi nello stesso momento).
-const VANS = { warehouse: 3, goodsWarehouse: 3, port: 3 };
-function vansBusy(b) { return (b.van || 0) >= (VANS[b.kind] || 1); }
+// Furgoni per edificio (richiesta dell'utente: con la merce pronta ne devono uscire di più, uno dopo
+// l'altro): magazzini e porto 4 (uno resta per le richieste), le altre attività 2. La piattaforma
+// manda le navi. Escono distanziati (sendGoods) e il secondo solo se c'è un altro carico pronto.
+const VANS = { warehouse: 4, goodsWarehouse: 4, port: 4 };
+const VANS_DEFAULT = 2;
+function vansBusy(b) { return (b.van || 0) >= (VANS[b.kind] || VANS_DEFAULT); }
 function vanOut(b) { b.van = (b.van || 0) + 1; }
 function vanHome(b) { b.van = Math.max(0, (b.van || 0) - 1); }
 
