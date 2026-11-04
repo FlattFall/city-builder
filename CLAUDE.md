@@ -4,7 +4,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 
 ## Struttura
 - `index.html` + `style.css`: pagina e interfaccia (barra in alto, barra strumenti con sottomenu, info tile, toast, menu).
-- `js/`: script classici (niente moduli ES, così funziona anche aprendo il file con doppio clic). L'ordine in `index.html` conta: config, noise, terrain, game, bridges, roadgen, camera, sprite-data, sprites, render, vehicles, economy, ui, panel, input, save, menu, app.
+- `js/`: script classici (niente moduli ES, così funziona anche aprendo il file con doppio clic). L'ordine in `index.html` conta: config, noise, terrain, game, bridges, roadgen, camera, sprite-data, sprites, render, vehicles, economy, ui, panel, progress, manual, input, save, menu, app.
   - `config.js` costanti: grandezze mappa (`MAP_SIZES`: 128, 256, 512, 1024), terreno, `PATHS` (strada, terra, binari), `BUILDINGS` (casa e panificio 1x1, le altre attività 2x2), abitanti, `CROPS`, `FARM`, costi
   - `game.js` stato (`game`) e regole: percorsi, rampe, rotonde, edifici, `checkTool` / `useTool` / `canUseTool`, `recount()`
   - `render.js` disegno (ordine del pittore, solo tile visibili sullo schermo); `requestDraw()` per ridisegnare
@@ -14,6 +14,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
   - `vehicles.js` auto e furgoni, percorsi su strada, arrivo abitanti, produzione delle fattorie (`simUpdate`)
   - `panel.js` pannello degli edifici (clic con la Mano) e modalità campi
   - `save.js` salvataggi; `menu.js` menu principale/pausa
+  - `progress.js` sblocchi a pagamento (finestra P); `manual.js` manuale (finestra M)
 - `main.js` finestra Electron; `.github/workflows/build.yml` crea l'.exe su GitHub Actions.
 
 ## Tile
@@ -61,10 +62,13 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - Nomi: `b.name` (scelto dal giocatore con il ✎ o clic sul titolo del pannello; `buildingName(b)`), usato nel pannello, nelle destinazioni, nei messaggi (`buildingLabel`) e salvato con l'edificio. Mentre si scrive il nome i tasti del gioco sono fermi e il pannello non si ricostruisce.
 - Settore del legno (gruppo 5 Legno): azienda forestale (`FORESTRY`, in `NATURE` con gli allevamenti: produce tronchi e legna da ardere in proporzione ai tile di bosco entro `radius`, `b.trees`; senza bosco icona materie prime mancanti; gli alberi restano), segheria (tronchi -> assi, travature, pannelli), fabbrica di mobili (assi/pannelli -> tavoli, sedie, armadi, letti, mobili da cucina), mercato dell'arredamento (vende mobili e legname; la legna da ardere va al supermercato).
 - `buildingStatus(b)`: icone noRoad/noWorkers/fewWorkers/full/noInput/empty (`drawWorkerIcons`). Casa: noRoad se non ha strada accanto o se `b.unreachable` (`checkHouseLinks` in vehicles.js: BFS dalle entrate della mappa ogni ~3 s).
+- Correzioni dopo la prova completa dell'economia (tutte le catene insieme): nei trasformatori ogni materia prima ha la sua parte del deposito input (`activeInputs`, `freeFor`: prima la lana riempiva tutta la fabbrica tessile e il cotone non entrava più); le ricette fanno a turno (`b.turn`: prima letti e cucine non si facevano mai); i magazzini hanno più furgoni (`VANS`, `b.van` = quanti in giro, `vanOut`/`vanHome`/`vansBusy`) e ne tengono uno per le richieste; `pullGoods` chiede prima quello che manca e a parità va a turno (`b.pullTurn`); `pushGoods` verso un negozio porta quello che gli manca di più. Test: "ogni merce con prezzo si vende" (catena completa con i negozi per primi e poi tutto via magazzini). Latte, farina, assi e pannelli si vendono solo se non c'è una fabbrica che li vuole (precedenza alle fabbriche).
 - Icone delle merci: `GOOD_ICONS` (`drawGoodIcon` in ui.js), usate nei pannelli.
 
 ## Grafica (tutto disegnato nel codice)
 - Case e veicoli sono disegnati nel codice con `box` / `gableRoof` come magazzino e altri edifici (scelta dell'utente: stesso stile per tutto, niente sprite separati). `drawHouse(c, x, y, base, variant, rot)`: colori da `HOUSE_STYLES` (`l, r, roof, back, shutter`), un piano o due (`hash(x,y,42) > 0.6`), porta sul lato della rotazione, finestre con persiane solo sulle facce visibili, comignolo disegnato con il callback `mid` di `gableRoof(..., alongV, mid)` (tra la falda dietro e quella davanti), vialetto e cespugli. `drawVehicle` (vehicles.js): ombra, ruote dietro prima e davanti dopo la scocca, auto = scocca + abitacolo di vetro, furgone = cassone bianco con striscia; fari davanti / luci rosse dietro secondo `vehicleDir(v)`.
+- Case a due piani in pausa (scelta dell'utente): `TALL_HOUSES = false` in render.js; con true tornano (hash del tile > 0.6).
+- Autostrada: niente strisce bianche di bordo e guardrail grigio metallo (l'utente non voleva la linea bianca sul bordo); restano tratteggio centrale e guardrail sui lati senza strada.
 - Il sistema degli sprite resta ma è vuoto: `tools/sprites/build.js` ha `SHEETS = {}` (dentro c'è scritto come rimettere house.png e vehicles.png), `js/sprite-data.js` è generato vuoto, `js/sprites.js` (`drawSprite`, `tintedSprite`) non è usato. `tools/sprites/house.py` e `vehicles.py` restano come prova di pixel art.
 - Strade (disegnate nel codice, non sprite, così vanno su rampe e ponti): grana dell'asfalto, marciapiedi lastricati con cordolo sui lati liberi, angoli di marciapiede tra due bracci collegati, mezzeria gialla tratteggiata (niente agli incroci, strisce di stop all'ingresso), tombini; autostrada con linee di bordo; terra con sassolini e ciuffi d'erba. Da lontano (`detail` falso, zoom < 1) la versione semplice per non rallentare.
 - Grafica generale (render.js): `DETAIL` (zoom >= 1) e `FINE` (zoom >= 2) decidono quanto dettaglio disegnare (da lontano semplice per la velocità; icone sempre dettagliate). `box` ha righe di mattoni/doghe, spigolo chiaro, ombra alla base e contorno; `gableRoof` file di tegole e colmo (`roofLines`); `drawDoor` cornici e vetrate con divisori e riflesso; `drawWall` scarpate di terra sotto l'erba (`wallColor`) con bordo d'erba, strati e sassi; `terrainDetail` ciuffi e fiori, sabbia, crepe nella roccia, neve, onde; schiuma sulle rive; alberi pini/latifoglie con ombra (`drawTree`); binari con ghiaia. `aline` = linea sottile con trasparenza, `shadeC` = shade con memoria (usarlo nei disegni ripetuti). Niente tombini sulle strade: l'utente li vedeva come punti neri.
@@ -99,6 +103,16 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 ## Barra strumenti
 - `TOOL_GROUPS` in `ui.js`: 1 Mano, 2 Strade (strada, senso unico, autostrada, ponte, tunnel, terra, binari; il campo non è nella barra: si usa solo in modalità campi della fattoria, `checkTool` lo rifiuta senza `game.fieldMode`, `setTool` accetta strumenti senza gruppo), 3 Case, 4 Agroalimentare (fattoria, allevamento (animale a scelta), magazzino, fabbrica alimentare, caseificio, macello, panificio, supermercato), 5 Legno (azienda forestale, segheria, fabbrica di mobili, mercato dell'arredamento, magazzino merci), 6 Tessile (fabbrica tessile, fabbrica di abbigliamento, negozio di abbigliamento, magazzino merci), 7 Demolisci. Nel sottomenu `#subdesc` mostra la descrizione (`TOOL_INFO[id].desc`) e la catena di montaggio presa dai dati (`chainLines`: ricette, produzione, cosa vende, dove manda, lavoratori) per lo strumento sotto il mouse. Il tasto numerico ripetuto passa al prossimo strumento del gruppo. Le icone sono disegnate con le funzioni di `render.js` (`buildIcons`).
 
+## Progressi (progress.js, tasto P)
+- Mappa nuova: solo `START_TOOLS` (mano, strada, terra, casa, fattoria, magazzino alimenti, supermercato, demolisci e terreno) e `START_CROPS` (grano, carote, patate). Il resto in `UNLOCKS` (settore, strumenti e/o colture, costo, `needs`): si paga nella finestra Progressi (`buyUnlock`). Richiesta dell'utente: all'inizio poche cose, le altre industrie si pagano.
+- `game.unlocked` = Set degli sblocchi; `null` = tutto sbloccato (salvataggi di prima senza `unlocked`). `newGame` chiama `resetUnlocks`; salvato in `serializeGame`.
+- `toolLocked(t)`, `cropLocked(c)`: `checkTool` rifiuta gli strumenti bloccati; nella barra lucchetto e icona grigia (`refreshLocks`, `markLockedSub`), clic su uno bloccato apre la finestra su quello sblocco; nel pannello della fattoria le colture bloccate hanno il lucchetto. Il magazzino merci viene sia con il legno sia con il tessile.
+- La finestra si aggiorna con i fondi senza ricostruirsi (`progressLive` da `updateHud`).
+
+## Manuale (manual.js, tasto M)
+- `MANUAL`: capitoli (come si inizia, strade, case e lavoro, agricoltura, allevamento, trasformazione alimentare, legno, tessile, magazzini e furgoni, negozi e soldi, progressi, terreno, comandi) con icone del gioco. Catene, prezzi e numeri presi dai dati (`recipeRow`, `item`, `priceNote`), le icone di stato con `drawStatusIcon` (render.js). Se si aggiunge un settore, aggiungere il capitolo.
+- M e P aprono/chiudono; Esc chiude prima manuale e progressi; con una delle due aperte gli altri tasti del gioco sono fermi. Pulsanti anche nella barra in alto.
+
 ## Menu e salvataggi
 - `menu.js`: menu principale/pausa (Riprendi e Salva solo se `game.started`), Nuova mappa (scelta grandezza), Carica, Opzioni ("ci stiamo lavorando"), Esci (`window.close()` in Electron). Esc apre/chiude il menu (prima chiude il sottomenu).
 - `save.js`: localStorage (`citybuilder.saves.v1`), formato v3: si ricrea il terreno dal seed e si salvano solo differenze (`game.base`), percorsi, campi, edifici con i loro dati, entrate. Legge anche v1/v2. I veicoli non si salvano.
@@ -113,7 +127,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 3. Voce in `TOOL_INFO` e in un gruppo di `TOOL_GROUPS` (`ui.js`), icona in `buildIcons`. Salvataggio in `save.js` se serve un nuovo campo.
 
 ## Test
-`node tools/smoke-test.js` (serve `playwright`; `SHOTS=cartella` per gli screenshot). Copre menu, grandezze, picking, strade, rampe, rotonde, binari, campi, edifici 2x2, demolizione, salvataggi e barra.
+`node tools/smoke-test.js` (serve `playwright`; `SHOTS=cartella` per gli screenshot). Nei test `newGame` è avvolta da `unlockAll()` (i test vecchi usano tutti gli strumenti); i progressi si provano con la vera `__newGame`. Copre menu, grandezze, picking, strade, rampe, rotonde, binari, campi, edifici 2x2, demolizione, salvataggi e barra.
 
 ## Da fare / idee
 - Prestazioni: con zoom molto lontano si disegnano tanti tile ad ogni movimento del mouse; si può mettere in memoria la mappa a blocchi (chunk) e ridisegnare solo l'anteprima.

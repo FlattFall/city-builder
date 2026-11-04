@@ -19,6 +19,9 @@ function check(cond, msg) {
   const url = 'file://' + path.resolve(__dirname, '..', 'index.html');
   await page.goto(url);
   await page.waitForTimeout(300);
+  // i test più vecchi provano tutti gli strumenti: le mappe nuove hanno tutto sbloccato
+  // (i progressi si provano alla fine con la newGame vera, __newGame)
+  await page.evaluate(() => { window.__newGame = newGame; newGame = (...a) => { __newGame(...a); unlockAll(); }; });
   await page.screenshot({ path: process.env.SHOTS + '/1-start.png' });
 
   // 0. all'avvio c'è il menu principale, senza "Riprendi"; Esc non lo chiude
@@ -870,7 +873,7 @@ function check(cond, msg) {
     wh.store = { cheese: 30 };
     sendGoods(wh, sm, 'cheese', 20);
     for (let i = 0; i < 10; i++) simUpdate(0.1);
-    const van = wh.van;
+    const van = vehicles.find(v => v.kind === 'van' && v.from === wh.id && v.to === sm.id);   // wh.van = quanti furgoni in giro
     useTool('demolish', 90, c + 1);
     r.vanBack = vehicles.includes(van) && van.to === null;
     for (let i = 0; i < 600 && wh.van; i++) simUpdate(0.1);
@@ -1101,6 +1104,125 @@ function check(cond, msg) {
   check(lvs.default && lvs.pigs, 'allevamento unico: mucche all\'inizio, poi si cambia animale');
   check(lvs.migrated, 'vecchi salvataggi: allevamento di polli convertito');
   check(lvs2 === 'sheepFarm', 'scelta dell\'animale dal pannello: ' + lvs2);
+
+  // 40. progressi: mappa nuova con poco sbloccato, si paga per il resto
+  const pg = await page.evaluate(() => {
+    clearVehicles(); __newGame(1, 128); game.started = true; refreshLocks();
+    const N = game.size, c = N / 2, r = {};
+    for (let y = c - 10; y < c + 10; y++) for (let x = c - 10; x < c + 10; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, rb: null, elev: 2 });
+    recount();
+    r.start = !toolLocked('road') && !toolLocked('house') && !toolLocked('farm') && !toolLocked('warehouse') && !toolLocked('supermarket') && !toolLocked('demolish');
+    r.locked = toolLocked('factory') && toolLocked('highway') && toolLocked('textileMill') && cropLocked('cotton') && cropLocked('corn') && !cropLocked('wheat');
+    r.noBuild = !useTool('factory', c, c).ok && !useTool('highway', c - 5, c - 5).ok;
+    r.lockIcon = document.getElementById('group-wood').classList.contains('locked') && !document.getElementById('group-homes').classList.contains('locked');
+    r.needs = !buyUnlock('bakery').ok;                               // prima la fabbrica alimentare
+    game.money = 3000; r.poor = !buyUnlock('factory').ok && game.money === 3000;
+    game.money = 50000; r.buy = buyUnlock('factory').ok && game.money === 50000 - UNLOCK_BY_ID.factory.cost && !toolLocked('factory');
+    r.build = useTool('factory', c, c).ok;
+    r.bakery = buyUnlock('bakery').ok && !toolLocked('bakery');
+    r.shared = buyUnlock('forestry').ok && !toolLocked('goodsWarehouse') && toolLocked('textileMill');   // il magazzino merci viene con il legno
+    r.cotton = buyUnlock('textileMill').ok && !cropLocked('cotton');
+    game.saveId = null; saveGame(); const id = game.saveId;
+    const before = [...game.unlocked].sort().join(',');
+    loadGame(id);
+    r.saved = [...game.unlocked].sort().join(',') === before && toolLocked('highway');
+    // un salvataggio di prima (senza "unlocked") ha tutto sbloccato
+    const list = readSaves(), e = list.find(x => x.id === id);
+    delete e.data.unlocked; writeSaves(list);
+    loadGame(id);
+    r.old = !toolLocked('highway') && !toolLocked('clothingStore') && !cropLocked('cotton');
+    deleteSave(id);
+    __newGame(2, 128); refreshLocks();
+    r.reset = toolLocked('factory') && game.unlocked.size === 0;
+    return r;
+  });
+  check(pg.start && pg.locked, 'progressi: mappa nuova con strade, case, fattoria, magazzino e supermercato; il resto bloccato');
+  check(pg.noBuild && pg.lockIcon, 'strumenti bloccati: non si costruiscono e hanno il lucchetto nella barra');
+  check(pg.needs && pg.poor, 'sblocco rifiutato senza il requisito o senza soldi');
+  check(pg.buy && pg.build && pg.bakery, 'sblocco pagato: la fabbrica si costruisce, poi il panificio');
+  check(pg.shared && pg.cotton, 'magazzino merci con il legno; cotone con la fabbrica tessile');
+  check(pg.saved && pg.old && pg.reset, 'progressi salvati; vecchi salvataggi tutto sbloccato; mappa nuova da capo');
+
+  // 41. finestre: P progressi, M manuale (tutti i capitoli), Esc chiude
+  await page.evaluate(() => { game.money = 50000; closePanel && panelIsOpen() && closePanel(); });
+  await page.keyboard.press('p');
+  const w1 = await page.evaluate(() => ({ open: !document.getElementById('progress').hidden, cards: document.querySelectorAll('#progress .pg-card').length }));
+  await page.click('#unlock-oneway');
+  const w2 = await page.evaluate(() => !toolLocked('oneway') && document.querySelector('#progress [data-unlock="oneway"]').classList.contains('owned'));
+  await page.keyboard.press('Escape');
+  const w3 = await page.evaluate(() => document.getElementById('progress').hidden && document.getElementById('menu').hidden);
+  await page.keyboard.press('m');
+  const pages = await page.evaluate(() => MANUAL.map(m => m.id));
+  let manOk = await page.evaluate(() => !document.getElementById('manual').hidden);
+  for (const id of pages) {
+    await page.click('#manual-nav button[data-page="' + id + '"]');
+    manOk = manOk && await page.evaluate(() => document.getElementById('manual-body').children.length > 1);
+  }
+  await page.keyboard.press('m');
+  const w4 = await page.evaluate(() => document.getElementById('manual').hidden);
+  // strumento bloccato nella barra: il clic apre i progressi su quello sblocco
+  await page.keyboard.press('5');
+  await page.click('#submenu .sub[data-tool="sawmill"]');
+  const w5 = await page.evaluate(() => !document.getElementById('progress').hidden && !!document.querySelector('#progress .pg-card.focus[data-unlock="sawmill"]') && game.tool !== 'sawmill');
+  await page.keyboard.press('Escape');
+  check(w1.open && w1.cards === 18 && w2 && w3, 'tasto P: finestra progressi, sblocco con il clic, Esc chiude');
+  check(manOk && w4 && pages.length >= 10, 'tasto M: manuale con ' + pages.length + ' capitoli, M chiude');
+  check(w5, 'clic su uno strumento bloccato: si apre lo sblocco giusto');
+
+  // 42. tutte le merci con prezzo si vendono (catena completa, poi tutto via magazzini)
+  for (const mode of ['shop', 'warehouse']) {
+    const ec = await page.evaluate((mode) => {
+      clearVehicles(); newGame(1, 128);
+      const N = game.size, c = N / 2;
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, rb: null, elev: 2 });
+      recount(); game.money = 1e7;
+      for (let x = 0; x < N; x++) { useTool('road', x, c); game.map[c][x].main = true; useTool('road', x, c - 3); }
+      game.entries = [{ x: 0, y: c }, { x: N - 1, y: c }];
+      const list = [...Object.keys(CROPS).map(k => ['farm', k]), ...Object.keys(LIVESTOCK).map(k => ['livestock', k]),
+        ['forestry'], ['factory'], ['bakery'], ['dairy'], ['slaughterhouse'], ['supermarket'], ['furnitureStore'], ['clothingStore'],
+        ['warehouse'], ['goodsWarehouse'], ['sawmill'], ['furnitureFactory'], ['textileMill'], ['clothingFactory']];
+      game.rotation = 2;
+      let x = c - 40;
+      for (const [k, a] of list) {
+        useTool(k, x, c + 1);
+        if (k === 'farm') exitFieldMode();
+        const b = game.map[c + 1][x].building;
+        if (k === 'farm') b.crop = a;
+        if (k === 'livestock') setAnimal(b, a);
+        if (k === 'forestry') for (let xx = x - 3; xx <= x + 5; xx++) game.map[c + 3][xx].type = T.FOREST;
+        x += BUILDINGS[k].w + 1;
+      }
+      game.rotation = 0;
+      for (let hx = c - 44; hx <= x + 4; hx++) { useTool('house', hx, c - 1); useTool('house', hx, c - 2); }
+      for (const h of game.buildings.values()) if (h.kind === 'house') h.residents = HOUSE_CAPACITY;
+      recount();
+      const all = [...game.buildings.values()].filter(b => b.kind !== 'house');
+      const rank = b => mode === 'shop' ? (SHOPS[b.kind] ? 0 : isProcessor(b) ? 1 : 2) : (isProcessor(b) ? 0 : SHOPS[b.kind] ? 1 : 2);
+      for (const b of all) {
+        let d = all.filter(o => o !== b && destKindsOf(b).includes(o.kind));
+        if (mode === 'warehouse' && !isWarehouse(b)) d = d.filter(isWarehouse);
+        if (isWarehouse(b)) d = d.filter(o => !isWarehouse(o));
+        b.dests = d.sort((p, q) => rank(p) - rank(q)).map(o => o.id);
+      }
+      const shops = all.filter(b => SHOPS[b.kind]), sold = {}, prev = new Map(shops.map(s => [s.id, { ...s.store }]));
+      for (let i = 0; i < 2000 * 10; i++) {
+        for (const b of all) if (b.kind === 'farm' && sumOf(b.store) < 30) addTo(b.store, b.crop, 20);
+        simUpdate(0.1);
+        for (const s of shops) {
+          for (const [g, q] of Object.entries(prev.get(s.id))) if (q > (s.store[g] || 0)) sold[g] = true;
+          prev.set(s.id, { ...s.store });
+        }
+      }
+      return Object.keys(GOODS).filter(g => GOODS[g].price && !sold[g]);
+    }, mode);
+    // con i negozi per primi le merci lavorate non si fanno (va bene); via magazzini le materie prime
+    // con prezzo vanno prima alle fabbriche: si controllano i due insiemi insieme
+    if (mode === 'shop') var unsoldShop = ec; else {
+      const never = ec.filter(g => unsoldShop.includes(g));
+      check(never.length === 0, 'ogni merce con prezzo si vende' + (never.length ? ': mai vendute ' + never.join(', ') : '') + ' (anche passando dai magazzini: invendute ' + (ec.join(', ') || 'nessuna') + ')');
+      check(['pasta', 'cheese', 'ham', 'beds', 'kitchens', 'coats'].every(g => !ec.includes(g)), 'via magazzini arrivano ai negozi anche pasta, formaggi, carne, letti, cucine, cappotti');
+    }
+  }
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();

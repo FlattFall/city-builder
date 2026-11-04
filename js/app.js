@@ -26,6 +26,8 @@ centerCamera();
 buildToolbar();
 initMenu();
 initPanel();
+initProgress();
+initManual();
 updateHud();
 updateInfo();
 openMenu('main');

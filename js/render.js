@@ -10,7 +10,7 @@ const LANE_COLOR = '#e8d24a';
 const DIRT_COLORS = ['#a07c4c', '#ad8a59', '#8c6a3d'];  // piano, rampa chiara, rampa scura
 const DIRT_EDGE = '#7d5f38';
 const HW_COLORS = ['#44444e', '#51515c', '#393942'];     // autostrada: piano, rampa chiara, rampa scura
-const HW_LINE = '#f2f2f2', RAIL_GUARD = '#d0d4da', GUARD_POST = '#7e848c';
+const HW_LINE = '#f2f2f2', RAIL_GUARD = '#8f959d', GUARD_POST = '#7e848c';
 const DECK = { top: ROAD_COLOR, l: '#a7a7ae', r: '#86868e', pillarL: '#b3b3ba', pillarR: '#8e8e96', rail: '#dfe2e6' };
 const BALLAST = '#8d8273', SLEEPER = '#5e4128', STEEL = '#d5dade';
 const SOIL = '#8b5e34';
@@ -243,12 +243,10 @@ function drawOneway(c, P, links, dir, x, y, detail) {
 // Autostrada: asfalto scuro, linee bianche (tratteggiate in mezzo, continue sui bordi), guardrail
 function drawHighway(c, P, links, x, y, detail) {
   if (detail) asphaltGrain(c, P, x || 0, y || 0, '#5a5a64', '#34343c');
-  const n = links.filter(Boolean).length;
   for (let d = 0; d < 4; d++) {
     if (links[d]) {
       armLine(c, P, d, 0.06, 0.2, 0, HW_LINE);
       armLine(c, P, d, 0.34, 0.48, 0, HW_LINE);
-      if (n === 1 || (n === 2 && links[(d + 2) % 4])) for (const o of [-0.4, 0.4]) armLine(c, P, d, 0, 0.5, o, '#d8d8dc');   // bordi (sui rettilinei)
       continue;
     }
     const a = P(...EDGE_UV[d][0]), b = P(...EDGE_UV[d][1]);
@@ -258,7 +256,7 @@ function drawHighway(c, P, links, x, y, detail) {
       line(c, q, up(q), GUARD_POST);
     }
     line(c, up(a), up(b), RAIL_GUARD);
-    line(c, [a[0], a[1] - 1], [b[0], b[1] - 1], '#a8adb4');
+    line(c, [a[0], a[1] - 1], [b[0], b[1] - 1], '#6f757d');
   }
 }
 
@@ -415,10 +413,11 @@ function drawRoundabout(c, x, y, P) {
 // Casa 1x1, disegnata come gli altri edifici: muri, tetto a due falde con il comignolo,
 // porta (sul lato che dice la rotazione: 0 = +v, 1 = -u, 2 = -v, 3 = +u), finestre con persiane,
 // vialetto e cespugli. Due tipi (villetta e casa a due piani) e tre colori.
+const TALL_HOUSES = false;   // case a due piani in pausa (scelta dell'utente): true per riattivarle
 function drawHouse(c, x, y, base, variant, rot) {
   const s = HOUSE_STYLES[(variant || 0) % HOUSE_STYLES.length];
   const r = (rot || 0) & 3;
-  const tall = hash(x, y, 42) > 0.6;                      // casa a due piani
+  const tall = TALL_HOUSES && hash(x, y, 42) > 0.6;                      // casa a due piani
   const P = (u, v, z) => iso(x, y, u, v, base + z / STEP);
   const A = 0.17, B = 0.83, H = tall ? 21 : 13;
   const doorFace = ['+v', '-u', '-v', '+u'][r];
@@ -1398,6 +1397,12 @@ function drawWorkerIcons(c) {
     if (!st) continue;
     const d = BUILDINGS[b.kind], e = game.map[b.ay][b.ax].elev;
     const [x, y] = iso(b.ax, b.ay, d.w / 2, d.h / 2, e + (d.height + 10) / STEP);
+    drawStatusIcon(c, st, x, y);
+  }
+}
+
+// Icona di stato (cerchio colorato con un simbolo) centrata in (x, y); usata anche dal manuale
+function drawStatusIcon(c, st, x, y) {
     c.fillStyle = STATUS_COLORS[st];
     c.strokeStyle = '#1a1c2c'; c.lineWidth = 1;
     c.beginPath(); c.arc(x, y, 6, 0, Math.PI * 2); c.fill(); c.stroke();
@@ -1420,7 +1425,6 @@ function drawWorkerIcons(c) {
     } else if (st === 'empty') {
       for (const dy of [-3, 0, 3]) c.fillRect(x - 3.5, y + dy, 7, 1);    // scaffale vuoto
     }
-  }
 }
 
 // In modalità campi: zona tratteggiata dove si possono mettere i campi della fattoria

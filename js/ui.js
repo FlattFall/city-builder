@@ -384,7 +384,9 @@ function buildToolbar() {
     b.addEventListener('click', () => {
       b.blur();
       const open = document.getElementById('submenu').dataset.group;
-      setTool(groupChoice[g.id]);
+      const id = firstFree(g, groupChoice[g.id]);
+      if (id) setTool(id);
+      if (!id && g.tools.length === 1) { openProgress(unlockFor(g.tools[0]).id); return; }
       if (g.tools.length > 1 && open !== g.id) openSubmenu(g); else closeSubmenu();
     });
     bar.appendChild(b);
@@ -410,7 +412,12 @@ function openSubmenu(g) {
     const cost = document.createElement('small');
     cost.textContent = TOOL_INFO[id].cost ? TOOL_INFO[id].cost + ' €' : '';
     b.append(img, lbl, cost);
-    b.addEventListener('click', () => { setTool(id, g.id); closeSubmenu(); });
+    markLockedSub(b, id);
+    b.addEventListener('click', () => {
+      closeSubmenu();
+      if (toolLocked(id)) openProgress(unlockFor(id).id);   // bloccato: si apre la finestra per sbloccarlo
+      else setTool(id, g.id);
+    });
     b.addEventListener('mouseenter', () => showToolDesc(id));
     sm.appendChild(b);
   }
@@ -433,12 +440,18 @@ function closeSubmenu() {
 function selectGroupByKey(key) {
   const g = TOOL_GROUPS.find(gr => gr.key === key);
   if (!g) return false;
-  let id = groupChoice[g.id];
-  if (g.tools.includes(game.tool) && g.tools.length > 1) id = g.tools[(g.tools.indexOf(game.tool) + 1) % g.tools.length];
-  setTool(id);
+  let id = firstFree(g, groupChoice[g.id]);
+  if (g.tools.includes(game.tool) && g.tools.length > 1) {   // il prossimo strumento sbloccato del gruppo
+    const i = g.tools.indexOf(game.tool);
+    for (let k = 1; k <= g.tools.length; k++) { const t = g.tools[(i + k) % g.tools.length]; if (!toolLocked(t)) { id = t; break; } }
+  }
+  if (id) setTool(id);
   if (g.tools.length > 1) openSubmenu(g); else closeSubmenu();
   return true;
 }
+
+// Strumento del gruppo da scegliere: quello indicato se è sbloccato, altrimenti il primo sbloccato
+function firstFree(g, id) { return !toolLocked(id) ? id : g.tools.find(t => !toolLocked(t)) || null; }
 
 function setTool(id, groupId) {
   if (id !== 'field' && game.fieldMode && typeof exitFieldMode === 'function') exitFieldMode(true);
@@ -475,6 +488,7 @@ function updateHud() {
   document.getElementById('unemployed').textContent = Math.max(0, game.population - (game.employed || 0));
   document.getElementById('houses').textContent = game.houses;
   document.getElementById('industries').textContent = game.industries;
+  if (typeof progressLive === 'function') progressLive();
 }
 
 // Ruota i prossimi edifici di 90°

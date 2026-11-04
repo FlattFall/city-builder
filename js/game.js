@@ -322,6 +322,7 @@ function newGame(seed, size) {
   game.size = size || MAP_SIZES[0].size;
   game.map = generateTerrain(seed, game.size);
   game.money = START_MONEY;
+  if (typeof resetUnlocks === 'function') resetUnlocks();   // mappa nuova: si parte con poco (progress.js)
   game.pathKeys = new Set();
   game.buildings = new Map();
   game.nextId = 1;
@@ -399,6 +400,7 @@ function updateJobs() {
 // Controlla se lo strumento si può usare: null se sì, altrimenti { msg?, silent? }
 function checkTool(tool, x, y) {
   if (!inMap(x, y)) return { silent: true };
+  if (typeof toolLocked === 'function' && toolLocked(tool)) return { msg: 'Bloccato: sbloccalo nei Progressi (P)' };
   const t = game.map[y][x];
   if (PATHS[tool]) {
     // senso unico già fatto: ripassandoci sopra si cambia la direzione

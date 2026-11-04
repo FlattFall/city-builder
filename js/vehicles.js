@@ -330,10 +330,10 @@ function removeVehiclesFor(id, b) {
       const home = game.buildings.get(v.from), g = v.good, q = v.load, fid = v.from;
       if (home && redirectVehicle(v, accessTiles(home))) {
         home.status = 'Destinazione demolita: il furgone torna indietro';
-        Object.assign(v, { to: null, arrive() { const f = game.buildings.get(fid); if (f) { addTo(f.store, g, q); f.van = null; f.status = ''; } },
-          cancel() { const f = game.buildings.get(fid); if (f) { addTo(f.store, g, q); f.van = null; } } });
+        Object.assign(v, { to: null, arrive() { const f = game.buildings.get(fid); if (f) { addTo(f.store, g, q); vanHome(f); f.status = ''; } },
+          cancel() { const f = game.buildings.get(fid); if (f) { addTo(f.store, g, q); vanHome(f); } } });
       } else if (redirectVehicle(v, entryTiles(), true)) Object.assign(v, { to: null, from: null, arrive() {}, cancel() {} });
-      else { vehicles = vehicles.filter(o => o !== v); if (home) { home.van = null; addTo(home.store, g, q); } }
+      else { vehicles = vehicles.filter(o => o !== v); if (home) { vanHome(home); addTo(home.store, g, q); } }
     } else if (v.kind === 'van' && v.from === id && !v.to) {   // furgone di ritorno verso un edificio che non c'è più
       if (redirectVehicle(v, entryTiles(), true)) Object.assign(v, { from: null, arrive() {}, cancel() {} });
       else vehicles = vehicles.filter(o => o !== v);

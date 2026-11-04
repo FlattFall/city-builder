@@ -15,7 +15,11 @@
   <span>Disoccupati: <b id="unemployed">0</b></span>
   <span>Case: <b id="houses">0</b></span>
   <span>Industrie: <b id="industries">0</b></span>
-  <button id="menu-btn">Menu (Esc)</button>
+  <span class="top-btns">
+    <button id="manual-btn">Manuale (M)</button>
+    <button id="progress-btn">Progressi (P)</button>
+    <button id="menu-btn">Menu (Esc)</button>
+  </span>
 </div>
 
 <div id="submenu" hidden></div>
@@ -30,7 +34,24 @@
   Sinistro: usa lo strumento<br>
   Mano: trascina la mappa, clic su edificio = info<br>
   Destro/centrale + trascina: muovi | Rotella: zoom<br>
-  WASD/frecce: muovi | 1-5: strumenti | R: ruota | Esc: menu
+  WASD/frecce: muovi | 1-7: strumenti | R: ruota<br>
+  M: manuale | P: progressi | Esc: menu
+</div>
+
+<!-- Progressi: sblocchi a pagamento (tasto P) -->
+<div id="progress" class="overlay" hidden>
+  <div class="ov-box">
+    <div class="ov-head"><h2>Progressi</h2><span id="progress-sub" class="ov-sub"></span><button id="progress-close" class="ov-close">✕</button></div>
+    <div id="progress-body" class="ov-body"></div>
+  </div>
+</div>
+
+<!-- Manuale (tasto M) -->
+<div id="manual" class="overlay" hidden>
+  <div class="ov-box wide">
+    <div class="ov-head"><h2>Manuale</h2><span class="ov-sub">Come funziona ogni settore</span><button id="manual-close" class="ov-close">✕</button></div>
+    <div class="man-wrap"><nav id="manual-nav"></nav><div id="manual-body" class="ov-body"></div></div>
+  </div>
 </div>
 
 <!-- Menu principale / pausa -->
@@ -85,6 +106,8 @@
 <script src="js/economy.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/panel.js"></script>
+<script src="js/progress.js"></script>
+<script src="js/manual.js"></script>
 <script src="js/input.js"></script>
 <script src="js/save.js"></script>
 <script src="js/menu.js"></script>

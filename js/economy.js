@@ -49,12 +49,25 @@ function usesInput(b, g) {
   return (RECIPES[b.kind] || []).some(r => b.recipes[r.out] !== false && r.in[g]);
 }
 
-// Quanto spazio c'è per la merce g (senza contare quella già in viaggio verso l'edificio)
+// Materie prime usate dalle ricette attive
+function activeInputs(b) {
+  const set = new Set();
+  for (const r of RECIPES[b.kind] || []) if (b.recipes[r.out] !== false) for (const g of Object.keys(r.in)) set.add(g);
+  return [...set];
+}
+
+// Quanto spazio c'è per la merce g (senza contare quella già in viaggio verso l'edificio).
+// Nei trasformatori ogni materia prima ha la sua parte del deposito: così una sola merce
+// (es. la lana nella fabbrica tessile) non lo riempie tutto lasciando fuori le altre.
 function freeFor(b, g) {
   const caps = CAPS[b.kind];
   if (!caps) return 0;
   if (isWarehouse(b)) return (!warehouseTakes(b.kind, g) || b.accept[g] === false) ? 0 : caps.store - sumOf(b.store);
-  if (isProcessor(b)) return usesInput(b, g) ? caps.input - sumOf(b.input) : 0;
+  if (isProcessor(b)) {
+    if (!usesInput(b, g)) return 0;
+    const share = Math.floor(caps.input / activeInputs(b).length);
+    return Math.min(caps.input - sumOf(b.input), share - (b.input[g] || 0));
+  }
   if (SHOPS[b.kind]) return shopOf(g) === b.kind ? caps.store - sumOf(b.store) : 0;   // ogni negozio vende le sue merci
   return 0;
 }
@@ -62,7 +75,13 @@ function freeFor(b, g) {
 // Spazio libero tolta la merce già in arrivo
 function roomFor(b, g) {
   const f = freeFor(b, g);
-  return f > 0 ? f - sumOf(b.expect) : 0;
+  if (f <= 0) return 0;
+  const exp = b.expect || {};
+  if (isProcessor(b)) {   // la parte di g e il deposito intero, tolto quello in arrivo
+    const caps = CAPS[b.kind];
+    return Math.min(f - (exp[g] || 0), caps.input - sumOf(b.input) - sumOf(exp));
+  }
+  return f - sumOf(exp);
 }
 
 function receive(b, g, q) {
@@ -75,6 +94,13 @@ function buildingLabel(b) { return b.name ? '"' + b.name + '"' : BUILDINGS[b.kin
 const VAN_STRIPES = { farm: '#3fa34d', warehouse: '#3f6fd9', goodsWarehouse: '#e07b39', textileMill: '#d94f8a', clothingFactory: '#8e5bd1', factory: '#e07b39', bakery: '#8a5a3a',
   dairy: '#8fc6e8', slaughterhouse: '#c83232', forestry: '#2f6b2a', sawmill: '#c9a25a', furnitureFactory: '#8a5a3a', cowFarm: '#2b2b33', chickenFarm: '#e8c23a', pigFarm: '#e8899a', sheepFarm: '#c9c4b8' };
 
+// Furgoni: b.van = quanti furgoni dell'edificio sono in giro. I magazzini ne hanno di più
+// (portano materie prime alle fabbriche e prodotti ai negozi nello stesso momento).
+const VANS = { warehouse: 3, goodsWarehouse: 3 };
+function vansBusy(b) { return (b.van || 0) >= (VANS[b.kind] || 1); }
+function vanOut(b) { b.van = (b.van || 0) + 1; }
+function vanHome(b) { b.van = Math.max(0, (b.van || 0) - 1); }
+
 // Il furgone di "from" porta q unità di g a "to" e poi torna indietro
 function sendGoods(from, to, g, q) {
   const route = findRoute(accessTiles(from), accessTiles(to));
@@ -84,25 +110,26 @@ function sendGoods(from, to, g, q) {
   addTo(to.expect, g, q);
   from.status = 'Furgone in viaggio verso ' + buildingLabel(to);
   const fid = from.id, tid = to.id, stripe = VAN_STRIPES[from.kind === 'livestock' ? from.animal : from.kind];
-  from.van = spawnVehicle({
+  vanOut(from);
+  spawnVehicle({
     kind: 'van', from: fid, to: tid, good: g, load: q, stripe, tiles: route, pts: routePoints(route, false), speed: VAN_SPEED,
     arrive() {
       const t = game.buildings.get(tid), f = game.buildings.get(fid);
       if (t) { addTo(t.expect, g, -q); receive(t, g, Math.min(q, Math.max(0, freeFor(t, g)))); }
       if (!f) { if (t) leaveMap({ kind: 'van', stripe }, accessTiles(t)); return; }   // casa del furgone demolita: se ne va
       const back = t && findRoute(accessTiles(t), accessTiles(f));
-      if (!back) { f.van = null; f.status = ''; return; }
+      if (!back) { vanHome(f); f.status = ''; return; }
       f.status = 'Furgone di ritorno';
-      f.van = spawnVehicle({
+      spawnVehicle({
         kind: 'van', from: fid, load: 0, stripe, tiles: back, pts: routePoints(back, false), speed: VAN_SPEED,
-        arrive() { const ff = game.buildings.get(fid); if (ff) { ff.van = null; ff.status = ''; } },
-        cancel() { const ff = game.buildings.get(fid); if (ff) ff.van = null; },
+        arrive() { const ff = game.buildings.get(fid); if (ff) { vanHome(ff); ff.status = ''; } },
+        cancel() { const ff = game.buildings.get(fid); if (ff) vanHome(ff); },
       });
     },
     cancel() {
       const t = game.buildings.get(tid), f = game.buildings.get(fid);
       if (t) addTo(t.expect, g, -q);
-      if (f) { f.van = null; addTo(f.store, g, q); }
+      if (f) { vanHome(f); addTo(f.store, g, q); }
     },
   });
   return true;
@@ -112,7 +139,8 @@ function sendGoods(from, to, g, q) {
 // abbondante che la destinazione accetta (con personale e posto libero)
 function pushGoods(b) {
   b.dests = b.dests.filter(id => game.buildings.has(id));
-  if (b.van || !b.dests.length || b.retry > 0) return;
+  if (vansBusy(b) || !b.dests.length || b.retry > 0) return;
+  if (isWarehouse(b) && (b.van || 0) >= VANS[b.kind] - 1) return;   // un furgone resta per le richieste (pullGoods)
   if (sumOf(b.store) < VAN_MIN_LOAD) return;   // aspetta di avere un carico
   let why = '';
   for (const id of b.dests) {
@@ -121,8 +149,13 @@ function pushGoods(b) {
     if (isWarehouse(b) && isWarehouse(to) && to.dests.includes(b.id)) {
       why = why || 'Due magazzini non possono mandarsi la merce a vicenda'; continue;
     }
-    let best = null, bq = 0;
-    for (const [g, q] of Object.entries(b.store)) if (q > bq && roomFor(to, g) > 0) { best = g; bq = q; }
+    // a un negozio si porta quello che gli manca di più, agli altri la merce più abbondante
+    let best = null, bq = 0, bs = -Infinity;
+    for (const [g, q] of Object.entries(b.store)) {
+      if (q <= 0 || roomFor(to, g) <= 0) continue;
+      const score = SHOPS[to.kind] ? -((to.store[g] || 0) + ((to.expect || {})[g] || 0)) * 1000 + q : q;
+      if (score > bs) { best = g; bq = q; bs = score; }
+    }
     if (!best) { why = why || 'Le destinazioni non accettano questa merce o sono piene'; continue; }
     if (!to.workers) { why = buildingLabel(to) + ' non ha personale'; continue; }
     if (sendGoods(b, to, best, Math.min(bq, VAN_CAPACITY, roomFor(to, best)))) return;
@@ -144,11 +177,15 @@ function wantedGoods(b) {
 function pullGoods(b) {
   if (b.pullTimer > 0 || !b.workers) return;
   b.pullTimer = 3;
-  const wanted = wantedGoods(b).filter(g => roomFor(b, g) >= VAN_MIN_LOAD)
-    .sort((x, y) => ((b.input || b.store)[x] || 0) - ((b.input || b.store)[y] || 0)); // prima quello che manca di più
+  // prima quello che manca di più; a parità si va a turno (altrimenti un negozio vuoto
+  // chiederebbe sempre le prime merci della lista, es. le verdure, e mai pasta o formaggi)
+  const list = wantedGoods(b), n = list.length, turn = b.pullTurn = ((b.pullTurn || 0) + 1) % Math.max(1, n);
+  const have = g => (b.input || b.store)[g] || 0;
+  const order = g => (list.indexOf(g) - turn + n) % n;
+  const wanted = list.filter(g => roomFor(b, g) >= VAN_MIN_LOAD).sort((x, y) => have(x) - have(y) || order(x) - order(y));
   if (!wanted.length) return;
   for (const w of game.buildings.values()) {
-    if (!isWarehouse(w) || w.van || !w.workers) continue;
+    if (!isWarehouse(w) || vansBusy(w) || !w.workers) continue;
     const g = wanted.find(x => (w.store[x] || 0) > 0);
     if (!g) continue;
     if (sendGoods(w, b, g, Math.min(w.store[g], VAN_CAPACITY, roomFor(b, g)))) return;
@@ -213,7 +250,12 @@ function updateProducer(b, dt) {
     if (b.work >= 1) {
       b.work -= 1;
       let made = 0;
-      for (const r of RECIPES[b.kind]) {
+      // le ricette fanno a turno a partire da una diversa ogni ciclo: altrimenti le prime
+      // (es. tavoli e sedie) userebbero sempre tutte le assi e letti e cucine non si farebbero mai
+      const R = RECIPES[b.kind], start = (b.turn || 0) % R.length;
+      b.turn = start + 1;
+      for (let k = 0; k < R.length; k++) {
+        const r = R[(start + k) % R.length];
         if (b.recipes[r.out] === false || sumOf(b.store) >= cap) continue;
         if (!Object.entries(r.in).every(([g, n]) => (b.input[g] || 0) >= n)) continue;
         for (const [g, n] of Object.entries(r.in)) addTo(b.input, g, -n);

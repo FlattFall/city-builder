@@ -183,9 +183,12 @@ function renderPanel() {
     box.appendChild(el('div', 'plabel', 'Cosa coltivare'));
     const crops = el('div', 'pchoices pwrap');
     for (const [id, c] of Object.entries(CROPS)) {
-      const btn = el('button', 'pchoice' + (b.crop === id ? ' active' : ''));
-      btn.append(goodImg(id), el('span', null, c.name));
+      const locked = cropLocked(id);
+      const btn = el('button', 'pchoice' + (b.crop === id ? ' active' : '') + (locked ? ' locked' : ''));
+      btn.append(goodImg(id), el('span', null, (locked ? '🔒 ' : '') + c.name));
+      if (locked) btn.title = 'Bloccato: sbloccalo nei Progressi (P)';
       btn.addEventListener('click', () => {
+        if (locked) { openProgress(UNLOCKS.find(u => u.crops && u.crops.includes(id)).id); return; }
         if (b.crop !== id) { b.crop = id; b.growth = 0; game.dirty = true; } // si riparte dalla semina
         renderPanel(); requestDraw();
       });

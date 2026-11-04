@@ -152,6 +152,9 @@ addEventListener('keydown', e => {
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;   // si sta scrivendo un nome
   if (menuIsOpen()) return; // con il menu aperto la tastiera non comanda il gioco
   const k = e.key.toLowerCase();
+  if (!e.repeat && k === 'm') { toggleManual(); return; }
+  if (!e.repeat && k === 'p') { toggleProgress(); return; }
+  if (manualIsOpen() || progressIsOpen()) return;   // con manuale o progressi aperti il resto è fermo
   if (PAN_KEYS[k]) { keysHeld.add(k); e.preventDefault(); return; }
   if (e.repeat) return;
   if (selectGroupByKey(e.key)) { /* strumento scelto */ }

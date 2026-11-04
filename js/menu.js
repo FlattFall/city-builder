@@ -38,6 +38,7 @@ function confirmLoseChanges() {
 
 function enterGame() {
   centerCamera();
+  refreshLocks();
   setTool('hand');
   updateHud(); updateInfo();
   requestDraw();
@@ -138,6 +139,8 @@ function initMenu() {
   addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
     if (!menuOpen) {
+      if (typeof manualIsOpen === 'function' && manualIsOpen()) { closeManual(); return; }
+      if (progressIsOpen()) { closeProgress(); return; }
       if (!document.getElementById('submenu').hidden) { closeSubmenu(); return; }
       if (game.fieldMode) { exitFieldMode(); return; }
       if (panelIsOpen()) { closePanel(); return; }
