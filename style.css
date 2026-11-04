@@ -307,3 +307,13 @@ canvas { display: block; }
 /* nomi interi nella distribuzione (prima "Magazzino alimenti 2" e "3" diventavano uguali, tagliati) */
 #panel .psplit-name, #subpanel .psplit-name { white-space: normal; overflow: visible; line-height: 1.25; }
 #subpanel { width: 270px; }
+
+/* Tabella dei prodotti nel manuale */
+.man-table { width: 100%; border-collapse: collapse; margin: 6px 0 14px; font-size: 12px; }
+.man-table th { text-align: left; color: #ffd966; font-weight: normal; padding: 4px 6px; border-bottom: 2px solid #44486b; position: sticky; top: 0; background: #262b44; }
+.man-table td { padding: 3px 6px; border-bottom: 1px solid #33385a; vertical-align: middle; color: #dfe6ee; }
+.man-table tr:nth-child(even) td { background: #22263c; }
+.man-table td.num { text-align: right; white-space: nowrap; color: #ffd966; }
+.man-table td.tg { white-space: nowrap; }
+.man-table td.tg img { width: 18px; height: 18px; vertical-align: middle; image-rendering: pixelated; }
+.man-table th, .man-table td.t { white-space: nowrap; }

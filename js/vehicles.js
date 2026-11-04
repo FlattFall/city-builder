@@ -521,7 +521,7 @@ function drawVehicle(c, v) {
 // ---------- Navi (petrolio dalla piattaforma al porto) ----------
 // Viaggiano sui tile d'acqua (4 direzioni) dalla piattaforma alle caselle d'acqua dietro al porto
 // (dockTiles); scaricano nel porto (che fa da magazzino marittimo) e tornano indietro.
-const SHIP_SPEED = 1.1, SHIP_CAPACITY = 40;
+const SHIP_SPEED = 1.1, SHIP_CAPACITY = 70;   // una nave porta quasi 3 furgoni (richiesta dell'utente: almeno 70)
 function isWaterFree(x, y) { return inMap(x, y) && game.map[y][x].type === T.WATER; }
 // Rotta delle navi (richiesta dell'utente: la più corta ma lontano dalla costa e senza angoli retti):
 // A* su 8 direzioni (in diagonale solo se i due lati sono acqua), con un costo in più vicino alla

@@ -215,6 +215,62 @@ const MANUAL = [
     b.appendChild(mEl('div', 'man-tip', TR("Le merci senza prezzo (grano, animali, tronchi, cotone, lana, filati, tessuti, carbone, petrolio) non si vendono: servono alle fabbriche. Latte, farina e legname si vendono anche così, ma se c'è una fabbrica che li usa vanno prima a lei.")));
   } },
 
+  // Tabella di tutte le merci (richiesta dell'utente): chi le fa, quanto e ogni quanti secondi,
+  // dove si vendono, a che prezzo e quanto incassi. Tutto preso dai dati del gioco.
+  { id: 'table', title: 'Tabella dei prodotti', icon: 'supermarket', build(b) {
+    const tax = g => Math.max(1, Math.round(GOODS[g].price * TAX_RATE));
+    const usedBy = g => [...new Set(Object.entries(RECIPES).filter(([, rs]) => rs.some(r => r.in[g])).map(([k]) => k)
+      .concat(Object.entries(POWER).filter(([, P]) => P.fuel === g).map(([k]) => k)))];
+    const sells = g => {   // dove si vende, oppure a chi serve
+      const shop = GOODS[g].price ? shopOf(g) : null;
+      if (shop) return { where: BUILDINGS[shop].name, price: euro(GOODS[g].price), tax: euro(tax(g)) };
+      const u = usedBy(g).map(k => BUILDINGS[k].name);
+      return { where: u.length ? TR('non si vende: serve a {list}', { list: u.join(', ') }) : TR('non si vende'), price: '-', tax: '-' };
+    };
+    const cell = (tr, html, cls) => { const td = mEl('td', cls, html); tr.appendChild(td); return td; };
+    const goodCell = (tr, g) => { const td = mEl('td', 'tg'); td.append(mImg(GOOD_ICONS[g]), document.createTextNode(' ' + GOODS[g].name)); tr.appendChild(td); };
+    const table = (heads) => {
+      const t = mEl('table', 'man-table'), hr = mEl('tr');
+      for (const h of heads) hr.appendChild(mEl('th', null, h));
+      t.appendChild(hr); b.appendChild(t); return t;
+    };
+    b.appendChild(mEl('p', null, TR('Tempi con tutto il personale (con meno lavoratori va più piano; con la corrente fino al {n}% più veloce). "Ti dà" = tasse che incassi per ogni pezzo venduto ({t}% del prezzo).', { n: Math.round(GRID.boost * 100), t: Math.round(TAX_RATE * 100) })));
+    // 1) materie prime
+    b.appendChild(mEl('h3', null, TR('Materie prime')));
+    const t1 = table([TR('Merce'), TR('Chi la produce'), TR('Quanto'), TR('Ogni'), TR('Si vende'), TR('Prezzo'), TR('Ti dà')]);
+    const raw = (g, who, qty, every) => {
+      const tr = mEl('tr'), s2 = sells(g);
+      goodCell(tr, g); cell(tr, who); cell(tr, qty); cell(tr, TR('{s} s', { s: every }), 't');
+      cell(tr, s2.where); cell(tr, s2.price, 'num'); cell(tr, s2.tax, 'num');
+      t1.appendChild(tr);
+    };
+    for (const g of Object.keys(CROPS)) raw(g, BUILDINGS.farm.name, TR('{n} per campo', { n: FARM.yieldPerField }), FARM.cycleSec);
+    for (const L of Object.values(LIVESTOCK)) for (const [g, q] of Object.entries(L.out)) raw(g, BUILDINGS.livestock.name + ' (' + L.animal.toLowerCase() + ')', String(q), L.every);
+    for (const [k, F] of Object.entries(FORESTRY)) for (const [g, q] of Object.entries(F.out)) raw(g, BUILDINGS[k].name, TR('{n} (con {t} alberi intorno)', { n: q, t: F.trees }), F.every);
+    for (const [k, O] of Object.entries(OIL)) for (const [g, q] of Object.entries(O.out)) raw(g, BUILDINGS[k].name, TR('fino a {n} (giacimento pieno)', { n: q }), O.every);
+    // 2) prodotti lavorati
+    b.appendChild(mEl('h3', null, TR('Prodotti lavorati')));
+    const t2 = table([TR('Merce'), TR('Dove si fa'), TR('Con'), TR('Ogni'), TR('Si vende'), TR('Prezzo'), TR('Ti dà')]);
+    for (const [k, rs] of Object.entries(RECIPES)) for (const r of rs) {
+      const tr = mEl('tr'), s2 = sells(r.out);
+      goodCell(tr, r.out); cell(tr, BUILDINGS[k].name);
+      cell(tr, Object.entries(r.in).map(([g, n]) => n + ' ' + GOODS[g].name.toLowerCase()).join(' + '));
+      cell(tr, TR('{s} s', { s: PRODUCE_TICK[k] }), 't');
+      cell(tr, s2.where); cell(tr, s2.price, 'num'); cell(tr, s2.tax, 'num');
+      t2.appendChild(tr);
+    }
+    // 3) negozi
+    b.appendChild(mEl('h3', null, TR('Negozi')));
+    const t3 = table([TR('Negozio'), TR('Clienti entro'), TR('Ogni'), TR('Quanti comprano')]);
+    for (const [k, S] of Object.entries(SHOPS)) {
+      const tr = mEl('tr');
+      cell(tr, BUILDINGS[k].name); cell(tr, TR('{n} tile', { n: S.radius })); cell(tr, TR('{s} s', { s: S.tick }));
+      cell(tr, TR('{p}% degli abitanti vicini, 1 pezzo a testa', { p: Math.round(S.buyRate * 100) }));
+      t3.appendChild(tr);
+    }
+    b.appendChild(mEl('div', 'man-tip', TR('Trasporto: un furgone porta fino a {v} unità (parte con almeno {m}), una nave fino a {s}.', { v: VAN_CAPACITY, m: VAN_MIN_LOAD, s: SHIP_CAPACITY })));
+  } },
+
   { id: 'progress', title: 'Progressi e sblocchi', icon: 'factory', build(b) {
     b.appendChild(mEl('p', null, TR("In una mappa nuova hai solo le cose di base. Apri la finestra <b>Progressi</b> con il tasto <span class=\"man-key\">P</span> (o il pulsante in alto) e paga per sbloccare nuove strade, colture e industrie. Alcune ne vogliono prima un'altra: ad esempio il panificio vuole la fabbrica alimentare. Il tasto <span class=\"man-key\">I</span> sblocca tutto (per provare il gioco).")));
     for (const sector of [...new Set(UNLOCKS.map(u => u.sector))]) {
