@@ -48,6 +48,7 @@ function sameNet(x, y, nx, ny) {
 function setPath(x, y, p) {
   const t = game.map[y][x];
   t.path = p;
+  if (typeof elecChanged === 'function') elecChanged();   // i cavi della corrente sono sotto le strade
   if (p) { t.main = false; game.pathKeys.add(y * game.size + x); } // "principale" lo segna solo il generatore
   else {
     game.pathKeys.delete(y * game.size + x); t.rb = null; t.main = false; delete t.dir;
@@ -486,6 +487,10 @@ function checkTool(tool, x, y) {
       }
       if (!oilUnder(tool, x, y)) return { msg: TR('Qui sotto non c\'è petrolio (scegli una zona scura)') };
       return null;
+    }
+    if (b.anyWater) {   // traliccio: anche sull'acqua (richiesta dell'utente)
+      const q = game.map[y][x];
+      if (q.type === T.WATER) return (q.building || q.bridge) ? { msg: TR('Qui non si può costruire') } : null;
     }
     if (b.coast && !dockTiles({ kind: tool, ax: x, ay: y, rot: game.rotation }).length)
       return { msg: TR('Il retro del porto deve dare sull\'acqua (R per ruotarlo): davanti la strada, dietro il mare') };

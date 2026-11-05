@@ -320,7 +320,11 @@ function pylonArmEnds(x, y, base, armV) {   // punti dove si attaccano i fili (d
   const P = (u, v) => iso(x, y, u, v, base + (PYLON_ARM - 3) / STEP);
   return armV ? [P(0.5, 0.08), P(0.5, 0.92)] : [P(0.08, 0.5), P(0.92, 0.5)];
 }
-function drawPylon(c, x, y, base, armV) {
+function drawPylon(c, x, y, base, armV, onWater) {
+  if (onWater) {   // sull'acqua: plinto di cemento che esce dall'acqua
+    box(c, x, y, base - 0.15, 0.2, 0.2, 0.8, 0.8, 0.15 * STEP + 3, { l: '#a3a39b', r: '#86867f', t: '#bcbcb4', plain: true });
+    base += 3 / STEP;
+  }
   const P = (u, v, h) => iso(x, y, u, v, base + h / STEP);
   const at = h => { const k = h / PYLON_TOP, w = 0.22 - 0.16 * k; return [0.5 - w, 0.5 + w]; };   // gambe che si stringono
   const leg = (su, sv, h) => { const [a, b] = at(h); return P(su < 0 ? a : b, sv < 0 ? a : b, h); };
@@ -355,6 +359,24 @@ function drawPylon(c, x, y, base, armV) {
   line(P(0.5, 0.5, PYLON_TOP), P(0.5, 0.5, PYLON_TOP + 4), STEEL_L, 1);   // punta
 }
 
+// Palo della luce di legno (bassa tensione): palo marrone con la traversa e due isolatori
+const POLE_TOP = 22;
+function drawPole(c, x, y, base, armV) {
+  const P = (u, v, h) => iso(x, y, u, v, base + h / STEP);
+  const line = (p, q, col, w) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); c.moveTo(...p); c.lineTo(...q); c.stroke(); };
+  c.fillStyle = 'rgba(0,0,0,0.18)';
+  c.beginPath(); c.ellipse(...P(0.5, 0.5, 0), 3, 1.5, 0, 0, Math.PI * 2); c.fill();
+  line(P(0.5, 0.5, 0), P(0.5, 0.5, POLE_TOP + 2), '#4a3020', 2.6);
+  line(P(0.5, 0.5, 0), P(0.5, 0.5, POLE_TOP + 2), '#7a5434', 1.4);
+  const A = armV ? P(0.5, 0.28, POLE_TOP) : P(0.28, 0.5, POLE_TOP), B = armV ? P(0.5, 0.72, POLE_TOP) : P(0.72, 0.5, POLE_TOP);
+  line(A, B, '#5e3f27', 1.6);
+  for (const p of [A, B]) { c.fillStyle = '#d9dde2'; c.fillRect(p[0] - 0.8, p[1] - 2.5, 1.6, 2.5); }
+}
+function poleArmEnds(x, y, base, armV) {
+  const P = (u, v) => iso(x, y, u, v, base + (POLE_TOP + 2.5) / STEP);
+  return armV ? [P(0.5, 0.28), P(0.5, 0.72)] : [P(0.28, 0.5), P(0.72, 0.5)];
+}
+
 // Sottostazione elettrica: piazzale recintato con due trasformatori, sostegni e una casetta di controllo
 function drawSubstation(c, x, y, base, r) {
   const steel = { l: '#9aa0a8', r: '#7a8088', t: '#b8bec6' }, tr = { l: '#6f7a72', r: '#56605a', t: '#86918a' };
@@ -387,28 +409,29 @@ function drawSubstation(c, x, y, base, r) {
   }
 }
 
-// Fili dell'alta tensione: tra i tralicci collegati (due fili che pendono un po') e dal traliccio alla
-// centrale o alla sottostazione. Si disegnano sopra la città, dopo tutti i tile.
+// Fili: alta tensione tra i tralicci (due fili che pendono un po') e dal traliccio alla sottostazione;
+// bassa tensione tra i pali di legno e dal palo agli edifici. Sopra la città, dopo tutti i tile.
 function drawPowerLines(c) {
   const E = game.elec;
   if (!E) return;
-  const elevOf = b => game.map[b.ay][b.ax].elev;
+  const elevOf = b => game.map[b.ay][b.ax].elev + (b.kind === 'pylon' && game.map[b.ay][b.ax].type === T.WATER ? 3 / STEP : 0);
   const sag = (p, q) => {
     const d = Math.hypot(q[0] - p[0], q[1] - p[1]), m = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2 + 3 + d * 0.06];
     c.beginPath(); c.moveTo(...p); c.quadraticCurveTo(...m, ...q); c.stroke();
   };
-  c.lineWidth = DETAIL ? 0.7 : 0.9; c.strokeStyle = 'rgba(28, 30, 36, 0.85)';
-  for (const [a, b] of E.wires) {
-    const ea = pylonArmEnds(a.ax, a.ay, elevOf(a), a.armV), eb = pylonArmEnds(b.ax, b.ay, elevOf(b), b.armV);
-    // si collegano i due capi più vicini fra loro (così i fili non si incrociano)
+  const pair = (ea, eb) => {   // si collegano i due capi più vicini fra loro (così i fili non si incrociano)
     const d0 = Math.hypot(ea[0][0] - eb[0][0], ea[0][1] - eb[0][1]) + Math.hypot(ea[1][0] - eb[1][0], ea[1][1] - eb[1][1]);
     const d1 = Math.hypot(ea[0][0] - eb[1][0], ea[0][1] - eb[1][1]) + Math.hypot(ea[1][0] - eb[0][0], ea[1][1] - eb[0][1]);
     if (d0 <= d1) { sag(ea[0], eb[0]); sag(ea[1], eb[1]); } else { sag(ea[0], eb[1]); sag(ea[1], eb[0]); }
-  }
-  for (const [p, o] of E.links) {   // al traliccio (o alla sottostazione) dalla centrale
-    const from = p.kind === 'pylon' ? iso(p.ax, p.ay, 0.5, 0.5, elevOf(p) + (PYLON_ARM - 3) / STEP) : iso(p.ax, p.ay, 0.7, 0.62, elevOf(p) + 17 / STEP);
-    const d = BUILDINGS[o.kind];
-    const to = o.kind === 'substation' ? iso(o.ax, o.ay, 0.7, 0.62, elevOf(o) + 17 / STEP) : iso(o.ax, o.ay, d.w / 2, d.h / 2, elevOf(o) + Math.min(d.height, 30) * 0.6 / STEP);
-    sag(from, to);
+  };
+  const top = o => { const d = BUILDINGS[o.kind]; return o.kind === 'substation' ? iso(o.ax, o.ay, 0.7, 0.62, elevOf(o) + 17 / STEP) : iso(o.ax, o.ay, d.w / 2, d.h / 2, elevOf(o) + Math.min(d.height, 30) * 0.6 / STEP); };
+  c.lineWidth = DETAIL ? 0.7 : 0.9; c.strokeStyle = 'rgba(28, 30, 36, 0.85)';
+  for (const [a, b] of E.wires) pair(pylonArmEnds(a.ax, a.ay, elevOf(a), a.armV), pylonArmEnds(b.ax, b.ay, elevOf(b), b.armV));
+  for (const [p, o] of E.links) sag(iso(p.ax, p.ay, 0.5, 0.5, elevOf(p) + (PYLON_ARM - 3) / STEP), top(o));
+  c.lineWidth = DETAIL ? 0.6 : 0.8; c.strokeStyle = 'rgba(40, 32, 24, 0.8)';
+  for (const [a, b] of E.lvWires) pair(poleArmEnds(a.ax, a.ay, elevOf(a), a.armV), poleArmEnds(b.ax, b.ay, elevOf(b), b.armV));
+  for (const [p, o] of E.lvLinks) {
+    const from = iso(p.ax, p.ay, 0.5, 0.5, elevOf(p) + POLE_TOP / STEP);
+    sag(from, o.road ? iso(o.ax, o.ay, 0.5, 0.5, game.map[o.ay][o.ax].elev + 1 / STEP) : top(o));
   }
 }

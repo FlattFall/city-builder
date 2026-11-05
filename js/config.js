@@ -62,8 +62,9 @@ const BUILDINGS = {
   clothingStore: { name: 'Negozio di abbigliamento', w: 2, h: 2, cost: 1300, height: 20, group: 'textile' },
   // settore energia e petrolio
   // rete elettrica (gruppo Energia): tralicci e sottostazioni, senza lavoratori né strada (infra: non contano tra le industrie)
-  pylon:      { name: 'Traliccio', w: 1, h: 1, cost: 80, height: 46, group: 'power', infra: true },
-  substation: { name: 'Sottostazione elettrica', w: 1, h: 1, cost: 900, height: 20, group: 'power', infra: true },
+  pylon:      { name: 'Traliccio', w: 1, h: 1, cost: 80, height: 46, group: 'power', infra: true, anyWater: true },   // anche sull'acqua
+  pole:       { name: 'Palo della luce', w: 1, h: 1, cost: 20, height: 24, group: 'power', infra: true },          // palo di legno: bassa tensione
+  substation: { name: 'Sottostazione elettrica', w: 1, h: 1, cost: 900, height: 20, group: 'power' },   // vuole strada e lavoratori
   charcoalKiln: { name: 'Carbonaia', w: 1, h: 1, cost: 600, height: 16, group: 'energy' },
   coalPlant:  { name: 'Centrale a carbone', w: 2, h: 2, cost: 4000, height: 44, group: 'energy' },
   solarPlant: { name: 'Centrale solare', w: 2, h: 2, cost: 5000, height: 10, group: 'energy' },
@@ -269,10 +270,11 @@ const POWER = {
 // Rete elettrica (una sola per tutta la mappa): consumo = abitanti + attività; le case pagano la
 // bolletta, le attività con la corrente lavorano più in fretta (boost)
 const GRID = { perResident: 1, perBusiness: 4, bill: 0.4, billEvery: 20, boost: 0.25 };
-// Reti elettriche (richiesta dell'utente): la corrente va dalle centrali ai tralicci (alta tensione) e
-// dalle sottostazioni a case e attività vicine. Un traliccio sul bordo della mappa collega la rete
-// all'esterno: si compra la corrente che manca (importPrice per unità ogni billEvery secondi).
-const ELEC = { pylonRange: 7, linkRange: 3, subRadius: 14, importPrice: 0.3, pylonSpacing: 5 };
+// Corrente (richiesta dell'utente): BASSA tensione nei cavi sotto tutte le strade e sui pali di legno
+// (case, attività e centrali attaccate a una strada o vicino a un palo); ALTA tensione sui tralicci.
+// La sottostazione (con lavoratori) collega le due. Un traliccio sul bordo della mappa porta fuori:
+// la corrente che manca si compra (importPrice), quella in più si vende (exportPrice), ogni billEvery s.
+const ELEC = { pylonRange: 7, linkRange: 3, poleRange: 5, poleReach: 2, importPrice: 0.3, exportPrice: 0.15, pylonSpacing: 5, poleSpacing: 4 };
 // Due magazzini: alimenti (cibo e animali) e merci (legno, mobili, fibre, tessuti, vestiti)
 const WAREHOUSE_CATS = {
   warehouse: ['raw', 'animal', 'food', 'bakery', 'dairy', 'meat'],
@@ -329,7 +331,7 @@ const JOBS = { farm: 4, warehouse: 2, factory: 6, bakery: 2, supermarket: 3,
   livestock: 3, dairy: 5, slaughterhouse: 5,
   forestry: 3, sawmill: 4, furnitureFactory: 5, furnitureStore: 3, goodsWarehouse: 2,
   textileMill: 5, clothingFactory: 5, clothingStore: 3,
-  charcoalKiln: 2, coalPlant: 5, solarPlant: 1, windPlant: 1, oilWell: 2, port: 4, refinery: 6, gasStation: 2 };
+  charcoalKiln: 2, coalPlant: 5, solarPlant: 1, windPlant: 1, oilWell: 2, port: 4, refinery: 6, gasStation: 2, substation: 2 };
 // la piattaforma petrolifera non prende lavoratori dalle case (il personale vive a bordo)
 const JOB_RADIUS = 12;
 function jobRadiusOf(kind) { return (BUILDINGS[kind] && BUILDINGS[kind].jobRadius) || JOB_RADIUS; }

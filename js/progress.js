@@ -33,7 +33,7 @@ const UNLOCKS = [
   { id: 'clothingFactory', sector: 'Tessile', tools: ['clothingFactory'], cost: 11000, needs: ['textileMill'] },
   { id: 'clothingStore', sector: 'Tessile', tools: ['clothingStore'], cost: 8000, needs: ['clothingFactory'] },
   // energia e petrolio
-  { id: 'powerGrid', sector: 'Energia', tools: ['pylon', 'substation'], cost: 1500, desc: 'Tralicci e sottostazioni: la corrente da fuori mappa o dalle tue centrali.' },
+  { id: 'powerGrid', sector: 'Energia', tools: ['pylon', 'pole', 'substation'], cost: 1500, desc: 'Tralicci, pali della luce e sottostazioni: comprare e vendere la corrente fuori mappa e portarla dove serve.' },
   { id: 'charcoalKiln', sector: 'Energia', tools: ['charcoalKiln'], cost: 3000, needs: ['forestry'] },
   { id: 'coalPlant', sector: 'Energia', tools: ['coalPlant'], cost: 8000, needs: ['charcoalKiln', 'powerGrid'] },
   { id: 'solarPlant', sector: 'Energia', tools: ['solarPlant'], cost: 10000, needs: ['powerGrid'] },

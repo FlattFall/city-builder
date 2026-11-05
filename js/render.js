@@ -824,7 +824,8 @@ function drawBuildingOn(c, x, y, b) {
   }
   if (b.kind === 'bakery') { drawBakery(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (b.kind === 'charcoalKiln') { drawCharcoalKiln(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
-  if (b.kind === 'pylon') { drawPylon(c, x, y, game.map[y][x].elev, b.armV !== false); return; }
+  if (b.kind === 'pylon') { drawPylon(c, x, y, game.map[y][x].elev, b.armV !== false, game.map[y][x].type === T.WATER); return; }
+  if (b.kind === 'pole') { drawPole(c, x, y, game.map[y][x].elev, b.armV !== false); return; }
   if (b.kind === 'substation') { drawSubstation(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (b.kind === 'oilWell') { drawOilWell(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (b.kind === 'gasStation') { drawGasStation(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
@@ -1412,9 +1413,6 @@ function drawFrame() {
   const fArea = (() => {
     const f = game.fieldMode ? game.buildings.get(game.fieldMode) : (game.tool === 'farm' && game.hover ? { ax: game.hover.x, ay: game.hover.y } : null);
     if (f) { const R = FARM.fieldRadius; return { x0: f.ax - R, y0: f.ay - R, x1: f.ax + 1 + R, y1: f.ay + 1 + R }; }
-    // sottostazione (in mano o scelta con la Mano): la zona dove porta la corrente
-    const s = game.tool === 'substation' && game.hover ? { ax: game.hover.x, ay: game.hover.y } : (sel && sel.kind === 'substation' ? sel : null);
-    if (s) { const R = ELEC.subRadius; return { x0: s.ax - R, y0: s.ay - R, x1: s.ax + R, y1: s.ay + R, elec: true }; }
     return null;
   })();
   const inArea = (x, y) => fArea && x >= fArea.x0 && x <= fArea.x1 && y >= fArea.y0 && y <= fArea.y1;
@@ -1477,7 +1475,7 @@ function drawFrame() {
     for (let x = xa; x <= xb; x++) if (visible(x, y)) run(y * N + x);
   }
   drawPowerLines(ctx);
-  if (game.tool === 'pylon' && game.hover) drawPylonPreview(ctx, game.hover);
+  if ((game.tool === 'pylon' || game.tool === 'pole') && game.hover) drawPylonPreview(ctx, game.hover, game.tool === 'pole');
   if (ELEC_TOOLS.includes(game.tool)) drawPowerIcons(ctx);
   drawWorkerIcons(ctx);
   if (sel) drawOwnVehicles(ctx, sel);
@@ -1509,25 +1507,57 @@ function drawOwnVehicles(c, b) {
   }
 }
 
-// Con il traliccio in mano: linee tratteggiate verso i tralicci (e centrali/sottostazioni) a cui si collegherebbe
-const ELEC_TOOLS = ['pylon', 'substation', 'coalPlant', 'solarPlant', 'windPlant'];
-function drawPylonPreview(c, h) {
+// Con il traliccio (o il palo) in mano: linee tratteggiate verso quelli a cui si collegherebbe.
+// Traliccio vicino al bordo: freccia che esce dalla mappa = si compra e si vende la corrente fuori.
+const ELEC_TOOLS = ['pylon', 'pole', 'substation', 'coalPlant', 'solarPlant', 'windPlant'];
+function drawPylonPreview(c, h, lv) {
   if (!inMap(h.x, h.y)) return;
-  const e = game.map[h.y][h.x].elev, from = iso(h.x, h.y, 0.5, 0.5, e + (PYLON_ARM - 3) / STEP);
-  const edge = h.x === 0 || h.y === 0 || h.x === game.size - 1 || h.y === game.size - 1;
-  c.save(); c.setLineDash([4, 3]); c.lineWidth = 1.4; c.strokeStyle = '#6fe3ff';
+  const N = game.size, t = game.map[h.y][h.x];
+  const e = t.elev + (!lv && t.type === T.WATER ? 3 / STEP : 0);
+  const from = iso(h.x, h.y, 0.5, 0.5, e + (lv ? POLE_TOP : PYLON_ARM - 3) / STEP);
+  c.save(); c.setLineDash([4, 3]); c.lineWidth = 1.4; c.strokeStyle = lv ? '#ffd34d' : '#6fe3ff';
   for (const b of game.buildings.values()) {
     let ok = false, to;
-    if (b.kind === 'pylon') { ok = (b.ax - h.x) ** 2 + (b.ay - h.y) ** 2 <= ELEC.pylonRange ** 2; to = iso(b.ax, b.ay, 0.5, 0.5, game.map[b.ay][b.ax].elev + (PYLON_ARM - 3) / STEP); }
-    else if (b.kind === 'substation' || POWER[b.kind]) { ok = distToBuilding(b, h.x, h.y) <= ELEC.linkRange; const d = BUILDINGS[b.kind]; to = iso(b.ax, b.ay, d.w / 2, d.h / 2, game.map[b.ay][b.ax].elev + 1); }
+    const be = game.map[b.ay][b.ax].elev, d = BUILDINGS[b.kind];
+    if (lv) {
+      if (b.kind === 'pole') { ok = (b.ax - h.x) ** 2 + (b.ay - h.y) ** 2 <= ELEC.poleRange ** 2; to = iso(b.ax, b.ay, 0.5, 0.5, be + POLE_TOP / STEP); }
+      else if (b.kind !== 'pylon' && !d.water) { ok = distToBuilding(b, h.x, h.y) <= ELEC.poleReach && b.lv == null; to = iso(b.ax, b.ay, d.w / 2, d.h / 2, be + Math.min(d.height, 30) * 0.6 / STEP); }
+    } else {
+      if (b.kind === 'pylon') { ok = (b.ax - h.x) ** 2 + (b.ay - h.y) ** 2 <= ELEC.pylonRange ** 2; to = iso(b.ax, b.ay, 0.5, 0.5, be + (PYLON_ARM - 3) / STEP); }
+      else if (b.kind === 'substation') { ok = distToBuilding(b, h.x, h.y) <= ELEC.linkRange; to = iso(b.ax, b.ay, 0.7, 0.62, be + 17 / STEP); }
+    }
     if (!ok || (b.ax === h.x && b.ay === h.y)) continue;
     c.beginPath(); c.moveTo(...from); c.lineTo(...to); c.stroke();
   }
   c.restore();
-  if (edge) {   // sul bordo: si compra la corrente da fuori
-    c.fillStyle = '#6fe3ff'; c.font = 'bold 9px monospace'; c.textAlign = 'center';
-    c.fillText('⚡ ' + TR('da fuori mappa'), from[0], from[1] - 10);
-  }
+  if (lv) return;
+  // il bordo più vicino: se è entro la portata del traliccio, freccia verso fuori mappa
+  const ds = [[h.y, 0, -1], [N - 1 - h.x, 1, 0], [N - 1 - h.y, 0, 1], [h.x, -1, 0]];   // [distanza, dx, dy]
+  ds.sort((a, b) => a[0] - b[0]);
+  const [dist, dx, dy] = ds[0];
+  if (dist > ELEC.pylonRange) return;
+  const ex = h.x + dx * dist, ey = h.y + dy * dist;   // tile sul bordo
+  const ee = game.map[ey][ex].elev;
+  const A = iso(ex, ey, 0.5 + dx * 0.5, 0.5 + dy * 0.5, ee + 1), B = iso(ex, ey, 0.5 + dx * 3, 0.5 + dy * 3, ee + 1);
+  const pulse = 0.6 + 0.4 * Math.sin(animT * 4); animSeen = true;
+  c.save();
+  if (dist > 0) { c.setLineDash([2, 4]); c.strokeStyle = 'rgba(111,227,255,0.7)'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(...from); c.lineTo(...A); c.stroke(); c.setLineDash([]); }
+  const ang = Math.atan2(B[1] - A[1], B[0] - A[0]);
+  c.globalAlpha = pulse; c.strokeStyle = '#6fe3ff'; c.fillStyle = '#6fe3ff'; c.lineWidth = 3;
+  c.beginPath(); c.moveTo(...A); c.lineTo(B[0] - Math.cos(ang) * 6, B[1] - Math.sin(ang) * 6); c.stroke();
+  c.beginPath(); c.moveTo(...B);
+  c.lineTo(B[0] - Math.cos(ang - 0.5) * 10, B[1] - Math.sin(ang - 0.5) * 10);
+  c.lineTo(B[0] - Math.cos(ang + 0.5) * 10, B[1] - Math.sin(ang + 0.5) * 10); c.closePath(); c.fill();
+  c.globalAlpha = 1;
+  const txt = dist === 0 ? TR('⚡ Fuori mappa: compra e vende corrente') : TR('⚡ Fuori mappa tra {n} tile: compra e vende corrente', { n: dist });
+  // scritta a grandezza fissa sullo schermo (non cresce con lo zoom)
+  const T0 = c.getTransform(), sx = T0.a * from[0] + T0.e, sy = T0.d * from[1] + T0.f;
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.font = 'bold 12px monospace'; c.textAlign = 'center';
+  const tw = c.measureText(txt).width;
+  c.fillStyle = 'rgba(14,15,26,0.85)'; c.fillRect(sx - tw / 2 - 5, sy - 40 * T0.a / 2 - 16, tw + 10, 18);
+  c.fillStyle = '#6fe3ff'; c.fillText(txt, sx, sy - 40 * T0.a / 2 - 3);
+  c.restore();
 }
 // Con gli strumenti dell'energia: sopra case e attività un fulmine giallo (corrente) o grigio (senza)
 function drawPowerIcons(c) {

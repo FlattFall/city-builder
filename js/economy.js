@@ -428,101 +428,175 @@ function updatePower(b, dt) {
   return out;
 }
 
-// Rete elettrica: produzione delle centrali contro consumo di abitanti e attività
-// ---------- Reti elettriche ----------
-// Nodi: tralicci, sottostazioni e centrali. Due tralicci sono collegati se distano al massimo
-// ELEC.pylonRange; centrali e sottostazioni si collegano a un traliccio entro ELEC.linkRange (o
-// direttamente tra loro). Un traliccio sul bordo della mappa porta la corrente da fuori.
-// La forma delle reti si ricalcola solo quando cambia qualcosa (game.elecVer); case e attività
-// prendono la corrente dalla sottostazione collegata più vicina entro ELEC.subRadius.
-function isConsumer(b) { return !BUILDINGS[b.kind].infra && !POWER[b.kind] && !BUILDINGS[b.kind].water; }
+// ---------- Corrente: bassa e alta tensione (richiesta dell'utente) ----------
+// BASSA tensione: sotto ogni strada c'è il cavo (strade vicine = stesso cavo) e i pali di legno
+// (entro ELEC.poleRange tra loro) la portano dove le strade non arrivano. Case, attività e centrali
+// sono attaccate se hanno una strada accanto o un palo entro ELEC.poleReach (`b.lv` = pezzo di rete).
+// Le centrali (solare, eolica, carbone) danno corrente a bassa tensione: bastano per la città vicina.
+// ALTA tensione: i tralicci (entro ELEC.pylonRange tra loro, `b.hv`); un traliccio sul bordo della
+// mappa porta fuori. La SOTTOSTAZIONE (strada + lavoratori) collega un pezzo di bassa tensione a un
+// traliccio entro ELEC.linkRange: così si porta corrente da lontano e si compra/vende fuori mappa.
+// La forma delle reti si ricalcola quando cambia qualcosa (game.elecVer) e ogni 2 s;
+// i "sistemi" (bassa + alta unite dalle sottostazioni che lavorano) a ogni passo.
+function isConsumer(b) { const d = BUILDINGS[b.kind]; return !d.infra && !POWER[b.kind] && !d.water && b.kind !== 'substation'; }
 function consumerDemand(b) { return b.kind === 'house' ? (b.residents || 0) * GRID.perResident : GRID.perBusiness; }
-function elecChanged() { game.elecVer = (game.elecVer || 0) + 1; }
-function buildElecNets() {
-  const N = game.size, all = [...game.buildings.values()];
-  const pylons = all.filter(b => b.kind === 'pylon'), subs = all.filter(b => b.kind === 'substation');
-  const plants = all.filter(b => POWER[b.kind]);
-  const nodes = pylons.concat(subs, plants), idx = new Map(nodes.map((b, i) => [b.id, i]));
-  const parent = nodes.map((_, i) => i);
-  const find = i => { while (parent[i] !== i) i = parent[i] = parent[parent[i]]; return i; };
-  const edges = [];   // tralicci collegati tra loro (per i fili: si tiene l'albero più corto)
-  const links = [];   // traliccio -> centrale / sottostazione
-  const R2 = ELEC.pylonRange * ELEC.pylonRange;
-  for (let i = 0; i < pylons.length; i++) for (let j = i + 1; j < pylons.length; j++) {
-    const a = pylons[i], b = pylons[j], d2 = (a.ax - b.ax) ** 2 + (a.ay - b.ay) ** 2;
+function elecChanged() { if (typeof game !== 'undefined') game.elecVer = (game.elecVer || 0) + 1; }
+function lvTile(x, y) {   // il tile porta la bassa tensione: strade (non binari) e pali
+  const t = game.map[y][x];
+  return (t.path && t.path !== 'rail') || (t.building && t.building.kind === 'pole');
+}
+// albero più corto tra punti vicini (per i fili): [[a, b], ...] e unione nel union-find
+function wireTree(list, range, unite) {
+  const edges = [], R2 = range * range, out = [];
+  for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+    const a = list[i], b = list[j], d2 = (a.ax - b.ax) ** 2 + (a.ay - b.ay) ** 2;
     if (d2 <= R2) edges.push([d2, a, b]);
   }
   edges.sort((p, q) => p[0] - q[0]);
-  const wires = [];
-  for (const [, a, b] of edges) {
-    const ra = find(idx.get(a.id)), rb = find(idx.get(b.id));
-    if (ra !== rb) { parent[ra] = rb; wires.push([a, b]); }
+  for (const [, a, b] of edges) if (unite(a, b)) out.push([a, b]);
+  return out;
+}
+function buildElecNets() {
+  const N = game.size, all = [...game.buildings.values()];
+  const pylons = all.filter(b => b.kind === 'pylon'), poles = all.filter(b => b.kind === 'pole');
+  // --- bassa tensione: union-find sui tile
+  const par = new Map();
+  const find = k => { let r = k; while (par.has(r) && par.get(r) !== r) r = par.get(r); par.set(k, r); return r; };
+  const unite = (a, b) => { const ra = find(a), rb = find(b); if (ra === rb) return false; par.set(ra, rb); return true; };
+  for (const k of game.pathKeys) {
+    const x = k % N, y = (k - x) / N;
+    if (!lvTile(x, y)) continue;
+    find(k);
+    if (x + 1 < N && lvTile(x + 1, y)) unite(k, k + 1);
+    if (y + 1 < N && lvTile(x, y + 1)) unite(k, k + N);
   }
+  for (const br of game.bridges.values()) {   // ponti e tunnel: il cavo passa da una testa all'altra
+    const [x1, y1] = bridgeTile(br, br.n);
+    if (lvTile(br.x0, br.y0) && lvTile(x1, y1)) unite(br.y0 * N + br.x0, y1 * N + x1);
+  }
+  const key = b => b.ay * N + b.ax;
+  for (const p of poles) find(key(p));
+  const lvWires = wireTree(poles, ELEC.poleRange, (a, b) => unite(key(a), key(b)));
+  for (const p of poles) {   // traversa di traverso rispetto ai fili
+    let sx = 0, sy = 0;
+    for (const [a, b] of lvWires) if (a === p || b === p) { sx += Math.abs(a.ax - b.ax); sy += Math.abs(a.ay - b.ay); }
+    p.armV = sx >= sy;
+  }
+  const lvLinks = [];   // palo -> strada vicina / edificio attaccato al palo
+  for (const p of poles) {   // il palo prende il cavo della strada vicina
+    let best = null, bd = Infinity;
+    for (let dy = -ELEC.poleReach; dy <= ELEC.poleReach; dy++) for (let dx = -ELEC.poleReach; dx <= ELEC.poleReach; dx++) {
+      const x = p.ax + dx, y = p.ay + dy;
+      if (!inMap(x, y) || !game.map[y][x].path || game.map[y][x].path === 'rail') continue;
+      const d = dx * dx + dy * dy;
+      if (d < bd) { bd = d; best = [x, y]; }
+    }
+    if (best) { unite(key(p), best[1] * N + best[0]); if (bd > 1) lvLinks.push([p, { ax: best[0], ay: best[1], road: true }]); }
+  }
+  // edifici: strada accanto (cavo sotto la strada) o palo vicino
+  for (const b of all) {
+    b.lv = null;
+    if (b.kind === 'pylon' || b.kind === 'pole' || BUILDINGS[b.kind].water) continue;
+    const d = BUILDINGS[b.kind];
+    for (let y = b.ay - 1; y <= b.ay + d.h && b.lv == null; y++) for (let x = b.ax - 1; x <= b.ax + d.w; x++) {
+      const side = (y === b.ay - 1 || y === b.ay + d.h) !== (x === b.ax - 1 || x === b.ax + d.w);   // solo i 4 lati, non gli angoli
+      if (!side || !inMap(x, y) || !game.map[y][x].path || game.map[y][x].path === 'rail') continue;
+      b.lv = find(y * N + x); break;
+    }
+    if (b.lv == null) {
+      let best = null, bd = Infinity;
+      for (const p of poles) { const dd = distToBuilding(b, p.ax, p.ay); if (dd <= ELEC.poleReach && dd < bd) { best = p; bd = dd; } }
+      if (best) { b.lv = find(key(best)); lvLinks.push([best, b]); }
+    }
+  }
+  for (const b of all) if (b.lv != null) b.lv = find(b.lv);   // radici finali (le unioni dopo possono averle cambiate)
+  // --- alta tensione: tralicci
+  const hpar = new Map(pylons.map(p => [p.id, p.id]));
+  const hfind = i => { while (hpar.get(i) !== i) { hpar.set(i, hpar.get(hpar.get(i))); i = hpar.get(i); } return i; };
+  const wires = wireTree(pylons, ELEC.pylonRange, (a, b) => { const ra = hfind(a.id), rb = hfind(b.id); if (ra === rb) return false; hpar.set(ra, rb); return true; });
   for (const p of pylons) {   // le mensole di traverso rispetto ai fili
     let sx = 0, sy = 0;
     for (const [a, b] of wires) if (a === p || b === p) { sx += Math.abs(a.ax - b.ax); sy += Math.abs(a.ay - b.ay); }
     p.armV = sx >= sy;
   }
-  for (const o of subs.concat(plants)) {   // al traliccio più vicino entro linkRange
-    let best = null, bd = Infinity;
-    for (const p of pylons) { const d = distToBuilding(o, p.ax, p.ay); if (d <= ELEC.linkRange && d < bd) { best = p; bd = d; } }
-    if (best) { parent[find(idx.get(o.id))] = find(idx.get(best.id)); links.push([best, o]); }
+  const hvNets = new Map();
+  for (const p of pylons) {
+    p.hv = hfind(p.id);
+    if (!hvNets.has(p.hv)) hvNets.set(p.hv, { pylons: 0, outside: false });
+    const n = hvNets.get(p.hv); n.pylons++;
+    if (p.ax === 0 || p.ay === 0 || p.ax === N - 1 || p.ay === N - 1) n.outside = true;
   }
-  for (const sb of subs) for (const pl of plants)   // sottostazione accanto alla centrale: anche senza tralicci
-    if (distToBuilding(pl, sb.ax, sb.ay) <= ELEC.linkRange && find(idx.get(sb.id)) !== find(idx.get(pl.id))) {
-      parent[find(idx.get(sb.id))] = find(idx.get(pl.id)); links.push([sb, pl]);
-    }
-  const nets = new Map();
-  nodes.forEach((b, i) => {
-    const r = find(i);
-    if (!nets.has(r)) nets.set(r, { id: r, pylons: 0, subs: [], plants: [], outside: false, gen: 0, demand: 0, cover: 0, imported: 0 });
-    const n = nets.get(r);
-    b.net = r;
-    if (b.kind === 'pylon') { n.pylons++; if (b.ax === 0 || b.ay === 0 || b.ax === N - 1 || b.ay === N - 1) n.outside = true; }
-    else if (b.kind === 'substation') n.subs.push(b);
-    else n.plants.push(b);
-  });
-  // case e attività: la sottostazione più vicina entro subRadius
-  for (const b of all) {
-    if (!isConsumer(b)) continue;
+  const links = [];   // traliccio -> sottostazione
+  for (const s of all) {
+    if (s.kind !== 'substation') continue;
+    s.hv = null;
     let best = null, bd = Infinity;
-    for (const sb of subs) { const d = distToBuilding(b, sb.ax, sb.ay); if (d <= ELEC.subRadius && d < bd) { best = sb; bd = d; } }
-    b.net = best ? best.net : null;
+    for (const p of pylons) { const d = distToBuilding(s, p.ax, p.ay); if (d <= ELEC.linkRange && d < bd) { best = p; bd = d; } }
+    if (best) { s.hv = best.hv; links.push([best, s]); }
   }
-  game.elec = { ver: game.elecVer || 0, nets, wires, links, timer: 0 };
+  game.elec = { ver: game.elecVer || 0, hvNets, wires, links, lvWires, lvLinks, systems: new Map(), timer: 0 };
+}
+// sottostazione che lavora: strada, lavoratori, attaccata ai due lati
+function substationWorks(s) { return s.lv != null && s.hv != null && (s.workers || 0) > 0 && accessTiles(s).length > 0; }
+function systemOf(b) {
+  if (!game.elec) return null;
+  const k = b.kind === 'pylon' ? 'H' + b.hv : b.lv != null ? 'L' + b.lv : b.hv != null ? 'H' + b.hv : null;
+  return k ? game.elec.systems.get(game.elec.sysOf.get(k)) || null : null;
 }
 function updateGrid(gen, dt) {
-  if (!game.elec || game.elec.ver !== (game.elecVer || 0) || (game.elec.timer -= dt) <= 0) {   // ogni 2 s (case nuove) o se cambia la rete
+  if (!game.elec || game.elec.ver !== (game.elecVer || 0) || (game.elec.timer -= dt) <= 0) {   // ogni 2 s (case e strade nuove) o se cambia la rete
     buildElecNets(); game.elec.timer = 2;
   }
-  const nets = game.elec.nets;
-  for (const n of nets.values()) { n.gen = 0; n.demand = 0; }
-  for (const n of nets.values()) for (const p of n.plants) n.gen += p.power || 0;
-  for (const b of game.buildings.values()) if (isConsumer(b) && b.net != null && nets.has(b.net)) nets.get(b.net).demand += consumerDemand(b);
-  let tg = 0, td = 0, covered = 0, imported = 0;
-  for (const n of nets.values()) {
-    n.cover = !n.subs.length ? 0 : n.outside ? 1 : n.demand ? Math.min(1, n.gen / n.demand) : (n.gen > 0 ? 1 : 0);
-    n.imported = n.outside && n.subs.length ? Math.max(0, n.demand - n.gen) : 0;
-    tg += n.gen; td += n.demand; covered += n.demand * n.cover; imported += n.imported;
+  const E = game.elec, par = new Map();
+  const find = k => { let r = k; while (par.has(r) && par.get(r) !== r) r = par.get(r); par.set(k, r); return r; };
+  const all = [...game.buildings.values()];
+  for (const b of all) {
+    if (b.lv != null) find('L' + b.lv);
+    if (b.kind === 'substation') b.works = substationWorks(b);
+    if (b.kind === 'substation' && b.works) { const a = find('L' + b.lv), h = find('H' + b.hv); if (a !== h) par.set(a, h); }
+  }
+  for (const k of E.hvNets.keys()) find('H' + k);
+  const systems = new Map(), sysOf = new Map();
+  const sys = r => { if (!systems.has(r)) systems.set(r, { id: r, gen: 0, demand: 0, cover: 0, outside: false, imported: 0, exported: 0, plants: 0, subs: 0, pylons: 0, consumers: 0 }); return systems.get(r); };
+  for (const k of par.keys()) { const r = find(k); sysOf.set(k, r); sys(r); }
+  for (const [k, n] of E.hvNets) { const s = sys(sysOf.get('H' + k)); s.pylons += n.pylons; if (n.outside) s.outside = true; }
+  E.systems = systems; E.sysOf = sysOf;
+  for (const b of all) {
+    if (b.lv == null) continue;
+    const s = systems.get(sysOf.get('L' + b.lv));
+    if (POWER[b.kind]) { s.gen += b.power || 0; s.plants++; }
+    else if (b.kind === 'substation') { if (b.works) s.subs++; }
+    else if (isConsumer(b)) { s.demand += consumerDemand(b); s.consumers++; }
+  }
+  let tg = 0, td = 0, covered = 0, imported = 0, exported = 0;
+  for (const s of systems.values()) {
+    s.cover = !s.demand ? 0 : s.outside ? 1 : Math.min(1, s.gen / s.demand);
+    s.imported = s.outside ? Math.max(0, s.demand - s.gen) : 0;
+    s.exported = s.outside ? Math.max(0, s.gen - s.demand) : 0;
+    tg += s.gen; covered += s.demand * s.cover; imported += s.imported; exported += s.exported;
   }
   let allDemand = 0;
-  for (const b of game.buildings.values()) if (isConsumer(b)) {
-    const n = b.net != null && nets.get(b.net);
-    b.powered = n ? n.cover : 0;
+  for (const b of all) if (isConsumer(b)) {
+    const s = b.lv != null ? systems.get(sysOf.get('L' + b.lv)) : null;
+    b.powered = s ? s.cover : 0;
     allDemand += consumerDemand(b);
   }
+  td = allDemand;
   const g = game.grid = game.grid || { billTimer: GRID.billEvery, bills: 0 };
-  g.gen = Math.round(tg); g.demand = allDemand; g.imported = Math.round(imported);
-  g.cover = allDemand ? covered / allDemand : 0;
+  g.gen = Math.round(tg); g.demand = td; g.imported = Math.round(imported); g.exported = Math.round(exported);
+  g.cover = td ? covered / td : 0;
   g.billTimer -= dt;
-  if (g.billTimer <= 0) {   // bollette: ogni abitante con la corrente paga; la corrente comprata da fuori si paga
+  if (g.billTimer <= 0) {   // bollette: ogni abitante con la corrente paga; fuori mappa si compra e si vende
     g.billTimer += GRID.billEvery;
     let pay = 0;
-    for (const b of game.buildings.values()) if (b.kind === 'house') pay += (b.residents || 0) * GRID.bill * (b.powered || 0);
+    for (const b of all) if (b.kind === 'house') pay += (b.residents || 0) * GRID.bill * (b.powered || 0);
     pay = Math.round(pay);
-    const cost = Math.round(imported * ELEC.importPrice);
-    g.lastBills = pay; g.lastImport = cost;
-    if (pay || cost) { game.money += pay - cost; g.bills += pay; g.importCost = (g.importCost || 0) + cost; updateHud(); }
+    const cost = Math.round(imported * ELEC.importPrice), sold = Math.round(exported * ELEC.exportPrice);
+    g.lastBills = pay; g.lastImport = cost; g.lastExport = sold;
+    if (pay || cost || sold) {
+      game.money += pay - cost + sold; g.bills += pay;
+      g.importCost = (g.importCost || 0) + cost; g.exportIncome = (g.exportIncome || 0) + sold; updateHud();
+    }
   }
 }
 
@@ -549,12 +623,12 @@ function buildingStatus(b) {
   // casa senza strada accanto o non raggiungibile dalla strada principale
   if (b.kind === 'house') return (!accessTiles(b).length || b.unreachable) ? 'noRoad' : null;
   if (BUILDINGS[b.kind].water) return b.full ? 'full' : b.noInput ? 'noInput' : null;   // piattaforma: niente strada né lavoratori dalle case
-  if (b.kind === 'pylon') return null;   // tralicci: niente strada né lavoratori
-  if (b.kind === 'substation') { const n = game.elec && game.elec.nets.get(b.net); return n && (n.gen > 0 || n.outside) ? null : 'noInput'; }
+  if (b.kind === 'pylon' || b.kind === 'pole') return null;   // tralicci e pali: niente strada né lavoratori
   const need = JOBS[b.kind];
   if (need && (b.workers || 0) < need) return b.workers ? 'fewWorkers' : 'noWorkers';
   if (!accessTiles(b).length) return 'noRoad';
   if (b.full) return 'full';
+  if (b.kind === 'substation') return b.hv == null || b.lv == null ? 'noInput' : null;   // manca il traliccio o il cavo
   if (b.noInput) return 'noInput';
   if (b.empty) return 'empty';
   return null;

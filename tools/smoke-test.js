@@ -1298,9 +1298,7 @@ function check(cond, msg) {
     for (let hx = c - 34; hx <= c + 16; hx++) { useTool('house', hx, c - 1); useTool('house', hx, c - 2); }
     for (let hx = 0; hx < N; hx++) useTool('road', hx, c - 3);
     for (const h of game.buildings.values()) if (h.kind === 'house') h.residents = HOUSE_CAPACITY;
-    // rete: tralicci accanto alle centrali, poi su fino a una sottostazione vicino alle case
-    for (let px = c - 32; px <= c - 2; px += 5) useTool('pylon', px, c + 4);
-    useTool('pylon', c - 12, c + 3); useTool('pylon', c - 12, c - 4); useTool('substation', c - 12, c - 5);
+    // corrente: centrali e case sulla stessa strada (cavi sotto la strada, bassa tensione)
     recount();
     const B = k => [...game.buildings.values()].find(b => b.kind === k);
     const fo = B('forestry'), ki = B('charcoalKiln'), cp = B('coalPlant'), so = B('solarPlant'), wi = B('windPlant'), we = B('oilWell'),
@@ -1729,13 +1727,16 @@ function check(cond, msg) {
   });
   check(vb.start && vb.four && vb.max, 'furgoni: 2 all\'inizio, se ne comprano fino a 4: ' + JSON.stringify(vb));
 
-  // 62. rete elettrica: tralicci fino al bordo = corrente comprata da fuori; senza sottostazione niente corrente
+  // 62. corrente: bassa tensione sotto le strade e sui pali; tralicci (anche sull'acqua) fino al bordo
+  //     con una sottostazione (strada + lavoratori) = si compra da fuori; le centrali vendono fuori
   const pw = await page.evaluate(() => {
     clearVehicles(); newGame(21, 128); unlockAll(); game.started = true; if (menuIsOpen()) closeMenu();
     const N = game.size, c = N / 2;
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, rb: null, elev: 2, bridge: null });
     game.bridges = new Map(); rebuildBridgeIndex(); recount(); game.money = 1e7;
+    for (let x = c - 9; x <= c + 5; x++) useTool('road', x, c + 1);
     for (let x = c - 5; x <= c + 5; x++) useTool('house', x, c);
+    useTool('house', c + 12, c + 8);   // casa lontana, senza strada
     for (const h of game.buildings.values()) if (h.kind === 'house') h.residents = HOUSE_CAPACITY;
     const r = {};
     simUpdate(0.1); r.none = [...game.buildings.values()].every(b => !b.powered);
@@ -1744,19 +1745,63 @@ function check(cond, msg) {
     for (let x = 0; x <= c - 8; x++) paintTo({ x, y: c - 2 });
     lastTile = null; setTool('hand');
     r.pylons = [...game.buildings.values()].filter(b => b.kind === 'pylon').length;
-    useTool('substation', c - 7, c - 2);
+    useTool('substation', c - 8, c);
     const m0 = game.money;
     for (let i = 0; i < 260; i++) simUpdate(0.1);
-    const n = game.elec.nets.get(game.map[c - 2][c - 7].building.net);
+    const sub = game.map[c][c - 8].building, n = systemOf(sub);
+    r.subWorks = !!sub.works && sub.workers > 0;
     r.outside = !!n && n.outside && n.cover === 1 && n.imported > 0;
-    r.powered = [...game.buildings.values()].filter(b => b.kind === 'house').every(b => b.powered === 1);
+    const far = game.map[c + 8][c + 12].building;
+    r.powered = [...game.buildings.values()].filter(b => b.kind === 'house' && b !== far).every(b => b.powered === 1);
+    r.farDark = !far.powered;
     r.paid = game.grid.importCost > 0 && game.grid.bills > 0;
     r.wires = game.elec.wires.length >= r.pylons - 1;
-    r.industries = game.industries === 0;
+    r.industries = game.industries === 1;   // la sottostazione sì, i tralicci no
+    // pali di legno: dalla strada fino alla casa lontana
+    setTool('pole'); game.lastPylon = null; lastTile = null;
+    for (let y = c + 2; y <= c + 8; y++) paintTo({ x: c + 6, y });
+    for (let x = c + 7; x <= c + 11; x++) paintTo({ x, y: c + 8 });
+    lastTile = null; setTool('hand');
+    for (let i = 0; i < 30; i++) simUpdate(0.1);
+    r.poles = [...game.buildings.values()].filter(b => b.kind === 'pole').length;
+    r.farLit = far.powered === 1;
+    // senza strada la sottostazione non lavora: la corrente da fuori non arriva più
+    useTool('demolish', c - 8, c + 1); useTool('demolish', c - 9, c + 1);
+    for (let i = 0; i < 30; i++) simUpdate(0.1);
+    r.noRoadStops = !sub.works && game.map[c][c - 5].building.powered === 0;
+    // traliccio sull'acqua
+    Object.assign(game.map[5][40], { type: T.WATER, elev: 0 });
+    r.water = useTool('pylon', 40, 5).ok === true;
     return r;
   });
   check(pw.none && pw.pylons >= 5 && pw.pylons <= 13 && pw.wires, `tralicci trascinati uno ogni 5 tile (${pw.pylons}) e collegati con i fili`);
-  check(pw.outside && pw.powered && pw.paid && pw.industries, 'rete collegata fuori mappa: case con la corrente, bollette e corrente comprata: ' + JSON.stringify(pw));
+  check(pw.outside && pw.subWorks && pw.powered && pw.farDark && pw.paid && pw.industries, 'fuori mappa -> tralicci -> sottostazione -> strade: case con la corrente, bollette e corrente comprata: ' + JSON.stringify(pw));
+  check(pw.poles >= 2 && pw.poles <= 5 && pw.farLit && pw.noRoadStops && pw.water, 'pali della luce, sottostazione senza strada ferma, traliccio sull\'acqua: ' + JSON.stringify(pw));
+
+  // 63. centrali a bassa tensione: la corrente in più passa dalla sottostazione e si vende fuori mappa
+  const ex = await page.evaluate(() => {
+    clearVehicles(); newGame(22, 128); unlockAll(); game.started = true; if (menuIsOpen()) closeMenu();
+    const N = game.size, c = N / 2;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, rb: null, elev: 2, bridge: null });
+    game.bridges = new Map(); rebuildBridgeIndex(); recount(); game.money = 1e7;
+    for (let x = c - 10; x <= c + 10; x++) useTool('road', x, c + 2);
+    const r = {};
+    r.solar = useTool('solarPlant', c - 2, c).ok && useTool('solarPlant', c + 2, c).ok;
+    for (let x = c - 10; x <= c - 4; x++) useTool('house', x, c + 3);
+    for (const h of game.buildings.values()) if (h.kind === 'house') h.residents = 2;
+    updateJobs = (orig => () => { orig(); for (const b of game.buildings.values()) if (JOBS[b.kind]) b.workers = JOBS[b.kind]; })(updateJobs);
+    useTool('substation', c + 6, c + 1);
+    for (let y = 0; y <= c - 1; y += 5) useTool('pylon', c + 6, y);
+    useTool('pylon', c + 6, c - 1);
+    const m0 = game.money;
+    for (let i = 0; i < 400; i++) simUpdate(0.1);
+    const s = systemOf(game.map[c + 1][c + 6].building);
+    r.sys = s && { gen: s.gen, demand: s.demand, outside: s.outside, exported: s.exported };
+    r.sold = !!s && s.outside && s.exported > 0 && game.grid.exportIncome > 0;
+    r.houses = [...game.buildings.values()].filter(b => b.kind === 'house').every(b => b.powered === 1);
+    return r;
+  });
+  check(ex.solar && ex.sold && ex.houses, 'pannelli solari: corrente alle case vicine e quella in più venduta fuori mappa: ' + JSON.stringify(ex));
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();
