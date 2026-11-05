@@ -1,7 +1,8 @@
 name: Build Windows
 
 # Crea il programma da scaricare per Windows (installatore + versione portatile).
-# Parte da solo quando si spinge un tag "v..." (es. v0.2.0) e mette i file in una Release di GitHub:
+# Si avvia da GitHub (Actions -> Build Windows -> Run workflow) o con un tag "v...": crea la Release
+# con il numero di versione di package.json (es. v0.2.0) e ci mette i file da scaricare:
 # https://github.com/FlattFall/city-builder/releases
 on:
   workflow_dispatch:
@@ -23,15 +24,20 @@ jobs:
       - run: npm run dist
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
+      - name: Versione
+        id: ver
+        shell: bash
+        run: echo "tag=v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
           name: supplyville-windows
           path: dist/*.exe
       - name: Release
-        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          name: Supplyville ${{ github.ref_name }}
+          tag_name: ${{ steps.ver.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Supplyville ${{ steps.ver.outputs.tag }}
           files: dist/*.exe
           body: |
             **Supplyville** - city builder isometrico in stile retro.
