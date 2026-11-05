@@ -77,7 +77,7 @@ const BUILDINGS = {
   // acqua (richiesta dell'utente): tubi sotto tutte le strade; pozzo sulle falde, depuratore sul mare, scarico sull'acqua
   waterWell:  { name: "Pozzo dell'acqua", w: 1, h: 1, cost: 700, height: 18, group: 'water', groundwater: true },
   waterPlant: { name: "Depuratore dell'acqua di mare", w: 2, h: 2, cost: 3000, height: 22, group: 'water', coast: true },   // il retro sul mare
-  sewage:     { name: 'Scarico delle acque sporche', w: 1, h: 1, cost: 400, height: 8, group: 'water', infra: true, onWater: true },
+  sewage:     { name: 'Scarico delle acque sporche', w: 2, h: 2, cost: 800, height: 16, group: 'water', infra: true, coast: true },   // in riva al mare: il tubo scarica dal retro
   // bus (richiesta dell'utente): portano la gente a lavorare da una fermata all'altra
   busStop:    { name: 'Fermata del bus', w: 1, h: 1, cost: 150, height: 14, group: 'bus', infra: true },
   busDepot:   { name: 'Deposito dei bus', w: 2, h: 2, cost: 2500, height: 22, group: 'bus' },
@@ -368,6 +368,7 @@ const MAX_ELEV = 14;
 const START_MONEY = 50000;
 const COSTS = {
   field: 5,
+  pipe: 5,          // tubo dell'acqua (sotto terra) per collegare scarico, pozzi... alle strade
   demolishPath: 5,
   demolishBuilding: 20,
   demolishField: 1,

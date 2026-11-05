@@ -28,17 +28,18 @@ function buildingData(b) {
 
 function serializeGame() {
   const N = game.size, base = game.base;
-  const diffs = [], paths = [], fields = [];
+  const diffs = [], paths = [], fields = [], pipes = [];
   for (let y = 0; y < N; y++)
     for (let x = 0; x < N; x++) {
       const t = game.map[y][x], i = y * N + x;
       if (t.type !== base.type[i] || t.elev !== base.elev[i]) diffs.push([x, y, t.type, t.elev]);
       if (t.path) paths.push(t.path === 'oneway' ? [x, y, PATH_CODES[t.path], t.main ? 1 : 0, t.dir ?? 1] : [x, y, PATH_CODES[t.path], t.main ? 1 : 0]);
       if (t.field) fields.push([x, y, t.farm || 0]);
+      if (t.pipe) pipes.push(i);
     }
   return {
     v: 3, seed: game.seed, size: N, money: game.money, nextId: game.nextId,
-    entries: game.entries, diffs, paths, fields,
+    entries: game.entries, diffs, paths, fields, pipes,
     buildings: [...game.buildings.values()].map(buildingData),
     unlocked: game.unlocked ? [...game.unlocked] : undefined,   // assente = tutto sbloccato
     bridges: [...game.bridges.values()].map(b => ({ id: b.id, kind: b.kind || 'bridge', x0: b.x0, y0: b.y0, d: b.d, n: b.n, e: b.e, main: b.main || undefined, path: b.path || undefined })),
@@ -100,9 +101,11 @@ function loadGame(id) {
     }
     rebuildBridgeIndex();
     for (const [x, y, farm] of d.fields) { game.map[y][x].field = true; game.map[y][x].farm = farm || null; }
+    for (const i of d.pipes || []) { const x = i % d.size, y = (i - x) / d.size; if (inMap(x, y)) game.map[y][x].pipe = true; }
     for (const bd of d.buildings) {
       if (LIVESTOCK[bd.kind]) { bd.animal = bd.kind; bd.kind = 'livestock'; }   // allevamenti separati di prima
       if (!BUILDINGS[bd.kind]) continue;
+      if (bd.kind === 'sewage' && game.map[bd.ay] && game.map[bd.ay][bd.ax] && game.map[bd.ay][bd.ax].type === T.WATER) continue;   // vecchio scarico 1x1 sull'acqua: non c'è più
       const b = initEconomy(Object.assign({}, bd, bd.kind === 'house' ? { incoming: 0 } : {}));
       for (const p of footprint(b.kind, b.ax, b.ay)) if (inMap(p.x, p.y)) game.map[p.y][p.x].building = b;
     }

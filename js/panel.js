@@ -483,6 +483,7 @@ function waterBusSection(box, b) {
   }
   if (b.kind === 'sewage') {
     box.appendChild(liveText('div', 'prow', () => TR('Acque sporche portate via: {a} / {b}', { a: Math.round(b.flow || 0), b: WATER.sewage })));
+    box.appendChild(liveText('div', 'pwarn', () => b.wnet == null ? TR("Non collegato: trascina un tubo dell'acqua fino a una strada.") : ''));
     box.appendChild(el('div', 'pnote', TR("Più acqua sporca = macchia marrone più grande intorno allo scarico.")));
   }
   if (b.kind === 'busStop') box.appendChild(liveText('div', b.depot ? 'pnote' : 'pwarn', () => b.depot

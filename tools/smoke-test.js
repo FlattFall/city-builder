@@ -1921,8 +1921,16 @@ function check(cond, msg) {
     updateJobs = (orig => () => { orig(); well.workers = JOBS.waterWell; })(updateJobs);
     for (let i = 0; i < 30; i++) simUpdate(0.1);
     r.noSewer = h.watered < 0.5;   // senza scarico l'acqua non basta
-    r.sewageLand = !useTool('sewage', 50, c - 2).ok;
-    r.sewage = useTool('sewage', N - 6, c).ok;   // sull'acqua alla fine della strada
+    r.sewageLand = !useTool('sewage', 50, c - 4).ok;   // lontano dal mare: no
+    game.rotation = 0;
+    for (const rr of [0, 1, 2, 3]) { game.rotation = rr; if (useTool('sewage', N - 8, c - 6).ok) { r.sewage = true; break; } }   // in riva, lontano dalla strada
+    game.rotation = 0;
+    const sw = game.map[c - 6][N - 8].building;
+    for (let i = 0; i < 20; i++) simUpdate(0.1);
+    r.notLinked = sw && sw.wnet == null && buildingStatus(sw) === 'noWater' && game.tool === 'pipe';
+    // tubo dallo scarico alla strada
+    for (let y = c - 4; y < c; y++) useTool('pipe', N - 8, y);
+    useTool('pipe', N - 8, c - 5);
     for (let i = 0; i < 40; i++) simUpdate(0.1);
     r.wet = h.watered >= 0.5 && houseCap(h) === HOUSE_CAPACITY && buildingStatus(h) !== 'noWater';
     r.stain = game.water.stain.size > 0;
@@ -1944,7 +1952,7 @@ function check(cond, msg) {
   check(nw.up1 && nw.upMax, 'miglioramenti: fino a 3, costano e fanno lavorare più in fretta: ' + JSON.stringify(nw));
   check(nw.mixed, 'furgone con merci diverse per la stessa destinazione: ' + JSON.stringify(nw));
   check(nw.accident && nw.stopped, 'incidente stradale: costa soldi e i veicoli restano fermi: ' + JSON.stringify(nw));
-  check(nw.dry && nw.well && nw.noSewer && nw.sewageLand && nw.sewage && nw.wet && nw.stain, 'acqua: pozzo + scarico sull\'acqua, case con l\'acqua, macchia marrone: ' + JSON.stringify(nw));
+  check(nw.dry && nw.well && nw.noSewer && nw.sewageLand && nw.sewage && nw.notLinked && nw.wet && nw.stain, 'acqua: pozzo + scarico sull\'acqua, case con l\'acqua, macchia marrone: ' + JSON.stringify(nw));
   check(nw.busJobs && nw.busOut, 'bus: lavoratori da case lontane con le fermate, bus in giro: ' + JSON.stringify(nw));
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));

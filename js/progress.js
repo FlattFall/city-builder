@@ -3,7 +3,7 @@
 // il resto si sblocca pagando, nella finestra Progressi (tasto P). Alcune cose ne vogliono
 // prima un'altra (needs). I salvataggi di prima (senza "unlocked") hanno tutto sbloccato.
 const START_TOOLS = ['hand', 'road', 'dirt', 'house', 'farm', 'warehouse', 'supermarket', 'field', 'demolish', 'raise', 'lower', 'level',
-  'pylon', 'pole', 'substation', 'waterWell', 'sewage'];   // anche l'acqua: pozzo e scarico da subito   // corrente: tralicci, pali e sottostazione sbloccati da subito (richiesta dell'utente)
+  'pylon', 'pole', 'substation', 'waterWell', 'sewage', 'pipe'];   // anche l'acqua: pozzo e scarico da subito   // corrente: tralicci, pali e sottostazione sbloccati da subito (richiesta dell'utente)
 const START_CROPS = ['wheat', 'carrot', 'potato'];
 
 const UNLOCKS = [

@@ -360,6 +360,7 @@ function newGame(seed, size) {
   if (typeof refreshSpeed === 'function') refreshSpeed();
   if (typeof resetUnlocks === 'function') resetUnlocks();   // mappa nuova: si parte con poco (progress.js)
   game.pathKeys = new Set();
+  game.pipes = new Set();
   game.buildings = new Map();
   game.nextId = 1;
   game.fieldMode = null;
@@ -391,6 +392,7 @@ function recount() {
   game.employed = 0;
   game.maxElev = 0;
   game.pathKeys = new Set();
+  game.pipes = new Set();
   game.buildings = new Map();
   for (let y = 0; y < game.size; y++)
     for (let x = 0; x < game.size; x++) {
@@ -398,6 +400,7 @@ function recount() {
       if (t.elev > game.maxElev) game.maxElev = t.elev;
       if (t.path) { game.pathKeys.add(y * game.size + x); if (t.path === 'rail') game.rails++; else game.roads++; }
       if (t.field) game.fields++;
+      if (t.pipe) game.pipes.add(y * game.size + x);
       if (t.building && t.building.ax === x && t.building.ay === y) {
         const b = t.building;
         game.buildings.set(b.id, b);
@@ -466,6 +469,12 @@ function checkTool(tool, x, y) {
     if (tool === 'level' && game.levelTarget != null && t.elev === game.levelTarget) return { silent: true };
     return null;
   }
+  if (tool === 'pipe') {   // tubo dell'acqua sotto terra: non sull'acqua né sotto gli edifici; sotto le strade c'è già
+    if (t.type === T.WATER) return { msg: TR("I tubi non vanno nell'acqua") };
+    if (t.pipe || pipePath(t)) return { silent: true };
+    if (t.building) return { msg: TR('Tile occupato') };
+    return null;
+  }
   if (tool === 'field') {
     // i campi si mettono solo dalla fattoria (modalità campi)
     if (!game.fieldMode) return { msg: TR('I campi si mettono dalla fattoria') };
@@ -494,15 +503,11 @@ function checkTool(tool, x, y) {
     }
     if (b.coast && !dockTiles({ kind: tool, ax: x, ay: y, rot: game.rotation }).length)
       return { msg: tool === 'port' ? TR('Il retro del porto deve dare sull\'acqua (R per ruotarlo): davanti la strada, dietro il mare')
+        : tool === 'sewage' ? TR('Lo scarico va costruito in riva al mare: il retro sull\'acqua (R per ruotarlo)')
         : TR('Il retro del depuratore deve dare sul mare (R per ruotarlo): davanti la strada, dietro il mare') };
     if (b.oil && !oilUnder(tool, x, y)) return { msg: TR('Qui sotto non c\'è petrolio (scegli una zona scura)') };
     if (b.groundwater && !groundwaterAt(x, y)) return { msg: TR("Qui sotto non c'è acqua (scegli una zona azzurra)") };
-    if (b.onWater) {   // scarico: sull'acqua, accanto a una strada sulla riva (i tubi arrivano da lì)
-      const q = game.map[y][x];
-      if (q.type !== T.WATER || q.building || q.bridge) return { msg: TR("Lo scarico va messo sull'acqua, accanto a una strada") };
-      if (!DIRS.some(D => inMap(x + D.dx, y + D.dy) && pipePath(game.map[y + D.dy][x + D.dx]))) return { msg: TR("Lo scarico va messo sull'acqua, accanto a una strada") };
-      return null;
-    }
+
     for (const p of footprint(tool, x, y)) {
       if (!inMap(p.x, p.y)) return { msg: TR('Fuori dalla mappa') };
       const q = game.map[p.y][p.x];
@@ -540,6 +545,7 @@ function demolishTarget(x, y) {
   if (t.building) return 'building';
   if (t.path) return 'path';
   if (t.field) return 'field';
+  if (t.pipe) return 'pipe';
   if (t.type === T.FOREST) return 'tree';
   if (t.bridge) return bridgeOver(t) ? 'bridge' : 'tunnel';
   return null;
@@ -554,6 +560,7 @@ function toolCost(tool, x, y) {
   const forest = t.type === T.FOREST ? COSTS.clearForest : 0;
   if (PATHS[tool]) return t.path === tool ? 0 : PATHS[tool].cost + (t.path ? 0 : forest);
   if (tool === 'field') return t.field ? 0 : COSTS.field;
+  if (tool === 'pipe') return COSTS.pipe;
   if (tool === 'raise' || tool === 'lower') return COSTS.terrain;
   if (tool === 'level') return COSTS.terrain * Math.abs((game.levelTarget ?? t.elev) - t.elev);
   if (BUILDINGS[tool]) return BUILDINGS[tool].cost;
@@ -589,6 +596,9 @@ function useTool(tool, x, y) {
       fillDips(x, y);
     }
     updateRoundabouts();
+  } else if (tool === 'pipe') {
+    t.pipe = true; game.pipes.add(y * game.size + x);
+    if (typeof elecChanged === 'function') elecChanged();
   } else if (tool === 'field') {
     if (t.type === T.FOREST) t.type = T.GRASS;
     if (!t.field) game.fields++;
@@ -608,6 +618,7 @@ function useTool(tool, x, y) {
     if (tool === 'house') game.houses++; else if (!BUILDINGS[tool].infra) game.industries++;
     if (typeof elecChanged === 'function') elecChanged();   // la rete elettrica si ricalcola
     if (tool === 'farm' && typeof onFarmPlaced === 'function') onFarmPlaced(b);
+    if (tool === 'sewage' && typeof onSewagePlaced === 'function') onSewagePlaced(b);
   } else if (tool === 'raise' || tool === 'lower' || tool === 'level') {
     const target = tool === 'raise' ? t.elev + 1 : tool === 'lower' ? t.elev - 1 : game.levelTarget;
     noteTerrainUndo(x, y, toolCost(tool, x, y));
@@ -626,6 +637,9 @@ function useTool(tool, x, y) {
       if (t.path === 'rail') game.rails--; else game.roads--;
       setPath(x, y, null);
       updateRoundabouts();
+    } else if (demolishTarget(x, y) === 'pipe') {
+      t.pipe = false; game.pipes.delete(y * game.size + x);
+      if (typeof elecChanged === 'function') elecChanged();
     } else if (t.field) {
       const farm = t.farm && game.buildings.get(t.farm);
       t.field = false; t.farm = null;

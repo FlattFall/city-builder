@@ -825,7 +825,6 @@ function drawBuildingOn(c, x, y, b) {
   if (b.kind === 'bakery') { drawBakery(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (b.kind === 'charcoalKiln') { drawCharcoalKiln(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (b.kind === 'waterWell') { drawWaterWell(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
-  if (b.kind === 'sewage') { drawSewage(c, x, y, game.map[y][x].elev); return; }
   if (b.kind === 'busStop') { drawBusStop(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (b.kind === 'pylon') { drawPylon(c, x, y, game.map[y][x].elev, b.armV !== false, game.map[y][x].type === T.WATER); return; }
   if (b.kind === 'pole') { drawPole(c, x, y, game.map[y][x].elev, b.armV !== false, b.feed); return; }
@@ -848,6 +847,7 @@ function drawBuildingOn(c, x, y, b) {
   else if (b.kind === 'sawmill') drawSawmill(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'furnitureFactory') drawFurnitureFactory(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'furnitureStore') drawFurnitureStore(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'sewage') drawSewage(c, b.ax, b.ay, base, b.rot || 0, b.flow || 0);
   else if (b.kind === 'waterPlant') drawWaterPlant(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'busDepot') drawBusDepot(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'livestock') drawLivestock(c, b.ax, b.ay, base, b.rot || 0, b.animal || 'cowFarm', b.level || 0);
@@ -1254,7 +1254,7 @@ function withPreview(p, draw) {
   const tool = game.tool;
   const t = game.map[p.y][p.x];
   const saved = footprint(BUILDINGS[tool] ? tool : 'house', p.x, p.y).map(q => [q, game.map[q.y][q.x].building]);
-  const savedField = t.field;
+  const savedField = t.field, savedPipe = t.pipe;
   const old = { path: t.path, main: t.main, dir: t.dir };
   if (PATHS[tool]) {
     if (old.path) t.path = tool; else setPath(p.x, p.y, tool);
@@ -1262,6 +1262,7 @@ function withPreview(p, draw) {
     updateRoundabouts();
   }
   else if (tool === 'field') t.field = true;
+  else if (tool === 'pipe' && !checkTool('pipe', p.x, p.y)) t.pipe = true;
   else if (BUILDINGS[tool]) {
     const b = { kind: tool, variant: houseVariant(p.x, p.y), ax: p.x, ay: p.y, rot: game.rotation, animal: tool === 'livestock' ? defaultAnimal(p.x, p.y) : undefined };
     for (const [q] of saved) game.map[q.y][q.x].building = b;
@@ -1272,7 +1273,7 @@ function withPreview(p, draw) {
       if (old.dir === undefined) delete t.dir;
       updateRoundabouts();
     }
-    t.field = savedField;
+    t.field = savedField; t.pipe = savedPipe;
     for (const [q, b] of saved) game.map[q.y][q.x].building = b;
   }
 }
@@ -1441,6 +1442,7 @@ function drawFrame() {
     if (inArea(x, y) && !game.map[y][x].building) drawAreaTile(x, y);
     if (oilView) drawOilSpot(ctx, x, y);
     if (game.tool === 'waterWell') drawWaterSpot(ctx, x, y);
+    if (WATER_TOOLS.includes(game.tool)) drawPipeView(ctx, x, y);
     if (pv && inPreview(x, y)) {
       ctx.globalAlpha = 0.75;
       withPreview(pv, () => drawTile(ctx, x, y, detail, true));
