@@ -1476,6 +1476,7 @@ function drawFrame() {
   }
   drawPowerLines(ctx);
   if ((game.tool === 'pylon' || game.tool === 'pole') && game.hover) drawPylonPreview(ctx, game.hover, game.tool === 'pole');
+  if (game.tool === 'substation' && game.hover) drawSubstationPreview(ctx, game.hover);
   if (ELEC_TOOLS.includes(game.tool)) drawPowerIcons(ctx);
   drawWorkerIcons(ctx);
   if (sel) drawOwnVehicles(ctx, sel);
@@ -1559,6 +1560,56 @@ function drawPylonPreview(c, h, lv) {
   c.fillStyle = '#6fe3ff'; c.fillText(txt, sx, sy - 40 * T0.a / 2 - 3);
   c.restore();
 }
+// Con la sottostazione in mano (richiesta dell'utente): prima di piazzarla si vede a cosa si collegherà.
+// Azzurro = il traliccio più vicino entro ELEC.linkRange (alta tensione); giallo = la bassa tensione
+// (strada asfaltata accanto o palo della luce entro ELEC.poleReach). Se manca qualcosa, una scritta lo dice.
+function drawSubstationPreview(c, h) {
+  if (!inMap(h.x, h.y)) return;
+  const e = game.map[h.y][h.x].elev, from = iso(h.x, h.y, 0.7, 0.62, e + 17 / STEP);
+  const fake = { kind: 'substation', ax: h.x, ay: h.y };
+  let pyl = null, pd = Infinity;
+  for (const b of game.buildings.values()) {
+    if (b.kind !== 'pylon') continue;
+    const d = distToBuilding(fake, b.ax, b.ay);
+    if (d <= ELEC.linkRange && d < pd) { pyl = b; pd = d; }
+  }
+  let road = null;
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const x = h.x + dx, y = h.y + dy;
+    if (inMap(x, y) && cablePath(game.map[y][x])) { road = [x, y]; break; }
+  }
+  let pole = null;
+  if (!road) {
+    let bd = Infinity;
+    for (const b of game.buildings.values()) {
+      if (b.kind !== 'pole') continue;
+      const d = distToBuilding(fake, b.ax, b.ay);
+      if (d <= ELEC.poleReach && d < bd) { pole = b; bd = d; }
+    }
+  }
+  c.save(); c.setLineDash([4, 3]); c.lineWidth = 1.6;
+  if (pyl) {
+    c.strokeStyle = '#6fe3ff';
+    c.beginPath(); c.moveTo(...from); c.lineTo(...iso(pyl.ax, pyl.ay, 0.5, 0.5, game.map[pyl.ay][pyl.ax].elev + (game.map[pyl.ay][pyl.ax].type === T.WATER ? 3 / STEP : 0) + (PYLON_ARM - 3) / STEP)); c.stroke();
+  }
+  c.strokeStyle = '#ffd34d';
+  if (road) { c.beginPath(); c.moveTo(...iso(h.x, h.y, 0.5, 0.5, e + 2 / STEP)); c.lineTo(...iso(road[0], road[1], 0.5, 0.5, game.map[road[1]][road[0]].elev + 1 / STEP)); c.stroke(); }
+  else if (pole) { c.beginPath(); c.moveTo(...from); c.lineTo(...iso(pole.ax, pole.ay, 0.5, 0.5, game.map[pole.ay][pole.ax].elev + POLE_TOP / STEP)); c.stroke(); }
+  c.setLineDash([]);
+  // scritta a grandezza fissa: cosa c'è e cosa manca
+  const lines = [
+    [pyl ? '#6fe3ff' : '#ff8a8a', pyl ? TR('✓ Traliccio collegato (alta tensione)') : TR('✗ Nessun traliccio entro {n} tile', { n: ELEC.linkRange })],
+    [road || pole ? '#ffd34d' : '#ff8a8a', road ? TR('✓ Strada accanto (bassa tensione)') : pole ? TR('✓ Palo della luce collegato (bassa tensione)') : TR('✗ Serve una strada asfaltata accanto o un palo della luce')],
+  ];
+  const T0 = c.getTransform(), sx = T0.a * from[0] + T0.e, sy = T0.d * from[1] + T0.f;
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.font = 'bold 12px monospace'; c.textAlign = 'left';
+  const w = Math.max(...lines.map(l => c.measureText(l[1]).width)) + 10, top = sy + 30 * T0.a / 2 + 6;   // sotto, così non copre i fili
+  c.fillStyle = 'rgba(14,15,26,0.85)'; c.fillRect(sx - w / 2, top, w, 36);
+  lines.forEach(([col, t], i) => { c.fillStyle = col; c.fillText(t, sx - w / 2 + 5, top + 14 + i * 16); });
+  c.restore();
+}
+
 // Con gli strumenti dell'energia: sopra case e attività un fulmine giallo (corrente) o grigio (senza)
 function drawPowerIcons(c) {
   for (const b of game.buildings.values()) {
