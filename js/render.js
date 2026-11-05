@@ -824,6 +824,9 @@ function drawBuildingOn(c, x, y, b) {
   }
   if (b.kind === 'bakery') { drawBakery(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (b.kind === 'charcoalKiln') { drawCharcoalKiln(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
+  if (b.kind === 'waterWell') { drawWaterWell(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
+  if (b.kind === 'sewage') { drawSewage(c, x, y, game.map[y][x].elev); return; }
+  if (b.kind === 'busStop') { drawBusStop(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (b.kind === 'pylon') { drawPylon(c, x, y, game.map[y][x].elev, b.armV !== false, game.map[y][x].type === T.WATER); return; }
   if (b.kind === 'pole') { drawPole(c, x, y, game.map[y][x].elev, b.armV !== false, b.feed); return; }
   if (b.kind === 'substation') { drawSubstation(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
@@ -845,7 +848,9 @@ function drawBuildingOn(c, x, y, b) {
   else if (b.kind === 'sawmill') drawSawmill(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'furnitureFactory') drawFurnitureFactory(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'furnitureStore') drawFurnitureStore(c, b.ax, b.ay, base, b.rot || 0);
-  else if (b.kind === 'livestock') drawLivestock(c, b.ax, b.ay, base, b.rot || 0, b.animal || 'cowFarm');
+  else if (b.kind === 'waterPlant') drawWaterPlant(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'busDepot') drawBusDepot(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'livestock') drawLivestock(c, b.ax, b.ay, base, b.rot || 0, b.animal || 'cowFarm', b.level || 0);
   else if (b.kind === 'coalPlant') drawCoalPlant(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'solarPlant') drawSolarPlant(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'windPlant') drawWindPlant(c, b.ax, b.ay, base, b.rot || 0);
@@ -872,7 +877,7 @@ const SHEDS = {
   pigFarm: { box: [0.1, 0.1, 1.0, 0.6], h: 8, col: { l: '#b08a5a', r: '#8a6a42', t: '#b08a5a' }, roof: { rh: 4, back: '#5a4036', roof: '#7a5a3a', gable: '#8a6a42' } },
   sheepFarm: { box: [0.1, 0.1, 0.85, 0.6], h: 9, col: { l: '#a07c4c', r: '#7d5f38', t: '#a07c4c' }, roof: { rh: 5, back: '#4a3a2a', roof: '#6b5a42', gable: '#7d5f38' } },
 };
-function drawLivestock(c, ax, ay, base, r, kind) {
+function drawLivestock(c, ax, ay, base, r, kind, level = UPGRADE.max) {
   const P = (u, v, h) => iso(ax, ay, u, v, h);
   const A = ANIMALS[kind];
   // recinto: lati (senza rotazione) con il varco dell'entrata su v = 2, u da 0 a 1
@@ -890,7 +895,9 @@ function drawLivestock(c, ax, ay, base, r, kind) {
   fence.filter(f => !isFront(f)).forEach(drawFence);
   groundRect(c, ax, ay, base, [0.3, 1.7, 0.7, 2.0], r, '#a07c4c');      // passaggio dell'entrata
   const parts = [Object.assign({}, SHEDS[kind])];
-  for (const [u, v] of A.at) {
+  // più miglioramenti = più animali (mucche: 1 all'inizio, 4 al massimo; gli altri in proporzione)
+  const shown = Math.max(1, Math.ceil(A.at.length * (Math.min(level, UPGRADE.max) + 1) / (UPGRADE.max + 1)));
+  for (const [u, v] of A.at.slice(0, shown)) {
     parts.push({ box: [u - A.len, v - A.wid, u + A.len, v + A.wid], h: A.h, col: A.col,
       after(b, top) {
         // testa sul lato +u (dopo la rotazione su uno dei lati del corpo) e macchie per le mucche
@@ -1087,6 +1094,7 @@ function drawTile(c, x, y, detail, onlyTop) {
   poly(c, [P(0, 0), P(1, 0), P(1, 1), P(0, 1)], top);
   if (detail && t.type === T.WATER) {
     waterDetail(c, x, y, P);
+    drawStain(c, x, y, P);
     const foam = 0.45 + 0.35 * Math.sin(animT * 1.6 + (x + y) * 0.7);   // schiuma lungo la riva
     for (let d = 0; d < 4; d++) {
       const nx = x + DIRS[d].dx, ny = y + DIRS[d].dy;
@@ -1432,6 +1440,7 @@ function drawFrame() {
     drawTile(ctx, x, y, detail);
     if (inArea(x, y) && !game.map[y][x].building) drawAreaTile(x, y);
     if (oilView) drawOilSpot(ctx, x, y);
+    if (game.tool === 'waterWell') drawWaterSpot(ctx, x, y);
     if (pv && inPreview(x, y)) {
       ctx.globalAlpha = 0.75;
       withPreview(pv, () => drawTile(ctx, x, y, detail, true));
@@ -1479,6 +1488,7 @@ function drawFrame() {
   if (game.tool === 'substation' && game.hover) drawSubstationPreview(ctx, game.hover);
   if (ELEC_TOOLS.includes(game.tool)) drawPowerIcons(ctx);
   drawWorkerIcons(ctx);
+  for (const v of vehicles) if (v.crash > 0 && v.pos) drawCrash(ctx, v);   // incidenti: sopra a tutto, si devono vedere
   if (sel) drawOwnVehicles(ctx, sel);
   DETAIL = true; FINE = true;   // icone e altri disegni fuori dal fotogramma: sempre dettagliati
 }
@@ -1637,7 +1647,7 @@ function drawSelection(c, b) {
 // Icone di stato sopra le attività:
 //  persona rossa/arancione = mancano lavoratori, scatola arancione = deposito pieno,
 //  cassa vuota blu = mancano materie prime, scaffale viola = supermercato senza merce
-const STATUS_COLORS = { noWorkers: '#d94141', fewWorkers: '#e8a33a', full: '#e07b39', noInput: '#3f6fd9', empty: '#8e5bd1', noRoad: '#5b5b66', noPower: '#c99a1e' };
+const STATUS_COLORS = { noWorkers: '#d94141', fewWorkers: '#e8a33a', full: '#e07b39', noInput: '#3f6fd9', empty: '#8e5bd1', noRoad: '#5b5b66', noPower: '#c99a1e', noWater: '#2f7fd0' };
 function drawWorkerIcons(c) {
   for (const b of game.buildings.values()) {
     const st = buildingStatus(b);
@@ -1667,6 +1677,10 @@ function drawStatusIcon(c, st, x, y) {
     } else if (st === 'noRoad') {                                     // strada sbarrata
       c.fillRect(x - 3.5, y - 3, 1, 6); c.fillRect(x + 2.5, y - 3, 1, 6);
       c.fillRect(x - 0.5, y - 3, 1, 1.5); c.fillRect(x - 0.5, y + 0.5, 1, 1.5);
+      c.strokeStyle = '#ff5d5d'; c.lineWidth = 1.6;
+      c.beginPath(); c.moveTo(x - 4, y + 4); c.lineTo(x + 4, y - 4); c.stroke();
+    } else if (st === 'noWater') {                                    // goccia sbarrata
+      c.beginPath(); c.moveTo(x, y - 4.5); c.quadraticCurveTo(x + 3.2, y - 0.5, x + 2.4, y + 1.6); c.arc(x, y + 1.6, 2.4, 0, Math.PI); c.quadraticCurveTo(x - 3.2, y - 0.5, x, y - 4.5); c.fill();
       c.strokeStyle = '#ff5d5d'; c.lineWidth = 1.6;
       c.beginPath(); c.moveTo(x - 4, y + 4); c.lineTo(x + 4, y - 4); c.stroke();
     } else if (st === 'noPower') {                                    // fulmine sbarrato

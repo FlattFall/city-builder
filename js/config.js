@@ -74,7 +74,21 @@ const BUILDINGS = {
   port:       { name: 'Porto', w: 2, h: 2, cost: 3500, height: 30, group: 'energy', coast: true },   // il retro sull'acqua
   refinery:   { name: 'Raffineria di petrolio', w: 2, h: 2, cost: 6000, height: 44, group: 'energy' },
   gasStation: { name: 'Distributore di carburante', w: 1, h: 1, cost: 1200, height: 14, group: 'energy' },
+  // acqua (richiesta dell'utente): tubi sotto tutte le strade; pozzo sulle falde, depuratore sul mare, scarico sull'acqua
+  waterWell:  { name: "Pozzo dell'acqua", w: 1, h: 1, cost: 700, height: 18, group: 'water', groundwater: true },
+  waterPlant: { name: "Depuratore dell'acqua di mare", w: 2, h: 2, cost: 3000, height: 22, group: 'water', coast: true },   // il retro sul mare
+  sewage:     { name: 'Scarico delle acque sporche', w: 1, h: 1, cost: 400, height: 8, group: 'water', infra: true, onWater: true },
+  // bus (richiesta dell'utente): portano la gente a lavorare da una fermata all'altra
+  busStop:    { name: 'Fermata del bus', w: 1, h: 1, cost: 150, height: 14, group: 'bus', infra: true },
+  busDepot:   { name: 'Deposito dei bus', w: 2, h: 2, cost: 2500, height: 22, group: 'bus' },
 };
+// Acqua: consumo per abitante e per attività; quanto dà una fonte con tutto il personale; quanto
+// porta via uno scarico. Senza acqua le case si riempiono solo a metà e le attività lavorano più piano.
+const WATER = { required: true, perResident: 1, perBusiness: 3, well: 30, plant: 120, sewage: 150, dryHouse: 2, drySpeed: 0.6 };
+// Bus: dalle case vicine a una fermata (entro `walk` tile) si va a lavorare nelle attività vicine a
+// un'altra fermata dello stesso deposito, a qualsiasi distanza; con il bus i lavoratori arrivano
+// riposati e puntuali: le attività servite lavorano `boost` più in fretta.
+const BUS = { walk: 6, boost: 0.15, every: 25, perDepot: 2, speed: 1.3 };
 
 // ---------- Abitanti ----------
 const HOUSE_CAPACITY = 4;      // abitanti per casa
@@ -322,6 +336,14 @@ const SHOPS = {
   gasStation: { tick: 15, radius: 30, buyRate: 0.08 },   // le auto degli abitanti fanno benzina
 };
 const SHOP = SHOPS.supermarket;
+// Miglioramenti (richiesta dell'utente): fino a 3 per fattorie, allevamenti, aziende e fabbriche.
+// speed[livello] = quanto più in fretta coltiva/produce/lavora; cost[livello] = parte del costo dell'edificio.
+// Allevamento: a ogni miglioramento si vedono più animali (1 mucca all'inizio, 4 al massimo)
+// Incidenti stradali (richiesta dell'utente: un po' di difficoltà, ma di rado): ogni `every` secondi
+// c'è una probabilità `perVehicle` per ogni auto/furgone in strada (al massimo `maxChance`); i veicoli
+// coinvolti restano fermi `stop` secondi (si forma la coda) e si paga tra `costMin` e `costMax`
+const ACCIDENT = { every: 45, perVehicle: 0.006, maxChance: 0.3, stop: 12, costMin: 200, costMax: 600 };
+const UPGRADE = { max: 3, speed: [1, 1.4, 1.8, 2.2], cost: [0.6, 1, 1.5] };
 // Il panificio vende anche al banco (richiesta dell'utente): pane, biscotti e torte che fa lui,
 // agli abitanti vicini, come un piccolo negozio (quello che avanza lo manda alle destinazioni)
 const COUNTER = { bakery: { tick: 12, radius: 15, buyRate: 0.15, cat: 'bakery' } };
@@ -334,7 +356,7 @@ const JOBS = { farm: 4, warehouse: 2, factory: 6, bakery: 2, supermarket: 3,
   livestock: 3, dairy: 5, slaughterhouse: 5,
   forestry: 3, sawmill: 4, furnitureFactory: 5, furnitureStore: 3, goodsWarehouse: 2,
   textileMill: 5, clothingFactory: 5, clothingStore: 3,
-  charcoalKiln: 2, coalPlant: 5, solarPlant: 1, windPlant: 1, oilWell: 2, port: 4, refinery: 6, gasStation: 2 };
+  charcoalKiln: 2, coalPlant: 5, solarPlant: 1, windPlant: 1, oilWell: 2, port: 4, refinery: 6, gasStation: 2, waterWell: 1, waterPlant: 3, busDepot: 3 };
 // la piattaforma petrolifera non prende lavoratori dalle case (il personale vive a bordo)
 const JOB_RADIUS = 12;
 function jobRadiusOf(kind) { return (BUILDINGS[kind] && BUILDINGS[kind].jobRadius) || JOB_RADIUS; }

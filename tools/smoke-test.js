@@ -22,7 +22,8 @@ function check(cond, msg) {
   await page.waitForTimeout(300);
   // i test più vecchi provano tutti gli strumenti: le mappe nuove hanno tutto sbloccato
   // (i progressi si provano alla fine con la newGame vera, __newGame)
-  await page.evaluate(() => { window.__oilAt = oilAt; window.__newGame = newGame; newGame = (...a) => { __newGame(...a); unlockAll(); }; });
+  await page.evaluate(() => { ACCIDENT.maxChance = 0; WATER.required = false;   // niente incidenti a caso né acqua nelle prove vecchie (si provano a parte)
+    window.__oilAt = oilAt; window.__newGame = newGame; newGame = (...a) => { __newGame(...a); unlockAll(); }; });
   await page.screenshot({ path: SHOTS + '/1-start.png' });
 
   // 0. all'avvio c'è il menu principale, senza "Riprendi"; Esc non lo chiude
@@ -130,6 +131,7 @@ function check(cond, msg) {
 
   // 6. casa (tasto 3) su un tile libero accanto alla fila
   await page.keyboard.press('3');
+  await page.evaluate(() => { const sm = document.getElementById('submenu'); if (sm) sm.hidden = true; });   // il gruppo Città ha più strumenti: si chiude il sottomenu
   const houseSpot = { x: run.x + 4, y: run.y + 5 }; // angolo del blocco, lontano dalle strade
   const h = await screenOf(houseSpot.x, houseSpot.y);
   await page.mouse.click(h.x, h.y);
@@ -1068,7 +1070,7 @@ function check(cond, msg) {
   check(rn.name === 'Filanda 1' && rn.title === 'Filanda 1' && rn.tool === 'hand', 'cambio nome dal pannello: ' + JSON.stringify(rn));
   await page.evaluate(() => closePanel());
   const bar = await page.evaluate(() => [...document.querySelectorAll('#toolbar .lbl')].map(e => e.textContent).join(','));
-  check(bar === 'Mano,Strade,Case,Agroalimentare,Legno,Tessile,Petrolio,Energia,Demolisci', 'barra: ' + bar);
+  check(bar === 'Mano,Strade,Città,Agroalimentare,Legno,Tessile,Petrolio,Energia,Demolisci', 'barra: ' + bar);
 
   // 34. allevamento unico: scelta dell'animale dal pannello, vecchi salvataggi convertiti
   const lvs = await page.evaluate(() => {
@@ -1384,6 +1386,7 @@ function check(cond, msg) {
   });
   await page.reload();
   await page.waitForTimeout(300);
+  await page.evaluate(() => { ACCIDENT.maxChance = 0; WATER.required = false; window.__oilAt = oilAt; window.__newGame = newGame; newGame = (...a) => { __newGame(...a); unlockAll(); }; });   // come all'inizio
   const kept = await page.evaluate(() => LANG === 'es' && document.getElementById('m-new').textContent === 'Nuevo mapa');
   await page.evaluate(() => setLanguage('it'));
   const back = await page.evaluate(() => GOODS.wheat.name === 'Grano' && TOOL_GROUPS[1].label === 'Strade' && document.getElementById('m-new').textContent === 'Nuova mappa');
@@ -1876,6 +1879,73 @@ function check(cond, msg) {
   });
   check(fr.highway && fr.straight, 'auto e furgoni: prendono la strada più rapida (autostrada più lunga sì, strada normale più lunga no): ' + JSON.stringify(fr));
   check(fr.counter, 'il panificio vende il pane al banco: ' + JSON.stringify(fr));
+
+  // 65. miglioramenti, incidenti, furgoni con merci diverse, acqua, bus
+  const nw = await page.evaluate(() => {
+    clearVehicles(); newGame(24, 128); unlockAll(); game.started = true; if (menuIsOpen()) closeMenu();
+    const N = game.size, c = N / 2, r = {};
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) Object.assign(game.map[y][x], { type: x >= N - 6 ? T.WATER : T.GRASS, path: null, main: false, field: false, farm: null, building: null, rb: null, elev: x >= N - 6 ? 0 : 2, bridge: null });
+    game.bridges = new Map(); rebuildBridgeIndex(); recount(); game.money = 1e7;
+    for (let x = 4; x < N - 6; x++) { useTool('road', x, c); game.map[c][x].main = true; }
+    game.entries = [{ x: 4, y: c }];
+    // miglioramenti
+    game.rotation = 2; useTool('factory', 10, c + 1); game.rotation = 0;
+    const fac = game.map[c + 1][10].building;
+    const m0 = game.money, cost = upgradeCost(fac);
+    r.up1 = buyUpgrade(fac).ok && fac.level === 1 && game.money === m0 - cost && upBoost(fac) > 1;
+    buyUpgrade(fac); buyUpgrade(fac);
+    r.upMax = fac.level === UPGRADE.max && !buyUpgrade(fac).ok;
+    // furgone con merci diverse: magazzino con pomodori e cavoli -> supermercato
+    game.rotation = 2; useTool('warehouse', 20, c + 1); useTool('supermarket', 30, c + 1); game.rotation = 0;
+    const wh = game.map[c + 1][20].building, sm = game.map[c + 1][30].building;
+    wh.workers = 2; sm.workers = 3; wh.store = { tomato: 12, cabbage: 12 }; wh.dests = [sm.id]; wh.retry = 0;
+    pushGoods(wh);
+    const van = vehicles.find(v => v.kind === 'van' && v.from === wh.id);
+    r.mixed = !!van && Object.keys(van.cargo).length === 2 && van.load === 24;
+    // incidente
+    for (let i = 0; i < 5; i++) simUpdate(0.1);
+    const m1 = game.money, cst = causeAccident(van);
+    r.accident = van.crash > 0 && game.money === m1 - cst && cst >= ACCIDENT.costMin;
+    const s0 = van.seg + van.s; simUpdate(0.1); simUpdate(0.1);
+    r.stopped = van.seg + van.s === s0;
+    // acqua: senza pozzo le case hanno l'icona e si riempiono solo a metà
+    WATER.required = true;
+    for (let x = 40; x <= 46; x++) useTool('house', x, c - 1);
+    for (let i = 0; i < 30; i++) simUpdate(0.1);
+    const h = game.map[c - 1][42].building;
+    r.dry = buildingStatus(h) === 'noWater' && houseCap(h) === WATER.dryHouse;
+    const realGw = groundwaterAt; groundwaterAt = () => 1;
+    r.well = useTool('waterWell', 48, c - 1).ok;
+    groundwaterAt = realGw;
+    const well = game.map[c - 1][48].building; well.gw = 1;
+    updateJobs = (orig => () => { orig(); well.workers = JOBS.waterWell; })(updateJobs);
+    for (let i = 0; i < 30; i++) simUpdate(0.1);
+    r.noSewer = h.watered < 0.5;   // senza scarico l'acqua non basta
+    r.sewageLand = !useTool('sewage', 50, c - 2).ok;
+    r.sewage = useTool('sewage', N - 6, c).ok;   // sull'acqua alla fine della strada
+    for (let i = 0; i < 40; i++) simUpdate(0.1);
+    r.wet = h.watered >= 0.5 && houseCap(h) === HOUSE_CAPACITY && buildingStatus(h) !== 'noWater';
+    r.stain = game.water.stain.size > 0;
+    WATER.required = false;
+    // bus: case vicino a una fermata, fabbrica lontana vicino a un'altra fermata dello stesso deposito
+    const far = game.map[c + 1][10].building;   // la fabbrica (x 10), le case sono a x 40+
+    useTool('busStop', 12, c - 1); useTool('busStop', 43, c + 1);
+    game.rotation = 2; useTool('busDepot', 60, c + 1); game.rotation = 0;
+    const dep = game.map[c + 1][60].building;
+    for (const hh of game.buildings.values()) if (hh.kind === 'house') hh.residents = HOUSE_CAPACITY;
+    updateJobs = (orig => () => { orig(); dep.workers = JOBS.busDepot; })(updateJobs);
+    dep.workers = JOBS.busDepot; buildBusNet();
+    updateJobs();
+    r.busJobs = far.workers > 0 && busBoost(far) > 1;
+    for (let i = 0; i < 60; i++) simUpdate(0.1);
+    r.busOut = vehicles.some(v => v.kind === 'bus');
+    return r;
+  });
+  check(nw.up1 && nw.upMax, 'miglioramenti: fino a 3, costano e fanno lavorare più in fretta: ' + JSON.stringify(nw));
+  check(nw.mixed, 'furgone con merci diverse per la stessa destinazione: ' + JSON.stringify(nw));
+  check(nw.accident && nw.stopped, 'incidente stradale: costa soldi e i veicoli restano fermi: ' + JSON.stringify(nw));
+  check(nw.dry && nw.well && nw.noSewer && nw.sewageLand && nw.sewage && nw.wet && nw.stain, 'acqua: pozzo + scarico sull\'acqua, case con l\'acqua, macchia marrone: ' + JSON.stringify(nw));
+  check(nw.busJobs && nw.busOut, 'bus: lavoratori da case lontane con le fermate, bus in giro: ' + JSON.stringify(nw));
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();

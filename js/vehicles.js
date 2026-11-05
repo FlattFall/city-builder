@@ -193,7 +193,7 @@ function redirectVehicle(v, goals, out) {
 // Case con posto libero, prima le più vicine al punto (x, y)
 function housesWithRoom(x, y) {
   return [...game.buildings.values()]
-    .filter(h => h.kind === 'house' && h.residents + h.incoming < HOUSE_CAPACITY)
+    .filter(h => h.kind === 'house' && h.residents + h.incoming < houseCap(h))
     .sort((a, b) => Math.abs(a.ax - x) + Math.abs(a.ay - y) - Math.abs(b.ax - x) - Math.abs(b.ay - y));
 }
 
@@ -203,7 +203,7 @@ function relocate(n, starts, v, color) {
   const here = v ? vehicleNextNode(v) : starts[0];
   if (!here) return;
   for (const h of housesWithRoom(here[0], here[1]).slice(0, 12)) {
-    const take = Math.min(n, HOUSE_CAPACITY - h.residents - h.incoming);
+    const take = Math.min(n, houseCap(h) - h.residents - h.incoming);
     const ok = v ? redirectVehicle(v, accessTiles(h)) : !!findRoute(starts, accessTiles(h));
     if (!ok) continue;
     h.incoming += take;
@@ -265,7 +265,7 @@ function checkHouseLinks() {
 function spawnResident() {
   if (vehicles.length >= MAX_CARS) return;
   checkHouseLinks();
-  const houses = [...game.buildings.values()].filter(b => b.kind === 'house' && b.residents + b.incoming < HOUSE_CAPACITY);
+  const houses = [...game.buildings.values()].filter(b => b.kind === 'house' && b.residents + b.incoming < houseCap(b));
   if (!houses.length) return;
   const entries = entryTiles();
   for (let tries = 0; tries < Math.min(5, houses.length); tries++) {
@@ -273,7 +273,7 @@ function spawnResident() {
     const route = findRoute(entries, accessTiles(b));
     if (!route) { b.unreachable = true; continue; }
     b.unreachable = false;
-    const n = Math.min(HOUSE_CAPACITY - b.residents - b.incoming, 1 + Math.floor(Math.random() * 2));
+    const n = Math.min(houseCap(b) - b.residents - b.incoming, 1 + Math.floor(Math.random() * 2));
     b.incoming += n;
     spawnVehicle({
       kind: 'car', target: b.id, people: n, tiles: route, pts: routePoints(route, true), ptOff: 1,
@@ -334,13 +334,14 @@ function blockedAhead(v) {
   }
   return null;
 }
-function halfLen(v) { return v.kind === 'van' ? 0.27 : 0.22; }
+function halfLen(v) { return v.kind === 'bus' ? 0.4 : v.kind === 'van' ? 0.27 : 0.22; }
 
 function simUpdate(dt) {
   if (!game.started || menuIsOpen()) return;
   dt = Math.min(dt, 0.1);
   const done = [];
   for (const v of vehicles) {
+    if (v.crash > 0) { v.crash -= dt; v.waited = 0; continue; }   // incidente: fermo, gli altri aspettano dietro
     // fermo troppo a lungo: riparte e per un po' non si ferma (prima ripartiva per un attimo e si
     // fermava di nuovo, e due veicoli uno contro l'altro sembravano bloccati per sempre)
     // Un veicolo non passa mai attraverso quello davanti: aspetta. Solo se si bloccano a vicenda
@@ -362,6 +363,7 @@ function simUpdate(dt) {
     vehicles = vehicles.filter(v => !done.includes(v));
     for (const v of done) v.arrive();
   }
+  accidentTick(dt);
   jobsTimer -= dt;
   if (jobsTimer <= 0) { jobsTimer = 1; updateJobs(); updateHud(); }
   moveInTimer -= dt;
@@ -383,13 +385,14 @@ function removeVehiclesFor(id, b) {
     }
     if (v.target === id) relocate(v.people || 1, null, v);
     else if (v.kind === 'van' && v.to === id) {
-      const home = game.buildings.get(v.from), g = v.good, q = v.load, fid = v.from;
+      const home = game.buildings.get(v.from), cargo = v.cargo || (v.good ? { [v.good]: v.load } : {}), fid = v.from;
+      const giveBack = f => { for (const [g, q] of Object.entries(cargo)) addTo(f.store, g, q); };
       if (home && redirectVehicle(v, accessTiles(home))) {
         home.status = TR('Destinazione demolita: il furgone torna indietro');
-        Object.assign(v, { to: null, arrive() { const f = game.buildings.get(fid); if (f) { addTo(f.store, g, q); vanHome(f); f.status = ''; } },
-          cancel() { const f = game.buildings.get(fid); if (f) { addTo(f.store, g, q); vanHome(f); } } });
+        Object.assign(v, { to: null, arrive() { const f = game.buildings.get(fid); if (f) { giveBack(f); vanHome(f); f.status = ''; } },
+          cancel() { const f = game.buildings.get(fid); if (f) { giveBack(f); vanHome(f); } } });
       } else if (redirectVehicle(v, entryTiles(), true)) Object.assign(v, { to: null, from: null, arrive() {}, cancel() {} });
-      else { vehicles = vehicles.filter(o => o !== v); if (home) { vanHome(home); addTo(home.store, g, q); } }
+      else { vehicles = vehicles.filter(o => o !== v); if (home) { vanHome(home); giveBack(home); } }
     } else if (v.kind === 'van' && v.from === id && !v.to) {   // furgone di ritorno verso un edificio che non c'è più
       if (redirectVehicle(v, entryTiles(), true)) Object.assign(v, { from: null, arrive() {}, cancel() {} });
       else vehicles = vehicles.filter(o => o !== v);
@@ -421,6 +424,52 @@ function onRoadRemoved(x, y) {
 }
 
 // ---------- Disegno ----------
+// ---------- Incidenti stradali ----------
+function accidentTick(dt) {
+  game.accidentTimer = (game.accidentTimer ?? ACCIDENT.every) - dt;
+  if (game.accidentTimer > 0) return;
+  game.accidentTimer = ACCIDENT.every;
+  const road = vehicles.filter(v => (v.kind === 'car' || v.kind === 'van' || v.kind === 'bus') && !(v.crash > 0) && v.seg > 0 && !vehiclePos(v).layer);
+  if (!road.length || Math.random() > Math.min(ACCIDENT.maxChance, road.length * ACCIDENT.perVehicle)) return;
+  causeAccident(road[Math.floor(Math.random() * road.length)]);
+}
+function causeAccident(v) {
+  const p = vehiclePos(v);
+  // se c'è un altro veicolo vicino, il tamponamento coinvolge anche lui
+  let other = null, bd = 1.2;
+  for (const o of vehicles) {
+    if (o === v || o.kind === 'ship' || o.crash > 0) continue;
+    const q = vehiclePos(o), d = Math.hypot(q.mx - p.mx, q.my - p.my);
+    if (d < bd && !q.layer) { bd = d; other = o; }
+  }
+  for (const o of [v, other]) if (o) o.crash = ACCIDENT.stop;
+  const cost = Math.round((ACCIDENT.costMin + Math.random() * (ACCIDENT.costMax - ACCIDENT.costMin)) / 10) * 10;
+  game.money -= cost;
+  if (typeof noteMoney === 'function') noteMoney('accidents', -cost);
+  game.accidents = (game.accidents || 0) + 1;
+  game.lastAccident = { x: Math.floor(p.mx), y: Math.floor(p.my) };
+  if (typeof toast === 'function') toast(TR('💥 Incidente stradale! Danni e soccorsi: {m}', { m: money(cost) }));
+  if (typeof updateHud === 'function') updateHud();
+  return cost;
+}
+// sopra i veicoli dell'incidente: fumo e triangolo di pericolo che lampeggia
+function drawCrash(c, v) {
+  const { mx, my, h } = v.pos, tx = Math.floor(mx), ty = Math.floor(my);
+  const [x, y] = iso(tx, ty, mx - tx, my - ty, h);
+  animSeen = true;
+  for (let i = 0; i < 3; i++) {
+    const t = (animT * 0.6 + i / 3) % 1;
+    c.fillStyle = 'rgba(70,70,75,' + (0.5 * (1 - t)).toFixed(2) + ')';
+    c.beginPath(); c.arc(x + Math.sin(i * 2 + animT) * 2, y - 6 - t * 14, 2 + t * 4, 0, Math.PI * 2); c.fill();
+  }
+  if (Math.sin(animT * 8) > -0.3) {
+    c.fillStyle = '#ffd34d'; c.strokeStyle = '#1a1c2c'; c.lineWidth = 0.8;
+    c.lineWidth = 1.2;
+    c.beginPath(); c.moveTo(x, y - 30); c.lineTo(x + 8, y - 16); c.lineTo(x - 8, y - 16); c.closePath(); c.fill(); c.stroke();
+    c.fillStyle = '#1a1c2c'; c.fillRect(x - 1, y - 27, 2, 6.5); c.fillRect(x - 1, y - 19.5, 2, 2);
+  }
+}
+
 function vehiclePos(v) {
   const a = v.pts[v.seg], b = v.pts[Math.min(v.seg + 1, v.pts.length - 1)];
   const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
@@ -441,7 +490,7 @@ function vehiclesByTile() {
     // (quello più avanti in +x e +y), così nessun tile disegnato dopo (strada, terreno, acqua) lo copre;
     // i tile che stanno davanti a una parte del veicolo aspettano lui (m.foot, usato da drawFrame)
     const dd = v.pts ? vehicleDir(v) : 1, F = v.kind === 'ship' && v.pts ? shipHeading(v) : DIRS[dd];   // la nave anche in diagonale
-    const [front, back, side] = v.kind === 'ship' ? [0.62, 1.1, 0.3] : v.kind === 'van' ? [0.27, 0.27, 0.13] : [0.22, 0.22, 0.12];
+    const [front, back, side] = v.kind === 'ship' ? [0.62, 1.1, 0.3] : v.kind === 'bus' ? [0.4, 0.4, 0.14] : v.kind === 'van' ? [0.27, 0.27, 0.13] : [0.22, 0.22, 0.12];
     const xs = [p.mx + F.dx * front, p.mx - F.dx * back], ys = [p.my + F.dy * front, p.my - F.dy * back];
     const sx = Math.abs(F.dy) * side, sy = Math.abs(F.dx) * side;
     const cl = n => Math.min(game.size - 1, Math.max(0, n));
@@ -479,8 +528,8 @@ function drawVehicle(c, v) {
   if (v.kind === 'ship') { drawShip(c, v); return; }
   const { mx, my, h } = v.pos;
   const d = vehicleDir(v), f = DIRS[d], sd = [-f.dy, f.dx];   // avanti e di lato
-  const van = v.kind === 'van';
-  const L = van ? 0.24 : 0.19, W = van ? 0.115 : 0.1;
+  const van = v.kind === 'van', bus = v.kind === 'bus';
+  const L = bus ? 0.37 : van ? 0.24 : 0.19, W = bus ? 0.125 : van ? 0.115 : 0.1;
   // rettangolo nel sistema del veicolo (a lungo la marcia, w di lato) -> rettangolo della mappa
   const R = (a0, a1, w0, w1) => {
     const us = [], vs = [];
@@ -514,7 +563,13 @@ function drawVehicle(c, v) {
   };
   for (const a of axles) wheel(a, -nearSide * (W - 0.01), false);
   const body = v.color || '#d94141', stripe = v.stripe || '#3fa34d';
-  if (van) {
+  if (bus) {   // bus giallo con la fascia dei finestrini e il tetto bianco
+    const rc = R(-L, L, -W, W);
+    vbox(rc, 1, 10, { l: '#ffcc33', r: '#e0a820', t: '#f2f2f2' });
+    const P = (u, vv, z) => iso(0, 0, u, vv, h + z / STEP), [u0, v0, u1, v1] = rc;
+    poly(c, [P(u0, v1, 5.5), P(u1, v1, 5.5), P(u1, v1, 8.5), P(u0, v1, 8.5)], '#2b3f55');
+    poly(c, [P(u1, v1, 5.5), P(u1, v0, 5.5), P(u1, v0, 8.5), P(u1, v1, 8.5)], '#22334a');
+  } else if (van) {
     // cassone dietro, muso con la cabina davanti. Se il muso guarda verso il fondo dello schermo
     // (marcia verso -u o -v) sta dietro al cassone: va disegnato prima, altrimenti si vede attraverso
     const cargo = () => {

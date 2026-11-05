@@ -100,7 +100,7 @@ const MANUAL = [
     b.appendChild(mEl('p', null, TR('Ogni attività prende i lavoratori dalle case entro <b>{n} tile</b>. Più personale = lavora più in fretta; senza personale si ferma. In alto vedi quanti <b>Disoccupati</b> ci sono: se sono tanti puoi aprire nuove attività.', { n: JOB_RADIUS })));
     b.appendChild(mEl('h4', null, TR('Le icone sopra gli edifici')));
     const names = { noRoad: 'Nessuna strada (o non collegata alla principale)', noWorkers: 'Nessun lavoratore', fewWorkers: 'Pochi lavoratori',
-      full: 'Deposito pieno: scegli una destinazione', noInput: 'Mancano le materie prime', empty: 'Negozio vuoto: niente da vendere', noPower: 'Senza corrente: non è collegato alla rete elettrica (strada o palo della luce)' };
+      full: 'Deposito pieno: scegli una destinazione', noInput: 'Mancano le materie prime', empty: 'Negozio vuoto: niente da vendere', noPower: 'Senza corrente: non è collegato alla rete elettrica (strada o palo della luce)', noWater: "Senza acqua: serve un pozzo (o un depuratore) e uno scarico collegati con le strade" };
     for (const [st, txt] of Object.entries(names)) {
       const s = mEl('div', 'man-stat'); s.append(mImg(statusIcon(st)), document.createTextNode(TR(txt))); b.appendChild(s);
     }
@@ -195,6 +195,18 @@ const MANUAL = [
     b.appendChild(item('refinery'));
     for (const r of RECIPES.refinery) b.appendChild(recipeRow('refinery', r));
     b.appendChild(item('gasStation'));
+  } },
+
+  { id: 'water', title: 'Acqua, bus, miglioramenti', icon: 'waterWell', build(b) {
+    b.appendChild(mEl('p', null, TR("Sotto tutte le strade ci sono i <b>tubi dell'acqua</b>. Case e attività hanno bisogno di acqua ({a} per abitante, {b} per attività) e di uno <b>scarico</b> per le acque sporche. Senza acqua le case si riempiono solo fino a {c} abitanti e le attività lavorano al {d}%.", { a: WATER.perResident, b: WATER.perBusiness, c: WATER.dryHouse, d: Math.round(WATER.drySpeed * 100) })));
+    b.appendChild(item('waterWell'));
+    b.appendChild(item('waterPlant'));
+    b.appendChild(item('sewage'));
+    b.appendChild(mEl('p', null, TR("I <b>bus</b> portano la gente a lavorare: chi abita entro {n} tile da una fermata servita da un deposito lavora nelle attività vicine a un'altra fermata dello stesso deposito, anche lontanissime. Così le case non devono stare accanto alle fabbriche, e le attività con la fermata lavorano il {p}% più in fretta.", { n: BUS.walk, p: Math.round(BUS.boost * 100) })));
+    b.appendChild(item('busStop'));
+    b.appendChild(item('busDepot'));
+    b.appendChild(mEl('p', null, TR('<b>Miglioramenti</b>: nel pannello di fattorie, allevamenti, aziende e fabbriche si comprano fino a {n} miglioramenti; ognuno fa coltivare, produrre e trasformare più in fretta (fino a x{m}). Negli allevamenti si vedono più animali.', { n: UPGRADE.max, m: UPGRADE.speed[UPGRADE.max].toLocaleString(LOCALE()) })));
+    b.appendChild(mEl('div', 'man-tip', TR('Attenzione al traffico: ogni tanto succede un <b>incidente stradale</b>. I veicoli coinvolti restano fermi un po\' (si forma la coda) e paghi danni e soccorsi ({a}-{b} €). Più veicoli ci sono in giro, più è probabile.', { a: ACCIDENT.costMin, b: ACCIDENT.costMax })));
   } },
 
   { id: 'logistics', title: 'Magazzini e furgoni', icon: 'warehouse', build(b) {

@@ -39,6 +39,11 @@ const TOOL_INFO = {
   port:      { label: 'Porto (2x2)', cost: BUILDINGS.port.cost, desc: "Porto con magazzino marittimo per tutte le merci: davanti la strada, dietro l'acqua (R per ruotarlo). Le navi portano la merce agli altri porti (petroliere per petrolio e carburanti, portacontainer per il resto), i furgoni a magazzini, fabbriche e negozi." },
   refinery:  { label: 'Raffineria di petrolio (2x2)', cost: BUILDINGS.refinery.cost, desc: 'Trasforma il petrolio grezzo in benzina e gasolio.' },
   gasStation: { label: 'Distributore di carburante', cost: BUILDINGS.gasStation.cost, desc: 'Vende benzina e gasolio agli abitanti vicini: per ogni vendita incassi le tasse.' },
+  waterWell: { label: "Pozzo dell'acqua", cost: BUILDINGS.waterWell.cost, desc: "Prende l'acqua dalle falde (zone azzurre): fino a " + WATER.well + ' unità. Va accanto a una strada (tubi sotto tutte le strade). 1 lavoratore.' },
+  waterPlant: { label: "Depuratore dell'acqua di mare (2x2)", cost: BUILDINGS.waterPlant.cost, desc: "Toglie il sale all'acqua del mare: " + WATER.plant + ' unità. Il retro sul mare, davanti la strada. 3 lavoratori.' },
+  sewage: { label: 'Scarico delle acque sporche', cost: BUILDINGS.sewage.cost, desc: "Sull'acqua, accanto a una strada: porta via le acque sporche (fino a " + WATER.sewage + ' unità) con i tubi sotto le strade. Senza lavoratori. Intorno l\'acqua diventa marrone.' },
+  busStop: { label: 'Fermata del bus', cost: BUILDINGS.busStop.cost, desc: 'Accanto a una strada. Chi abita entro ' + BUS.walk + ' tile va col bus a lavorare nelle attività vicine a un\'altra fermata dello stesso deposito, anche lontane. Le attività servite lavorano il ' + Math.round(BUS.boost * 100) + '% più in fretta.' },
+  busDepot: { label: 'Deposito dei bus (2x2)', cost: BUILDINGS.busDepot.cost, desc: 'Da qui partono i bus per tutte le fermate che raggiunge per strada. 3 autisti.' },
   demolish:  { label: 'Demolisci', desc: 'Toglie edifici, strade, ponti, tunnel, campi e alberi. Trascinando toglie solo cose dello stesso tipo del primo clic. Un edificio demolito ti ridà il 75% del costo.' },
   raise:     { label: 'Alza terreno', cost: COSTS.terrain, desc: 'Alza il terreno di un livello (solo dove non ci sono strade o edifici).' },
   lower:     { label: 'Abbassa terreno', cost: COSTS.terrain, desc: "Abbassa il terreno di un livello; a quota 0 diventa acqua." },
@@ -49,7 +54,7 @@ const TOOL_INFO = {
 const TOOL_GROUPS = [
   { key: '1', id: 'hand',     label: 'Mano',      tools: ['hand'] },
   { key: '2', id: 'paths',    label: 'Strade',    tools: ['road', 'oneway', 'highway', 'bridge', 'hwBridge', 'tunnel', 'dirt', 'rail'] },
-  { key: '3', id: 'homes',    label: 'Case',      tools: ['house'] },
+  { key: '3', id: 'homes',    label: 'Città',     tools: ['house', 'busStop', 'busDepot', 'waterWell', 'waterPlant', 'sewage'] },
   { key: '4', id: 'industry', label: 'Agroalimentare', tools: ['farm', 'livestock',
     'warehouse', 'factory', 'dairy', 'slaughterhouse', 'bakery', 'supermarket'] },
   { key: '5', id: 'wood',     label: 'Legno',     tools: ['forestry', 'sawmill', 'furnitureFactory', 'furnitureStore', 'goodsWarehouse'] },
@@ -339,6 +344,11 @@ function buildIcons() {
   ICONS.coalPlant = bigIcon(c => drawCoalPlant(c, 0, 0, 0, 0), GROUND.coalPlant);
   ICONS.pylon = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawPylon(c, 0, 0, 0, true); }, 0.85);
   ICONS.pole = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawPole(c, 0, 0, 0, true); }, 0.7);
+  ICONS.waterWell = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawWaterWell(c, 0, 0, 0, 0); }, 1.1);
+  ICONS.sewage = tileIcon((c, P) => { diamond(c, P, '#3f7fbf'); drawSewage(c, 0, 0, 0); }, 1.3);
+  ICONS.busStop = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawBusStop(c, 0, 0, 0, 0); }, 1.1);
+  ICONS.waterPlant = bigIcon(c => drawWaterPlant(c, 0, 0, 0, 0), '#9a9a92');
+  ICONS.busDepot = bigIcon(c => drawBusDepot(c, 0, 0, 0, 0), '#9a9a92');
   ICONS.substation = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawSubstation(c, 0, 0, 0, 0); }, 1.3);
   ICONS.solarPlant = bigIcon(c => drawSolarPlant(c, 0, 0, 0, 0), GROUND.solarPlant);
   ICONS.windPlant = makeIcon(c => {   // più piccola: le torri sono alte

@@ -90,7 +90,7 @@ function renderStats() {
   const mv = k => Math.round(((M || S.cur.money)[k] || 0) * scale);
   const mc = el('div', 'st-cards');
   let tot = 0;
-  for (const [k, label] of [['taxes', TR('Tasse dei negozi')], ['bills', TR('Bollette')], ['export', TR('Corrente venduta')], ['import', TR('Corrente comprata')]]) {
+  for (const [k, label] of [['taxes', TR('Tasse dei negozi')], ['bills', TR('Bollette')], ['export', TR('Corrente venduta')], ['import', TR('Corrente comprata')], ['accidents', TR('Incidenti stradali')]]) {
     const v = mv(k); tot += v;
     const c = el('div', 'st-card' + (v < 0 ? ' neg' : v > 0 ? ' pos' : ''));
     c.append(el('span', null, label), el('b', null, (v > 0 ? '+' : v < 0 ? '−' : '') + money(Math.abs(v))));

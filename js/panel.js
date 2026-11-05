@@ -57,7 +57,7 @@ function panelShapeOf(b) {
   const others = [...game.buildings.values()].filter(w => w.kind !== 'house').map(w => w.id).join(',');
   return [b.id, b.crop, b.animal, b.name, JSON.stringify(b.dests || []), b.fields, others, b.residents >= HOUSE_CAPACITY, !!b.unreachable, accessTiles(b).length,
     !!b.incoming, Object.keys(b.store || {}).join(), Object.keys(b.input || {}).join(),
-    JSON.stringify(b.accept || {}), JSON.stringify(b.recipes || {}), JSON.stringify(b.split || {}), b.vans || 0].join('|');
+    JSON.stringify(b.accept || {}), JSON.stringify(b.recipes || {}), JSON.stringify(b.split || {}), b.vans || 0, b.level || 0].join('|');
 }
 
 function openBuildingPanel(b) {
@@ -300,7 +300,7 @@ function renderPanel() {
   box.appendChild(head);
 
   if (b.kind === 'house') {
-    box.appendChild(liveText('div', 'prow', () => TR('Abitanti: {a} / {b}', { a: b.residents, b: HOUSE_CAPACITY })));
+    box.appendChild(liveText('div', 'prow', () => TR('Abitanti: {a} / {b}', { a: b.residents, b: houseCap(b) })));
     box.appendChild(bar(() => b.residents, HOUSE_CAPACITY));
     if (b.incoming) box.appendChild(liveText('div', 'pnote', () => TR('In arrivo: {n}', { n: b.incoming })));
     if (!accessTiles(b).length) box.appendChild(el('div', 'pwarn', TR('Nessuna strada accanto alla casa.')));
@@ -315,6 +315,18 @@ function renderPanel() {
     box.appendChild(liveText('div', 'pwarn', () => (b.workers || 0) >= JOBS[b.kind] ? '' :
       TR('Servono abitanti che vivano entro {n} tile per lavorare qui.', { n: jobRadiusOf(b.kind) })));
     if (!accessTiles(b).length) box.appendChild(el('div', 'pwarn', TR("L'entrata non è collegata a una strada.")));
+  }
+  if (canUpgrade(b)) {   // miglioramenti: fino a 3, ognuno fa lavorare più in fretta
+    const lv = b.level || 0, row = el('div', 'prow pvans');
+    row.appendChild(el('span', null, TR('Miglioramenti:') + ' ' + '★'.repeat(lv) + '☆'.repeat(UPGRADE.max - lv) +
+      ' ' + TR('(velocità x{n})', { n: UPGRADE.speed[lv].toLocaleString(LOCALE()) })));
+    if (lv < UPGRADE.max) {
+      const up = el('button', 'pchoice pbuy pupgrade', TR('Migliora ({m})', { m: money(upgradeCost(b)) }));
+      up.title = TR('Poi lavora a velocità x{n}', { n: UPGRADE.speed[lv + 1].toLocaleString(LOCALE()) }) + (b.kind === 'livestock' ? ' - ' + TR('più animali') : '');
+      up.addEventListener('click', () => { const r = buyUpgrade(b); if (r.msg) toast(r.msg); renderPanel(); });
+      row.appendChild(up);
+    }
+    box.appendChild(row);
   }
 
   if (isWarehouse(b)) {
@@ -450,7 +462,38 @@ function renderPanel() {
     ? TR('⚡ Corrente: sì ({n}%)', { n: Math.round((b.powered || 0) * 100) })
     : b.lv == null ? TR('⚡ Senza corrente: collegala a una strada (i cavi sono sotto le strade) o a un palo della luce.')
     : TR('⚡ Senza corrente: la sua rete non ha centrali né collegamento fuori mappa.')));
+  waterBusSection(box, b);
   renderSubpanel(b);
+}
+
+// Acqua e bus nel pannello (richiesta dell'utente)
+function waterBusSection(box, b) {
+  if (isWaterUser(b)) box.appendChild(liveText('div', (b.watered || 0) >= 0.5 ? 'pnote' : 'pwarn', () => {
+    if ((b.watered || 0) >= 0.5) return TR('💧 Acqua: sì ({n}%)', { n: Math.round((b.watered || 0) * 100) });
+    const n = waterNetOf(b);
+    const why = b.wnet == null ? TR('collegala a una strada (i tubi sono sotto le strade)')
+      : !n || !n.supply ? TR("serve un pozzo dell'acqua o un depuratore collegato alle stesse strade")
+      : !n.sewer ? TR('serve uno scarico delle acque sporche collegato alle stesse strade')
+      : TR("l'acqua non basta per tutti: costruisci altre fonti o scarichi");
+    return TR('💧 Senza acqua: {why}.', { why }) + ' ' + (b.kind === 'house' ? TR('La casa si riempie solo fino a {n} abitanti.', { n: WATER.dryHouse }) : TR('Lavora più piano ({n}%).', { n: Math.round(WATER.drySpeed * 100) }));
+  }));
+  if (b.kind === 'waterWell' || b.kind === 'waterPlant') {
+    box.appendChild(liveText('div', 'prow', () => TR("Acqua prodotta: {n}", { n: b.pumped || 0 }) + (b.kind === 'waterWell' ? ' ' + TR('(falda {n}%)', { n: Math.round((b.gw ?? groundwaterAt(b.ax, b.ay)) * 100) }) : '')));
+    box.appendChild(liveText('div', 'pnote', () => { const n = waterNetOf(b); return n ? TR('Rete: acqua {a} - consumo {b} - scarichi {c}', { a: n.supply, b: n.demand, c: n.sewer }) : TR('Non collegata: serve una strada accanto.'); }));
+  }
+  if (b.kind === 'sewage') {
+    box.appendChild(liveText('div', 'prow', () => TR('Acque sporche portate via: {a} / {b}', { a: Math.round(b.flow || 0), b: WATER.sewage })));
+    box.appendChild(el('div', 'pnote', TR("Più acqua sporca = macchia marrone più grande intorno allo scarico.")));
+  }
+  if (b.kind === 'busStop') box.appendChild(liveText('div', b.depot ? 'pnote' : 'pwarn', () => b.depot
+    ? TR('🚌 Servita dal deposito: chi abita entro {n} tile va a lavorare con il bus.', { n: BUS.walk })
+    : TR('🚌 Nessun deposito dei bus raggiunge questa fermata per strada.')));
+  if (b.kind === 'busDepot') {
+    box.appendChild(liveText('div', 'prow', () => TR('Fermate servite: {n}', { n: [...game.buildings.values()].filter(s => s.kind === 'busStop' && s.depot === b.id).length })));
+    box.appendChild(liveText('div', 'prow', () => TR('Bus in giro: {a} / {b}', { a: vehicles.filter(v => v.kind === 'bus' && v.from === b.id).length, b: BUS.perDepot })));
+  }
+  if (b.kind !== 'house' && game.bus && game.bus.near.has(b.id) && !BUILDINGS[b.kind].infra && b.kind !== 'busDepot')
+    box.appendChild(el('div', 'pnote', TR('🚌 Fermata del bus vicina: lavoratori anche da lontano e +{n}% di velocità.', { n: Math.round(BUS.boost * 100) })));
 }
 
 // La rete elettrica di una centrale, di un traliccio o di una sottostazione

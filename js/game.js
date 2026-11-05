@@ -425,7 +425,7 @@ function updateJobs() {
     b.workers = 0;
     for (const h of houses) {
       if (b.workers >= JOBS[b.kind]) break;
-      if (distToBuilding(b, h.ax, h.ay) > jobRadiusOf(b.kind)) continue;
+      if (distToBuilding(b, h.ax, h.ay) > jobRadiusOf(b.kind) && !(typeof busLinked === 'function' && busLinked(h, b))) continue;   // vicino, o con il bus
       const take = Math.min((h.residents || 0) - h.employed, JOBS[b.kind] - b.workers);
       if (take <= 0) continue;
       h.employed += take; b.workers += take; total += take;
@@ -493,8 +493,16 @@ function checkTool(tool, x, y) {
       if (q.type === T.WATER) return (q.building || q.bridge) ? { msg: TR('Qui non si può costruire') } : null;
     }
     if (b.coast && !dockTiles({ kind: tool, ax: x, ay: y, rot: game.rotation }).length)
-      return { msg: TR('Il retro del porto deve dare sull\'acqua (R per ruotarlo): davanti la strada, dietro il mare') };
+      return { msg: tool === 'port' ? TR('Il retro del porto deve dare sull\'acqua (R per ruotarlo): davanti la strada, dietro il mare')
+        : TR('Il retro del depuratore deve dare sul mare (R per ruotarlo): davanti la strada, dietro il mare') };
     if (b.oil && !oilUnder(tool, x, y)) return { msg: TR('Qui sotto non c\'è petrolio (scegli una zona scura)') };
+    if (b.groundwater && !groundwaterAt(x, y)) return { msg: TR("Qui sotto non c'è acqua (scegli una zona azzurra)") };
+    if (b.onWater) {   // scarico: sull'acqua, accanto a una strada sulla riva (i tubi arrivano da lì)
+      const q = game.map[y][x];
+      if (q.type !== T.WATER || q.building || q.bridge) return { msg: TR("Lo scarico va messo sull'acqua, accanto a una strada") };
+      if (!DIRS.some(D => inMap(x + D.dx, y + D.dy) && pipePath(game.map[y + D.dy][x + D.dx]))) return { msg: TR("Lo scarico va messo sull'acqua, accanto a una strada") };
+      return null;
+    }
     for (const p of footprint(tool, x, y)) {
       if (!inMap(p.x, p.y)) return { msg: TR('Fuori dalla mappa') };
       const q = game.map[p.y][p.x];

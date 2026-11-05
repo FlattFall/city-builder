@@ -143,7 +143,9 @@ function vanOut(b) { b.van = (b.van || 0) + 1; }
 function vanHome(b) { b.van = Math.max(0, (b.van || 0) - 1); }
 
 // Il furgone di "from" porta q unità di g a "to" e poi torna indietro
-function sendGoods(from, to, g, q) {
+// extra = altre merci nello stesso furgone ({ merce: quantità }): se la destinazione le accetta tutte,
+// il furgone parte pieno con merci diverse (richiesta dell'utente: massimizzare il viaggio)
+function sendGoods(from, to, g, q, extra) {
   if (bySea(from, to)) return sendByShip(from, to, g, q);   // dal mare o da porto a porto: in nave (vehicles.js)
   const route = findRoute(accessTiles(from), accessTiles(to));
   if (!route) { from.status = TR('Nessuna strada verso {b}', { b: buildingLabel(to) }); from.retry = 3; return false; }
@@ -152,17 +154,19 @@ function sendGoods(from, to, g, q) {
   const st = route[0];
   if (vehicles.some(o => o.kind === 'van' && o.tiles[0][0] === st[0] && o.tiles[0][1] === st[1] && o.seg < 6 &&
     Math.hypot(vehiclePos(o).mx - o.pts[0][0], vehiclePos(o).my - o.pts[0][1]) < 0.75)) return false;
-  addTo(from.store, g, -q);
+  const cargo = { [g]: q };
+  for (const [g2, q2] of Object.entries(extra || {})) if (q2 > 0 && g2 !== g) cargo[g2] = q2;
   to.expect = to.expect || {};
-  addTo(to.expect, g, q);
+  for (const [g2, q2] of Object.entries(cargo)) { addTo(from.store, g2, -q2); addTo(to.expect, g2, q2); }
+  const total = sumOf(cargo);
   from.status = TR('Furgone in viaggio verso {b}', { b: buildingLabel(to) });
   const fid = from.id, tid = to.id, stripe = VAN_STRIPES[from.kind === 'livestock' ? from.animal : from.kind];
   vanOut(from);
   spawnVehicle({
-    kind: 'van', from: fid, to: tid, good: g, load: q, stripe, tiles: route, pts: routePoints(route, false), speed: VAN_SPEED,
+    kind: 'van', from: fid, to: tid, good: g, load: total, cargo, stripe, tiles: route, pts: routePoints(route, false), speed: VAN_SPEED,
     arrive() {
       const t = game.buildings.get(tid), f = game.buildings.get(fid);
-      if (t) { addTo(t.expect, g, -q); receive(t, g, Math.min(q, Math.max(0, freeFor(t, g)))); }
+      if (t) for (const [g2, q2] of Object.entries(cargo)) { addTo(t.expect, g2, -q2); receive(t, g2, Math.min(q2, Math.max(0, freeFor(t, g2)))); }
       if (!f) { if (t) leaveMap({ kind: 'van', stripe }, accessTiles(t)); return; }   // casa del furgone demolita: se ne va
       const back = t && findRoute(accessTiles(t), accessTiles(f));
       if (!back) { vanHome(f); f.status = ''; return; }
@@ -175,8 +179,8 @@ function sendGoods(from, to, g, q) {
     },
     cancel() {
       const t = game.buildings.get(tid), f = game.buildings.get(fid);
-      if (t) addTo(t.expect, g, -q);
-      if (f) { vanHome(f); addTo(f.store, g, q); }
+      for (const [g2, q2] of Object.entries(cargo)) { if (t) addTo(t.expect, g2, -q2); if (f) addTo(f.store, g2, q2); }
+      if (f) vanHome(f);
     },
   });
   return true;
@@ -263,7 +267,24 @@ function pushGoods(b) {
     if (!best) { why = why || TR('Le destinazioni non accettano questa merce o sono piene'); continue; }
     if (!to.workers) { why = TR('{b} non ha personale', { b: buildingLabel(to) }); continue; }
     const q = Math.min(bq, VAN_CAPACITY, roomFor(to, best));
-    if (sendGoods(b, to, best, q)) { if (splitOf(b, best)) noteSent(b, best, to.id, q); return; }
+    // posto libero nel furgone: altre merci che questa destinazione accetta (non quelle che ora toccano a un'altra)
+    const extra = {};
+    let left = VAN_CAPACITY - q;
+    if (!bySea(b, to)) for (const [g, qq] of Object.entries(b.store)) {
+      if (left <= 0) break;
+      if (g === best || qq <= 0 || roomFor(to, g) <= 0) continue;
+      // a un negozio non si aggiunge quello che una fabbrica tra le destinazioni trasforma (es. la farina al panificio)
+      if (SHOPS[to.kind] && b.dests.some(id => { const p = game.buildings.get(id); return p && isProcessor(p) && usesInput(p, g); })) continue;
+      const t = splitTarget(b, g, w => !loop(w) && w.workers && roomFor(w, g) > 0);
+      if (t !== null && t !== to.id) continue;
+      const n = Math.min(qq, left, roomFor(to, g));
+      if (n > 0) { extra[g] = n; left -= n; }
+    }
+    if (sendGoods(b, to, best, q, extra)) {
+      if (splitOf(b, best)) noteSent(b, best, to.id, q);
+      for (const [g, n] of Object.entries(extra)) if (splitOf(b, g)) noteSent(b, g, to.id, n);
+      return;
+    }
     why = b.status;
   }
   b.status = why;
@@ -306,7 +327,7 @@ function pullGoods(b) {
 function farmCap(f) { return Math.max(CAPS.farm.store, 2 * (f.fields || 0) * FARM.yieldPerField); }
 function updateFarm(f, dt) {
   // cresce solo se ha campi, personale e posto in inventario; più personale = più veloce
-  const staff = (f.workers || 0) / JOBS.farm * gridBoost(f);
+  const staff = (f.workers || 0) / JOBS.farm * gridBoost(f) * upBoost(f) * waterFactor(f) * busBoost(f);
   const cap = farmCap(f), crop = (f.fields || 0) * FARM.yieldPerField;
   f.full = sumOf(f.store) + crop > cap;   // non c'è posto per il prossimo raccolto intero: si aspetta
   if (f.fields > 0 && staff > 0 && !f.full) {
@@ -348,11 +369,22 @@ function oilUnder(kind, ax, ay) {
 // Personale: chi non prende lavoratori dalle case (la piattaforma) lavora sempre a pieno.
 // Con la corrente della rete elettrica si lavora più in fretta.
 function staffOf(b) { return JOBS[b.kind] ? (b.workers || 0) / JOBS[b.kind] : 1; }
+function canUpgrade(b) { return b.kind === 'farm' || !!natureOf(b) || isProcessor(b); }
+function upBoost(b) { return UPGRADE.speed[Math.min(UPGRADE.max, (b && b.level) || 0)]; }
+function upgradeCost(b) { const l = b.level || 0; return l >= UPGRADE.max ? 0 : Math.round(BUILDINGS[b.kind].cost * UPGRADE.cost[l] / 10) * 10; }
+function buyUpgrade(b) {
+  if (!canUpgrade(b)) return { msg: TR('Questo edificio non si può migliorare') };
+  if ((b.level || 0) >= UPGRADE.max) return { msg: TR('Già al massimo dei miglioramenti') };
+  if (!spend(upgradeCost(b))) return { msg: TR('Fondi insufficienti') };
+  b.level = (b.level || 0) + 1;
+  game.dirty = true; updateHud(); requestDraw();
+  return { ok: true, msg: TR('{b}: miglioramento {n} di {m}', { b: buildingLabel(b), n: b.level, m: UPGRADE.max }) };
+}
 function gridBoost(b) { return 1 + GRID.boost * ((b && b.powered) || 0); }   // con la corrente si lavora più in fretta
 
 function updateLivestock(b, dt) {
   const L = natureOf(b), cap = CAPS[b.kind].store;
-  let staff = staffOf(b) * gridBoost(b);
+  let staff = staffOf(b) * gridBoost(b) * upBoost(b) * waterFactor(b) * busBoost(b);
   if (L.oil) {   // pozzo e piattaforma: in proporzione al giacimento sotto
     if (b.oil === undefined) b.oil = oilUnder(b.kind, b.ax, b.ay);
     staff *= b.oil;
@@ -377,7 +409,7 @@ function updateLivestock(b, dt) {
 
 // Trasformatori: a ogni ciclo ogni ricetta attiva con le materie prime fa 1 prodotto
 function updateProducer(b, dt) {
-  const staff = staffOf(b) * gridBoost(b);
+  const staff = staffOf(b) * gridBoost(b) * upBoost(b) * waterFactor(b) * busBoost(b);
   const cap = CAPS[b.kind].store;
   b.full = sumOf(b.store) >= cap;
   if (staff > 0 && !b.full) {
@@ -408,7 +440,7 @@ function updateProducer(b, dt) {
 // Supermercato: gli abitanti delle case vicine comprano; le tasse vanno al giocatore
 function updateShop(b, dt) {
   const S = SHOPS[b.kind];
-  const staff = (b.workers || 0) / JOBS[b.kind];
+  const staff = (b.workers || 0) / JOBS[b.kind] * waterFactor(b) * busBoost(b);
   pullGoods(b);
   if (!staff) return;
   b.work += dt * staff / S.tick;
@@ -526,10 +558,19 @@ function buildElecNets() {
       const d = dx * dx + dy * dy;
       if (d < bd) { bd = d; best = [x, y]; }
     }
-    // il palo scende sotto terra fino al cavo della strada (niente filo in mezzo alla strada: all'utente non piaceva)
-    p.feed = best ? [Math.sign(best[0] - p.ax), Math.sign(best[1] - p.ay)] : null;
-    if (best) unite(key(p), best[1] * N + best[0]);
+    p.feed = null; p._road = best; p._bd = bd;
   }
+  // il palo scende sotto terra fino al cavo della strada (niente filo in mezzo alla strada: all'utente non piaceva).
+  // Il pozzetto lo ha UN solo palo per fila di pali e per strada: il più vicino (richiesta dell'utente)
+  const feeder = new Map();
+  for (const p of poles) {
+    if (!p._road) continue;
+    const k = find(key(p)) + '|' + find(p._road[1] * N + p._road[0]);
+    const cur = feeder.get(k);
+    if (!cur || p._bd < cur._bd) feeder.set(k, p);
+  }
+  for (const p of feeder.values()) p.feed = [Math.sign(p._road[0] - p.ax), Math.sign(p._road[1] - p.ay)];
+  for (const p of poles) if (p._road) unite(key(p), p._road[1] * N + p._road[0]);
   // edifici: strada accanto (cavo sotto la strada) o palo vicino
   for (const b of all) {
     b.lv = null;
@@ -662,6 +703,8 @@ function economyUpdate(dt) {
     }
   }
   updateGrid(gen, dt);
+  updateWater(dt);
+  busTick(dt);
   statsTick(dt);
 }
 
@@ -677,7 +720,9 @@ function powerStatus(b) {
 }
 function buildingStatus(b) {
   // casa senza strada accanto o non raggiungibile dalla strada principale
-  if (b.kind === 'house') return (!accessTiles(b).length || b.unreachable) ? 'noRoad' : powerStatus(b);
+  if (b.kind === 'house') return (!accessTiles(b).length || b.unreachable) ? 'noRoad' : waterStatus(b) || powerStatus(b);
+  if (b.kind === 'sewage') return waterStatus(b);
+  if (b.kind === 'busStop') return accessTiles(b).length ? (b.depot ? null : 'noInput') : 'noRoad';
   if (BUILDINGS[b.kind].water) return b.full ? 'full' : b.noInput ? 'noInput' : null;   // piattaforma: niente strada né lavoratori dalle case
   if (b.kind === 'pylon' || b.kind === 'pole') return null;   // tralicci e pali: niente strada né lavoratori
   if (b.kind === 'substation') return powerStatus(b);   // niente strada né lavoratori: solo i collegamenti
@@ -687,5 +732,5 @@ function buildingStatus(b) {
   if (b.full) return 'full';
   if (b.noInput) return 'noInput';
   if (b.empty) return 'empty';
-  return powerStatus(b);   // per ultima: senza corrente si lavora lo stesso (solo più piano)
+  return waterStatus(b) || powerStatus(b);   // per ultime: senza acqua e corrente si lavora lo stesso (solo più piano)
 }

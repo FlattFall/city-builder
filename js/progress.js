@@ -3,7 +3,7 @@
 // il resto si sblocca pagando, nella finestra Progressi (tasto P). Alcune cose ne vogliono
 // prima un'altra (needs). I salvataggi di prima (senza "unlocked") hanno tutto sbloccato.
 const START_TOOLS = ['hand', 'road', 'dirt', 'house', 'farm', 'warehouse', 'supermarket', 'field', 'demolish', 'raise', 'lower', 'level',
-  'pylon', 'pole', 'substation'];   // corrente: tralicci, pali e sottostazione sbloccati da subito (richiesta dell'utente)
+  'pylon', 'pole', 'substation', 'waterWell', 'sewage'];   // anche l'acqua: pozzo e scarico da subito   // corrente: tralicci, pali e sottostazione sbloccati da subito (richiesta dell'utente)
 const START_CROPS = ['wheat', 'carrot', 'potato'];
 
 const UNLOCKS = [
@@ -14,6 +14,8 @@ const UNLOCKS = [
   { id: 'hwBridge', sector: 'Strade', tools: ['hwBridge'], cost: 6000, needs: ['bridge', 'highway'] },
   { id: 'tunnel', sector: 'Strade', tools: ['tunnel'], cost: 7000, needs: ['bridge'] },
   { id: 'rail', sector: 'Strade', tools: ['rail'], cost: 5000 },
+  { id: 'bus', sector: 'Strade', tools: ['busStop', 'busDepot'], cost: 3000, desc: 'Fermate e deposito dei bus: la gente va a lavorare anche lontano da casa.' },
+  { id: 'waterPlant', sector: 'Energia', tools: ['waterPlant'], cost: 5000, desc: "Depuratore dell'acqua di mare: tanta acqua per le città grandi." },
   // agroalimentare
   { id: 'crops', sector: 'Agroalimentare', name: 'Nuove colture', crops: ['corn', 'tomato', 'cabbage'], cost: 2000,
     desc: 'Mais, pomodori e cavoli per le fattorie.' },
