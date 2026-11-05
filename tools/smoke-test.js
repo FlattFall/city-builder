@@ -698,7 +698,7 @@ function check(cond, msg) {
     useTool('house', c + 30, c + 15);
     const lonely = [...game.buildings.values()].find(b => b.kind === 'house' && b.ax === c + 30);
     const linked = [...game.buildings.values()].find(b => b.kind === 'house' && b.ax === c - 13);
-    r.noRoad = buildingStatus(lonely) === 'noRoad' && buildingStatus(linked) === null;
+    r.noRoad = buildingStatus(lonely) === 'noRoad' && buildingStatus(linked) === 'noPower';   // collegata alla strada: c'è solo l'icona della corrente (nessuna centrale)
     // strada vicina ma non collegata alla principale: dopo un po' il simbolo resta
     for (let y = c + 10; y <= c + 15; y++) useTool('road', c + 31, y);
     for (let i = 0; i < 100; i++) simUpdate(0.1);

@@ -652,11 +652,10 @@ function economyUpdate(dt) {
 }
 
 // Stato da mostrare con un'icona sopra l'edificio (null = tutto bene)
-// Icona "senza corrente" (richiesta dell'utente, come quella della strada): solo quando in città c'è
-// già una rete elettrica (centrali, tralicci o pali), così all'inizio non compare su tutto.
+// Icona "senza corrente" (richiesta dell'utente, come quella della strada): sempre, anche quando non
+// c'è ancora nessuna rete, così il giocatore vede subito che case e attività vanno collegate.
 function gridExists() { const E = game.elec; return !!E && (E.hvNets.size > 0 || E.lvWires.length > 0 || (game.grid && game.grid.gen > 0)); }
 function powerStatus(b) {
-  if (!gridExists()) return null;
   if (POWER[b.kind]) return b.lv == null ? 'noPower' : null;   // centrale non attaccata a strade o pali
   if (b.kind === 'substation') return b.lv == null || b.hv == null ? 'noPower' : null;
   if (isConsumer(b)) return (b.powered || 0) < 0.5 ? 'noPower' : null;
@@ -667,14 +666,12 @@ function buildingStatus(b) {
   if (b.kind === 'house') return (!accessTiles(b).length || b.unreachable) ? 'noRoad' : powerStatus(b);
   if (BUILDINGS[b.kind].water) return b.full ? 'full' : b.noInput ? 'noInput' : null;   // piattaforma: niente strada né lavoratori dalle case
   if (b.kind === 'pylon' || b.kind === 'pole') return null;   // tralicci e pali: niente strada né lavoratori
-  if (b.kind === 'substation') return gridExists() ? powerStatus(b) : null;   // niente strada né lavoratori: solo i collegamenti
+  if (b.kind === 'substation') return powerStatus(b);   // niente strada né lavoratori: solo i collegamenti
   const need = JOBS[b.kind];
   if (need && (b.workers || 0) < need) return b.workers ? 'fewWorkers' : 'noWorkers';
   if (!accessTiles(b).length) return 'noRoad';
-  const pw = powerStatus(b);
-  if (pw) return pw;
   if (b.full) return 'full';
   if (b.noInput) return 'noInput';
   if (b.empty) return 'empty';
-  return null;
+  return powerStatus(b);   // per ultima: senza corrente si lavora lo stesso (solo più piano)
 }
