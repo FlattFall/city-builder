@@ -15,6 +15,7 @@ function loop(now) {
   let left = dt * (game.speed ?? 1);
   while (left > 1e-6) { const st = Math.min(left, 0.1); simUpdate(st); left -= st; }
   panelUpdate(dt);
+  statsUpdate(dt);
   // l'acqua si anima ~8 volte al secondo (solo se si vede e lo zoom è vicino: da lontano costerebbe troppo)
   // pale eoliche, pompe, fumo e navi: ~30 volte al secondo, così girano lisce anche con il mouse fermo
   // (prima andavano insieme all'acqua a 8 volte al secondo e sembravano a scatti)
@@ -33,6 +34,7 @@ buildToolbar();
 initMenu();
 initPanel();
 initProgress();
+initStats();
 initManual();
 initBugReport();
 initSettings();   // tasti e volume (settings.js)

@@ -10,6 +10,7 @@ const KEY_ACTIONS = [
   { id: 'pause', label: 'Pausa / riprendi', def: ' ' },
   { id: 'manual', label: 'Manuale', def: 'm' },
   { id: 'progress', label: 'Progressi', def: 'p' },
+  { id: 'stats', label: 'Produzione della città', def: 'c' },
   { id: 'unlock', label: 'Sblocca tutto (prove)', def: 'i' },
 ];
 const SETTINGS_KEY = 'citybuilder.settings';
@@ -45,6 +46,7 @@ function refreshKeyLabels() {
   const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
   set('manual-btn', TR('Manuale') + ' (' + keyName(keyOf('manual')) + ')');
   set('progress-btn', TR('Progressi') + ' (' + keyName(keyOf('progress')) + ')');
+  set('stats-btn', TR('Produzione') + ' (' + keyName(keyOf('stats')) + ')');
   const help = document.getElementById('help');
   if (help) help.innerHTML = TR('Sinistro: usa lo strumento<br>Mano: trascina la mappa, clic su edificio = info<br>Destro/centrale + trascina: muovi | Rotella: zoom<br>{up}{left}{down}{right}/frecce: muovi | 1-9: strumenti | {r}: ruota<br>{m}: manuale | {p}: progressi | {i}: sblocca tutto | Esc: menu<br>{sp}: pausa | ▶ ▶▶ ▶▶▶ in alto: velocità', {
     up: keyName(keyOf('up')), left: keyName(keyOf('left')), down: keyName(keyOf('down')), right: keyName(keyOf('right')),

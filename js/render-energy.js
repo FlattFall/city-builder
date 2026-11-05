@@ -43,17 +43,18 @@ function drawParts1(c, x, y, base, r, parts) {
 // Parti 2x2 con anche i cilindri (cyl: true) e una quota di partenza (z, in pixel)
 // group: pezzi che si sovrappongono (es. la gru: gambe, telaio, braccio) si ordinano tra loro come
 // gruppo unico rispetto agli altri pezzi; dentro, dal basso verso l'alto e poi dal fondo al davanti
-function drawParts2(c, ax, ay, base, r, parts) {
+function drawParts2(c, ax, ay, base, r, parts, one) {   // one = edificio 1x1 (riquadri da 0 a 1)
+  const rb = bx => one ? rotBox(bx.map(v => v * 2), r).map(v => v / 2) : rotBox(bx, r);
   const flat = [];
   for (const p of parts) {
     if (!p.group) { flat.push(p); continue; }
     const bs = p.group.map(q => q.box);
     flat.push({ box: [Math.min(...bs.map(b => b[0])), Math.min(...bs.map(b => b[1])), Math.max(...bs.map(b => b[2])), Math.max(...bs.map(b => b[3]))], group: p.group });
   }
-  const items = flat.map((p, i) => { const b = rotBox(p.box, r); return { p, b, i, depth: b[2] + b[3] }; });
+  const items = flat.map((p, i) => { const b = rb(p.box); return { p, b, i, depth: b[2] + b[3] }; });
   for (const it of sortParts(items)) {
     if (!it.p.group) { drawPart2(c, ax, ay, base, r, it.p, it.b); continue; }
-    const subs = it.p.group.map(q => { const b = rotBox(q.box, r); return { q, b, z: q.z || 0, depth: b[2] + b[3] }; })
+    const subs = it.p.group.map(q => { const b = rb(q.box); return { q, b, z: q.z || 0, depth: b[2] + b[3] }; })
       .sort((x, y) => x.z - y.z || x.depth - y.depth);
     for (const sub of subs) drawPart2(c, ax, ay, base, r, sub.q, sub.b);
   }
@@ -380,18 +381,17 @@ function poleArmEnds(x, y, base, armV) {
 // Sottostazione elettrica: piazzale recintato con due trasformatori, sostegni e una casetta di controllo
 function drawSubstation(c, x, y, base, r) {
   const steel = { l: '#9aa0a8', r: '#7a8088', t: '#b8bec6' }, tr = { l: '#6f7a72', r: '#56605a', t: '#86918a' };
-  drawParts1(c, x, y, base, r, [
-    { box: [0.05, 0.05, 0.95, 0.95], h: 1, col: { l: '#a9a9a2', r: '#8f8f88', t: '#bdbdb5' } },   // piazzale
-    { box: [0.14, 0.16, 0.44, 0.46], h: 9, col: tr },                                                     // trasformatori
-    { box: [0.54, 0.16, 0.84, 0.46], h: 9, col: tr },
-    { box: [0.22, 0.24, 0.36, 0.38], h: 3, z: 9, col: { l: '#c96a3a', r: '#a65530', t: '#d9844e' } },  // isolatori in cima
-    { box: [0.62, 0.24, 0.76, 0.38], h: 3, z: 9, col: { l: '#c96a3a', r: '#a65530', t: '#d9844e' } },
-    { box: [0.16, 0.58, 0.48, 0.86], h: 10, col: { l: '#e8dcc0', r: '#c9bc9e', t: '#b5473a' } },        // casetta di controllo
-    { box: [0.6, 0.6, 0.65, 0.65], h: 18, col: steel },                                                  // sostegni dei fili
-    { box: [0.78, 0.6, 0.83, 0.65], h: 18, col: steel },
-    { box: [0.6, 0.6, 0.83, 0.65], h: 1.5, z: 16, col: steel },
-    { box: [0.6, 0.8, 0.65, 0.85], h: 14, col: steel },
-  ]);
+  // piazzale prima di tutto (è sotto a ogni altro pezzo); poi i pezzi che stanno uno sopra l'altro
+  // (isolatori sui trasformatori, traversa sui sostegni) come gruppi: girando non si mescolano più
+  box(c, x, y, base, 0.05, 0.05, 0.95, 0.95, 1, { l: '#a9a9a2', r: '#8f8f88', t: '#bdbdb5', plain: true });
+  const ins = { l: '#c96a3a', r: '#a65530', t: '#d9844e' };
+  drawParts2(c, x, y, base + 1 / STEP, r, [
+    { group: [{ box: [0.14, 0.16, 0.44, 0.46], h: 9, col: tr }, { box: [0.22, 0.24, 0.36, 0.38], h: 3, z: 9, col: ins }] },   // trasformatori con isolatori
+    { group: [{ box: [0.54, 0.16, 0.84, 0.46], h: 9, col: tr }, { box: [0.62, 0.24, 0.76, 0.38], h: 3, z: 9, col: ins }] },
+    { box: [0.16, 0.58, 0.48, 0.86], h: 10, col: { l: '#e8dcc0', r: '#c9bc9e', t: '#b5473a' } },                               // casetta di controllo
+    { group: [{ box: [0.6, 0.6, 0.65, 0.65], h: 18, col: steel }, { box: [0.78, 0.6, 0.83, 0.65], h: 18, col: steel },     // sostegni dei fili
+      { box: [0.6, 0.8, 0.65, 0.85], h: 14, col: steel }, { box: [0.6, 0.6, 0.83, 0.65], h: 1.5, z: 16, col: steel }] },
+  ], true);
   if (DETAIL) {   // recinzione sui due lati davanti
     const P = (u, v, h) => iso(x, y, u, v, base + h / STEP);
     c.strokeStyle = 'rgba(60,64,70,0.8)'; c.lineWidth = 0.6;
@@ -427,6 +427,29 @@ function drawPowerLines(c) {
   const top = o => { const d = BUILDINGS[o.kind]; return o.kind === 'substation' ? iso(o.ax, o.ay, 0.7, 0.62, elevOf(o) + 17 / STEP) : iso(o.ax, o.ay, d.w / 2, d.h / 2, elevOf(o) + Math.min(d.height, 30) * 0.6 / STEP); };
   c.lineWidth = DETAIL ? 0.7 : 0.9; c.strokeStyle = 'rgba(28, 30, 36, 0.85)';
   for (const [a, b] of E.wires) pair(pylonArmEnds(a.ax, a.ay, elevOf(a), a.armV), pylonArmEnds(b.ax, b.ay, elevOf(b), b.armV));
+  // tralicci sul bordo: i fili escono dalla mappa (si vede che la rete è collegata fuori)
+  const N = game.size;
+  for (const b of game.buildings.values()) {
+    if (b.kind !== 'pylon') continue;
+    const dx = b.ax === 0 ? -1 : b.ax === N - 1 ? 1 : 0, dy = b.ay === 0 ? -1 : b.ay === N - 1 ? 1 : 0;
+    if (!dx && !dy) continue;
+    const ends = pylonArmEnds(b.ax, b.ay, elevOf(b), b.armV);
+    const o0 = iso(b.ax, b.ay, 0.5, 0.5, 0), o1 = iso(b.ax + dx * 4, b.ay + dy * 4, 0.5, 0.5, 0);
+    const off = [o1[0] - o0[0], o1[1] - o0[1]];
+    for (const e of ends) {
+      const g = c.createLinearGradient(e[0], e[1], e[0] + off[0], e[1] + off[1]);
+      // chiari: fuori dalla mappa lo sfondo è scuro e i fili neri non si vedrebbero
+      g.addColorStop(0, 'rgba(28, 30, 36, 0.85)'); g.addColorStop(0.2, 'rgba(170, 180, 196, 0.9)'); g.addColorStop(1, 'rgba(170, 180, 196, 0)');
+      c.strokeStyle = g; sag(e, [e[0] + off[0], e[1] + off[1] - 6]);
+    }
+    // fulmine azzurro dove i fili escono: la rete è collegata fuori mappa
+    const m = [(ends[0][0] + ends[1][0]) / 2 + off[0] * 0.55, (ends[0][1] + ends[1][1]) / 2 + off[1] * 0.55 + 2];
+    c.globalAlpha = 0.8 + 0.2 * Math.sin(animT * 3); animSeen = true;
+    c.fillStyle = '#6fe3ff'; c.beginPath();
+    c.moveTo(m[0] + 1.5, m[1] - 7); c.lineTo(m[0] - 3.5, m[1] + 0.5); c.lineTo(m[0] - 0.2, m[1] + 0.5); c.lineTo(m[0] - 1.5, m[1] + 7); c.lineTo(m[0] + 3.5, m[1] - 0.8); c.lineTo(m[0] + 0.2, m[1] - 0.8);
+    c.closePath(); c.fill(); c.globalAlpha = 1;
+    c.strokeStyle = 'rgba(28, 30, 36, 0.85)';
+  }
   for (const [p, o] of E.links) sag(iso(p.ax, p.ay, 0.5, 0.5, elevOf(p) + (PYLON_ARM - 3) / STEP), top(o));
   c.lineWidth = DETAIL ? 0.6 : 0.8; c.strokeStyle = 'rgba(40, 32, 24, 0.8)';
   for (const [a, b] of E.lvWires) pair(poleArmEnds(a.ax, a.ay, elevOf(a), a.armV), poleArmEnds(b.ax, b.ay, elevOf(b), b.armV));

@@ -119,6 +119,7 @@ function progressIsOpen() { return progressOpen; }
 function openProgress(focus) {
   if (!game.started) return;
   if (typeof closeManual === 'function') closeManual();
+  if (typeof closeStats === 'function') closeStats();
   progressOpen = true;
   progressFocus = focus || null;
   document.getElementById('progress').hidden = false;

@@ -6,6 +6,7 @@ function manualIsOpen() { return manualOpen; }
 
 function openManual(page) {
   if (typeof closeProgress === 'function' && progressIsOpen()) closeProgress();
+  if (typeof closeStats === 'function') closeStats();
   manualOpen = true;
   if (page) manualPage = page;
   document.getElementById('manual').hidden = false;

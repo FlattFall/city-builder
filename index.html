@@ -23,6 +23,7 @@
   </span>
   <span class="top-btns">
     <button id="manual-btn" data-i18n>Manuale (M)</button>
+    <button id="stats-btn" data-i18n>Produzione (C)</button>
     <button id="progress-btn" data-i18n>Progressi (P)</button>
     <button id="menu-btn" data-i18n>Menu (Esc)</button>
   </span>
@@ -38,6 +39,14 @@
 <div id="toast"></div>
 
 <div id="help" data-i18n-html>Sinistro: usa lo strumento<br>Mano: trascina la mappa, clic su edificio = info<br>Destro/centrale + trascina: muovi | Rotella: zoom<br>WASD/frecce: muovi | 1-9: strumenti | R: ruota<br>M: manuale | P: progressi | I: sblocca tutto | Esc: menu<br>Spazio: pausa | ▶ ▶▶ ▶▶▶ in alto: velocità</div>
+
+<!-- Produzione della città (tasto C) -->
+<div id="stats" class="overlay" hidden>
+  <div class="ov-box">
+    <div class="ov-head"><h2 data-i18n>Produzione della città</h2><span id="stats-sub" class="ov-sub"></span><button id="stats-close" class="ov-close">✕</button></div>
+    <div id="stats-body" class="ov-body"></div>
+  </div>
+</div>
 
 <!-- Progressi: sblocchi a pagamento (tasto P) -->
 <div id="progress" class="overlay" hidden>
@@ -148,6 +157,7 @@
 <script src="js/ui.js"></script>
 <script src="js/panel.js"></script>
 <script src="js/progress.js"></script>
+<script src="js/stats.js"></script>
 <script src="js/manual.js"></script>
 <script src="js/input.js"></script>
 <script src="js/save.js"></script>

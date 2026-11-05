@@ -107,7 +107,7 @@ function loadGame(id) {
       for (const p of footprint(b.kind, b.ax, b.ay)) if (inMap(p.x, p.y)) game.map[p.y][p.x].building = b;
     }
     game.entries = d.entries || [];
-    game.grid = null;
+    game.grid = null; game.stats = null;
     game.unlocked = Array.isArray(d.unlocked) ? new Set(d.unlocked) : null;   // salvataggi di prima: tutto sbloccato
     game.nextId = d.nextId || 1;
   } else {

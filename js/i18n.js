@@ -91,6 +91,7 @@ function setLanguage(l) {
   if (panelIsOpen()) renderPanel();
   if (manualIsOpen()) renderManual();
   if (progressIsOpen()) renderProgress();
+  if (statsIsOpen()) renderStats();
   if (menuIsOpen()) showMenuPage(document.querySelector('.menu-page:not([hidden])').dataset.page);
   requestDraw();
 }

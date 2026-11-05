@@ -217,6 +217,7 @@ function initMenu() {
     if (!menuOpen) {
       if (typeof manualIsOpen === 'function' && manualIsOpen()) { closeManual(); return; }
       if (progressIsOpen()) { closeProgress(); return; }
+      if (statsIsOpen()) { closeStats(); return; }
       if (!document.getElementById('submenu').hidden) { closeSubmenu(); return; }
       if (game.fieldMode) { exitFieldMode(); return; }
       if (panelIsOpen()) { closePanel(); return; }

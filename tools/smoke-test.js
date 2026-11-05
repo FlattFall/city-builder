@@ -1799,8 +1799,20 @@ function check(cond, msg) {
     r.sys = s && { gen: s.gen, demand: s.demand, outside: s.outside, exported: s.exported };
     r.sold = !!s && s.outside && s.exported > 0 && game.grid.exportIncome > 0;
     r.houses = [...game.buildings.values()].filter(b => b.kind === 'house').every(b => b.powered === 1);
+    // finestra Produzione: bilancio in positivo, corrente venduta e soldi al minuto
+    noteMade('wheat', 30);
+    openStats();
+    r.statsOpen = !document.getElementById('stats').hidden;
+    r.pos = !!document.querySelector('#stats .st-card.pos') && !document.querySelector('#stats .st-cards .st-card.neg');
+    r.wheatRow = [...document.querySelectorAll('#stats .st-table td')].some(td => td.textContent.includes(GOODS.wheat.name));
+    closeStats(); r.closed = document.getElementById('stats').hidden;
+    // senza centrali: si compra e il bilancio è in negativo
+    for (const b of [...game.buildings.values()]) if (b.kind === 'solarPlant') removeBuilding(b);
+    for (let i = 0; i < 40; i++) simUpdate(0.1);
+    openStats(); r.neg = !!document.querySelector('#stats .st-card.neg'); closeStats();
     return r;
   });
+  check(ex.statsOpen && ex.pos && ex.wheatRow && ex.closed && ex.neg, 'finestra Produzione: corrente in positivo quando si vende, in negativo quando si compra, merci prodotte: ' + JSON.stringify(ex));
   check(ex.solar && ex.sold && ex.houses, 'pannelli solari: corrente alle case vicine e quella in più venduta fuori mappa: ' + JSON.stringify(ex));
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));

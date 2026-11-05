@@ -236,9 +236,10 @@ addEventListener('keydown', e => {
   const act = actionOfKey(k);
   if (!e.repeat && act === 'manual') { toggleManual(); return; }
   if (!e.repeat && act === 'progress') { toggleProgress(); return; }
+  if (!e.repeat && act === 'stats') { toggleStats(); return; }
   if (!e.repeat && act === 'unlock') { cheatUnlockAll(); return; }   // sblocca tutto (per le prove)
   if (!e.repeat && act === 'pause' && game.started) { e.preventDefault(); togglePause(); return; }   // pausa
-  if (manualIsOpen() || progressIsOpen()) return;   // con manuale o progressi aperti il resto è fermo
+  if (manualIsOpen() || progressIsOpen() || statsIsOpen()) return;   // con manuale o progressi aperti il resto è fermo
   if (panDir(k)) { keysHeld.add(k); e.preventDefault(); return; }
   if (e.repeat) return;
   if (selectGroupByKey(e.key)) { /* strumento scelto */ }

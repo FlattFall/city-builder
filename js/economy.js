@@ -42,6 +42,32 @@ function isProcessor(b) { return !!RECIPES[b.kind]; }
 function isWarehouse(b) { return !!WAREHOUSE_CATS[b.kind]; }
 function warehouseTakes(kind, g) { return WAREHOUSE_CATS[kind].includes(GOODS[g].cat); }
 
+// ---------- Statistiche della città (finestra Produzione, tasto C) ----------
+// game.stats.cur = quello che succede nel minuto in corso (made = prodotto, used = usato dalle
+// fabbriche e dalle centrali, sold = venduto nei negozi, money = entrate/uscite per voce);
+// ogni STATS_WINDOW secondi diventa game.stats.last. total = da quando è iniziata la partita.
+const STATS_WINDOW = 60;
+function newStatsBucket() { return { made: {}, used: {}, sold: {}, money: {} }; }
+function stats() {
+  if (!game.stats) game.stats = { t: 0, cur: newStatsBucket(), last: null, total: { made: {}, sold: {} } };
+  return game.stats;
+}
+function noteMade(g, q) { if (q > 0) { const S = stats(); addTo(S.cur.made, g, q); addTo(S.total.made, g, q); } }
+function noteUsed(g, q) { if (q > 0) addTo(stats().cur.used, g, q); }
+function noteSold(g, q) { if (q > 0) { const S = stats(); addTo(S.cur.sold, g, q); addTo(S.total.sold, g, q); } }
+function noteMoney(k, m) { if (m) addTo(stats().cur.money, k, m); }
+function statsTick(dt) {
+  const S = stats();
+  S.t += dt;
+  if (S.t >= STATS_WINDOW) { S.t -= STATS_WINDOW; S.last = S.cur; S.cur = newStatsBucket(); }
+}
+// quanto al minuto: l'ultimo minuto intero, o il minuto in corso finché non ce n'è uno
+function perMinute(kind, g) {
+  const S = stats();
+  if (S.last) return S.last[kind][g] || 0;
+  return S.t > 5 ? (S.cur[kind][g] || 0) * STATS_WINDOW / S.t : 0;
+}
+
 function addTo(map, g, q) { map[g] = (map[g] || 0) + q; if (map[g] <= 0) delete map[g]; }
 
 // Ricette attive che usano la merce g
@@ -288,7 +314,7 @@ function updateFarm(f, dt) {
     f.growth += dt / FARM.cycleSec * staff;
     if (f.growth >= 1) {
       f.growth = 0;
-      addTo(f.store, f.crop, crop);
+      addTo(f.store, f.crop, crop); noteMade(f.crop, crop);
     }
     if (Math.floor(f.growth * 4) !== before) requestDraw();
   }
@@ -343,7 +369,7 @@ function updateLivestock(b, dt) {
     b.growth = (b.growth || 0) + dt / L.every * staff;
     if (b.growth >= 1) {
       b.growth = 0;
-      for (const [g, q] of Object.entries(L.out)) addTo(b.store, g, Math.min(q, cap - sumOf(b.store)));
+      for (const [g, q] of Object.entries(L.out)) { const n = Math.min(q, cap - sumOf(b.store)); addTo(b.store, g, n); noteMade(g, n); }
     }
   }
   pushGoods(b);
@@ -367,8 +393,8 @@ function updateProducer(b, dt) {
         const r = R[(start + k) % R.length];
         if (b.recipes[r.out] === false || sumOf(b.store) >= cap) continue;
         if (!Object.entries(r.in).every(([g, n]) => (b.input[g] || 0) >= n)) continue;
-        for (const [g, n] of Object.entries(r.in)) addTo(b.input, g, -n);
-        addTo(b.store, r.out, 1);
+        for (const [g, n] of Object.entries(r.in)) { addTo(b.input, g, -n); noteUsed(g, n); }
+        addTo(b.store, r.out, 1); noteMade(r.out, 1);
         made++;
       }
       b.noInput = made === 0;
@@ -401,7 +427,7 @@ function updateShop(b, dt) {
     if (!b.store[g]) continue;
     addTo(b.store, g, -1);
     const tax = Math.max(1, Math.round(GOODS[g].price * TAX_RATE));
-    game.money += tax; b.taxes += tax; b.sold++; buys--;
+    game.money += tax; b.taxes += tax; b.sold++; buys--; noteSold(g, 1); noteMoney('taxes', tax);
   }
   b.cursor = i;
   updateHud();
@@ -414,7 +440,7 @@ function updatePower(b, dt) {
   if (staff > 0) {
     if (P.fuel) {
       b.burnLeft = (b.burnLeft || 0) - dt * staff;
-      if (b.burnLeft <= 0 && (b.input[P.fuel] || 0) >= 1) { addTo(b.input, P.fuel, -1); b.burnLeft += P.burn; }
+      if (b.burnLeft <= 0 && (b.input[P.fuel] || 0) >= 1) { addTo(b.input, P.fuel, -1); noteUsed(P.fuel, 1); b.burnLeft += P.burn; }
       b.burnLeft = Math.max(b.burnLeft, 0);
       if (b.burnLeft > 0) out = P.out * Math.min(1, staff);
       b.noInput = !b.burnLeft && !b.input[P.fuel];
@@ -595,6 +621,7 @@ function updateGrid(gen, dt) {
     g.lastBills = pay; g.lastImport = cost; g.lastExport = sold;
     if (pay || cost || sold) {
       game.money += pay - cost + sold; g.bills += pay;
+      noteMoney('bills', pay); noteMoney('import', -cost); noteMoney('export', sold);
       g.importCost = (g.importCost || 0) + cost; g.exportIncome = (g.exportIncome || 0) + sold; updateHud();
     }
   }
@@ -616,6 +643,7 @@ function economyUpdate(dt) {
     }
   }
   updateGrid(gen, dt);
+  statsTick(dt);
 }
 
 // Stato da mostrare con un'icona sopra l'edificio (null = tutto bene)

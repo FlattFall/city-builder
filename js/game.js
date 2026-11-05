@@ -354,7 +354,7 @@ function newGame(seed, size) {
   game.size = size || MAP_SIZES[0].size;
   game.map = generateTerrain(seed, game.size);
   game.money = START_MONEY;
-  game.grid = null; game.elec = null;
+  game.grid = null; game.elec = null; game.stats = null;
   game.undoStack = []; game.undoStroke = null;   // niente da annullare in una mappa nuova
   game.speed = 1;   // velocità normale
   if (typeof refreshSpeed === 'function') refreshSpeed();
