@@ -825,7 +825,7 @@ function drawBuildingOn(c, x, y, b) {
   if (b.kind === 'bakery') { drawBakery(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (b.kind === 'charcoalKiln') { drawCharcoalKiln(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (b.kind === 'pylon') { drawPylon(c, x, y, game.map[y][x].elev, b.armV !== false, game.map[y][x].type === T.WATER); return; }
-  if (b.kind === 'pole') { drawPole(c, x, y, game.map[y][x].elev, b.armV !== false); return; }
+  if (b.kind === 'pole') { drawPole(c, x, y, game.map[y][x].elev, b.armV !== false, b.feed); return; }
   if (b.kind === 'substation') { drawSubstation(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (b.kind === 'oilWell') { drawOilWell(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (b.kind === 'gasStation') { drawGasStation(c, x, y, game.map[y][x].elev, b.rot || 0); return; }

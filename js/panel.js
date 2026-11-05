@@ -425,6 +425,13 @@ function renderPanel() {
   }
   if (b.kind === 'pylon' || b.kind === 'pole' || b.kind === 'substation') netSection(box, b);
 
+  if (COUNTER[b.kind]) {   // panificio: vende anche al banco
+    const C = COUNTER[b.kind];
+    box.appendChild(el('div', 'plabel', TR('Vendita al banco')));
+    box.appendChild(liveText('div', 'prow', () => TR('Clienti (abitanti entro {r} tile): {n}', { r: C.radius, n: b.customers || 0 })));
+    box.appendChild(liveText('div', 'prow', () => TR('Venduti: {n} - tasse incassate: {m}', { n: b.sold || 0, m: money(b.taxes || 0) })));
+    box.appendChild(el('div', 'pnote', TR('Vende pane, biscotti e torte agli abitanti vicini; quello che avanza va alle destinazioni.')));
+  }
   if (SHOPS[b.kind]) {
     const S = SHOPS[b.kind], cap = CAPS[b.kind].store;
     box.appendChild(liveText('div', 'prow', () => TR('Clienti (abitanti entro {r} tile): {n}', { r: S.radius, n: b.customers || 0 })));

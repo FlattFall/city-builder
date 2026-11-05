@@ -67,22 +67,49 @@ function nodeOf(k) {
 }
 
 // Partenze e arrivi sono sempre a terra; il percorso è una lista di [x, y, livello]
+// Percorso più RAPIDO (non il più corto, richiesta dell'utente): Dijkstra dove entrare in un tile costa
+// 1 / velocità della strada (autostrada 2.2 = conviene anche se più lunga, terra 0.7 = si evita se c'è
+// di meglio). Coda a priorità con un heap binario.
+function nodeSpeed(x, y, L) {
+  const t = game.map[y][x];
+  if (L) { const b = game.bridges.get(t.bridge.id); return b && b.path ? PATHS[b.path].speed : BRIDGE.speed; }
+  return (PATHS[t.path] && PATHS[t.path].speed) || 1;
+}
 function findRoute(starts, goals) {
   if (!starts.length || !goals.length) return null;
   const goalSet = new Set(goals.map(([x, y]) => nodeKey(x, y, 0)));
-  const prev = new Map();
-  const queue = [];
-  for (const [x, y, L] of starts) { const k = nodeKey(x, y, L || 0); if (!prev.has(k)) { prev.set(k, -1); queue.push(k); } }
-  for (let qi = 0; qi < queue.length; qi++) {
-    const k = queue[qi];
+  const prev = new Map(), dist = new Map();
+  const heap = [];   // [costo, chiave]
+  const push = (d, k) => {
+    heap.push([d, k]);
+    for (let i = heap.length - 1; i > 0;) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; }
+  };
+  const pop = () => {
+    const top = heap[0], last = heap.pop();
+    if (heap.length) {
+      heap[0] = last;
+      for (let i = 0; ;) {
+        const l = 2 * i + 1, r = l + 1; let m = i;
+        if (l < heap.length && heap[l][0] < heap[m][0]) m = l;
+        if (r < heap.length && heap[r][0] < heap[m][0]) m = r;
+        if (m === i) break;
+        [heap[m], heap[i]] = [heap[i], heap[m]]; i = m;
+      }
+    }
+    return top;
+  };
+  for (const [x, y, L] of starts) { const k = nodeKey(x, y, L || 0); if (!dist.has(k)) { dist.set(k, 0); prev.set(k, -1); push(0, k); } }
+  while (heap.length) {
+    const [d, k] = pop();
+    if (d > dist.get(k)) continue;   // già trovato un modo più rapido
     if (goalSet.has(k)) {
       const path = [];
       for (let c = k; c !== -1; c = prev.get(c)) path.push(nodeOf(c));
       return path.reverse();
     }
     for (const [nx, ny, nl] of driveNeighbors(...nodeOf(k))) {
-      const nk = nodeKey(nx, ny, nl);
-      if (!prev.has(nk)) { prev.set(nk, k); queue.push(nk); }
+      const nk = nodeKey(nx, ny, nl), nd = d + 1 / nodeSpeed(nx, ny, nl);
+      if (!dist.has(nk) || nd < dist.get(nk) - 1e-9) { dist.set(nk, nd); prev.set(nk, k); push(nd, nk); }
     }
   }
   return null;

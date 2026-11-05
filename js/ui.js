@@ -18,7 +18,7 @@ const TOOL_INFO = {
   clothingFactory: { label: 'Fabbrica di abbigliamento (2x2)', cost: BUILDINGS.clothingFactory.cost, desc: 'Cuce i vestiti con i filati, il tessuto e le stoffe lavorate della fabbrica tessile.' },
   clothingStore: { label: 'Negozio di abbigliamento (2x2)', cost: BUILDINGS.clothingStore.cost, desc: 'Vende vestiti e scarpe agli abitanti vicini: per ogni vendita incassi le tasse.' },
   factory:   { label: 'Fabbrica alimentare (2x2)', cost: BUILDINGS.factory.cost, desc: 'Trasforma i raccolti in cibo confezionato.' },
-  bakery:    { label: 'Panificio', cost: BUILDINGS.bakery.cost, desc: 'Fa pane, biscotti e torte con la farina della fabbrica alimentare.' },
+  bakery:    { label: 'Panificio', cost: BUILDINGS.bakery.cost, desc: 'Fa pane, biscotti e torte con la farina della fabbrica alimentare e li vende al banco agli abitanti vicini.' },
   supermarket: { label: 'Supermercato (2x2)', cost: BUILDINGS.supermarket.cost, desc: 'Vende cibo agli abitanti vicini: per ogni vendita incassi le tasse.' },
   livestock: { label: 'Allevamento (2x2)', cost: BUILDINGS.livestock.cost, desc: "Scegli cosa allevare nel pannello: mucche (latte per il caseificio, bovini per il macello), polli (uova, polli per il macello), maiali (per il macello) o pecore (lana per la fabbrica tessile). Mucche, polli e maiali vogliono l'erba; le pecore stanno anche in montagna." },
   dairy:     { label: 'Caseificio (2x2)', cost: BUILDINGS.dairy.cost, desc: "Trasforma il latte degli allevamenti di mucche in latticini." },
@@ -219,6 +219,7 @@ function chainLines(id) {
   if (id === 'livestock') for (const A of Object.values(LIVESTOCK)) out.push(A.animal + ': ' + TR('{list} (ogni {n} s)', { list: goodList(A.out), n: A.every }));
   if (POWER[id]) out.push(TR('Energia: {n}', { n: POWER[id].out }) + (POWER[id].perLevel ? ' ' + TR('(+{a} per livello di quota, fino a {b})', { a: POWER[id].perLevel, b: POWER[id].max }) : '') +
     (POWER[id].fuel ? ', ' + TR('brucia 1 {g} ogni {n} s', { g: GOODS[POWER[id].fuel].name.toLowerCase(), n: POWER[id].burn }) : ''));
+  if (COUNTER[id]) out.push(TR('Vende al banco: {list} (abitanti entro {r} tile)', { list: Object.keys(GOODS).filter(g => GOODS[g].cat === COUNTER[id].cat).map(g => GOODS[g].name.toLowerCase()).join(', '), r: COUNTER[id].radius }));
   if (SHOPS[id]) out.push(TR('Vende:') + ' ' + Object.keys(GOODS).filter(g => shopOf(g) === id).map(g => GOODS[g].name.toLowerCase()).join(', '));
   if (DEST_KINDS[id]) out.push(TR('Manda la merce a:') + ' ' + DEST_KINDS[id].map(k => BUILDINGS[k].name.toLowerCase()).join(', '));
   if (JOBS[id]) out.push(TR('Lavoratori: {n}', { n: JOBS[id] }));

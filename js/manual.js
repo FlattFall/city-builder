@@ -141,6 +141,7 @@ const MANUAL = [
       b.appendChild(item(k));
       for (const r of RECIPES[k]) b.appendChild(recipeRow(k, r));
       b.appendChild(mEl('p', null, destLine(k)));
+      if (COUNTER[k]) b.appendChild(mEl('div', 'man-tip', TR('Il panificio vende anche al banco: pane, biscotti e torte agli abitanti entro {r} tile (tasse come al supermercato). Quello che avanza va alle destinazioni.', { r: COUNTER[k].radius })));
     }
   } },
 

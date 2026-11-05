@@ -460,7 +460,7 @@ function check(cond, msg) {
     const farm = [...game.buildings.values()].find(b => b.kind === 'farm');
     const wh = [...game.buildings.values()].find(b => b.kind === 'warehouse');
     const r = { crop: farm.crop, storage: farm.dests.includes(wh.id) };
-    for (let i = 0; i < 200 * 20; i++) simUpdate(0.05);
+    for (let i = 0; i < 300 * 20; i++) simUpdate(0.05);   // un raccolto dura FARM.cycleSec (240 s)
     r.stock = wh.store.potato || 0; r.inv = sumOf(farm.store); r.workers = [farm.workers, wh.workers];
     // senza magazzino l'inventario si riempie fino al limite e poi si ferma
     farm.dests = []; farm.store = { potato: 80 };
@@ -634,7 +634,7 @@ function check(cond, msg) {
       pastaSeen = Math.max(pastaSeen, (fac.store.pasta || 0) + (wh.store.pasta || 0) + (sm.store.pasta || 0));
     }
     r.flour = flourSeen > 0; r.pasta = pastaSeen > 0;
-    r.bakery = sumOf(bk.store) + (sm.sold || 0) > 0 && Object.keys(bk.store).some(g => GOODS[g].cat === 'bakery');
+    r.bakery = ['bread', 'biscuits', 'cakes'].some(g => (stats().total.made[g] || 0) > 0);   // il panificio li vende anche al banco
     r.sold = sm.sold; r.taxes = sm.taxes; r.income = game.money - money0;
     // fabbrica senza materie prime: stato "mancano materie prime"; deposito pieno: stato "pieno"
     fac.input = {}; fac.noInput = false; fac.dests = [];
@@ -1209,6 +1209,7 @@ function check(cond, msg) {
           prev.set(s.id, { ...s.store });
         }
       }
+      for (const g of Object.keys(stats().total.sold)) sold[g] = true;   // anche quello venduto al banco del panificio
       return Object.keys(GOODS).filter(g => GOODS[g].price && !sold[g]);
     }, mode);
     // con i negozi per primi le merci lavorate non si fanno (va bene); via magazzini le materie prime
@@ -1841,6 +1842,40 @@ function check(cond, msg) {
   check(ex.statsOpen && ex.pos && ex.wheatRow && ex.closed && ex.neg, 'finestra Produzione: corrente in positivo quando si vende, in negativo quando si compra, merci prodotte: ' + JSON.stringify(ex));
   check(ex.windOk && ex.dirtNoCable && ex.windPoles, 'strade di terra senza cavi; centrale eolica collegata con i pali della luce fino alla sottostazione: ' + JSON.stringify(ex));
   check(ex.solar && ex.sold && ex.houses, 'pannelli solari: corrente alle case vicine e quella in più venduta fuori mappa: ' + JSON.stringify(ex));
+
+  // 64. percorso più rapido: l'autostrada più lunga conviene se fa arrivare prima; senza vantaggio si va dritti.
+  //     Panificio: vende al banco pane, biscotti e torte
+  const fr = await page.evaluate(() => {
+    clearVehicles(); newGame(23, 128); unlockAll(); game.started = true; if (menuIsOpen()) closeMenu();
+    const N = game.size, c = N / 2;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, rb: null, elev: 2, bridge: null });
+    game.bridges = new Map(); rebuildBridgeIndex(); recount(); game.money = 1e7;
+    const r = {};
+    for (let x = c - 10; x <= c + 10; x++) useTool('road', x, c);   // dritta: 21 tile
+    // giro con l'autostrada: su di 4, 21 a destra, giù di 4 (29 tile, ma 2,2 volte più veloce)
+    for (let y = c - 4; y <= c - 1; y++) { useTool('highway', c - 10, y); useTool('highway', c + 10, y); }
+    for (let x = c - 10; x <= c + 10; x++) useTool('highway', x, c - 4);
+    const via = findRoute([[c - 10, c]], [[c + 10, c]]);
+    r.highway = via.some(([x, y]) => y === c - 4);
+    // la stessa strada lunga ma normale: si va dritti
+    for (let x = c - 10; x <= c + 10; x++) useTool('road', x, c - 4);
+    for (let y = c - 4; y <= c - 1; y++) { useTool('road', c - 10, y); useTool('road', c + 10, y); }
+    const via2 = findRoute([[c - 10, c]], [[c + 10, c]]);
+    r.straight = via2.every(([x, y]) => y === c);
+    // panificio con pane: vende al banco alle case vicine
+    useTool('bakery', c, c + 1);
+    for (let x = c - 4; x <= c + 4; x++) if (x !== c) useTool('house', x, c + 1);
+    for (const h of game.buildings.values()) if (h.kind === 'house') h.residents = HOUSE_CAPACITY;
+    const bk = game.map[c + 1][c].building;
+    updateJobs = (orig => () => { orig(); bk.workers = JOBS.bakery; })(updateJobs);
+    bk.store = { bread: 20 }; bk.dests = [];
+    const m0 = game.money;
+    for (let i = 0; i < 300; i++) simUpdate(0.1);
+    r.counter = (bk.sold || 0) > 0 && (bk.store.bread || 0) < 20 && game.money > m0;
+    return r;
+  });
+  check(fr.highway && fr.straight, 'auto e furgoni: prendono la strada più rapida (autostrada più lunga sì, strada normale più lunga no): ' + JSON.stringify(fr));
+  check(fr.counter, 'il panificio vende il pane al banco: ' + JSON.stringify(fr));
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();

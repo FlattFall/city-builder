@@ -414,12 +414,17 @@ function updateShop(b, dt) {
   b.work += dt * staff / S.tick;
   if (b.work < 1) return;
   b.work -= 1;
+  sellToCustomers(b, S);
+}
+// Clienti = abitanti entro S.radius; ne compra S.buyRate per volta; solo le merci che `ok` accetta
+function sellToCustomers(b, S, ok) {
+  b.sold = b.sold || 0; b.taxes = b.taxes || 0;
   let customers = 0;
   for (const h of game.buildings.values())
     if (h.kind === 'house' && distToBuilding(b, h.ax, h.ay) <= S.radius) customers += h.residents || 0;
   b.customers = customers;
   let buys = Math.ceil(customers * S.buyRate);
-  const goods = Object.keys(b.store);
+  const goods = Object.keys(b.store).filter(g => !ok || ok(g));
   b.empty = customers > 0 && !goods.length;
   let i = b.cursor || 0;
   while (buys > 0 && sumOf(b.store) > 0) {
@@ -521,7 +526,9 @@ function buildElecNets() {
       const d = dx * dx + dy * dy;
       if (d < bd) { bd = d; best = [x, y]; }
     }
-    if (best) { unite(key(p), best[1] * N + best[0]); if (bd > 1) lvLinks.push([p, { ax: best[0], ay: best[1], road: true }]); }
+    // il palo scende sotto terra fino al cavo della strada (niente filo in mezzo alla strada: all'utente non piaceva)
+    p.feed = best ? [Math.sign(best[0] - p.ax), Math.sign(best[1] - p.ay)] : null;
+    if (best) unite(key(p), best[1] * N + best[0]);
   }
   // edifici: strada accanto (cavo sotto la strada) o palo vicino
   for (const b of all) {
@@ -639,7 +646,14 @@ function economyUpdate(dt) {
     if (b.pullTimer > 0) b.pullTimer -= dt;
     if (b.kind === 'farm') updateFarm(b, dt);
     else if (natureOf(b)) updateLivestock(b, dt);
-    else if (isProcessor(b)) updateProducer(b, dt);
+    else if (isProcessor(b)) {
+      updateProducer(b, dt);
+      const C = COUNTER[b.kind];   // panificio: vende anche al banco
+      if (C && b.workers) {
+        b.counterWork = (b.counterWork || 0) + dt * Math.min(1, b.workers / JOBS[b.kind]) / C.tick;
+        if (b.counterWork >= 1) { b.counterWork -= 1; sellToCustomers(b, C, g => GOODS[g].cat === C.cat); b.empty = false; }
+      }
+    }
     else if (SHOPS[b.kind]) updateShop(b, dt);
     else if (POWER[b.kind]) gen += updatePower(b, dt);
     else if (isWarehouse(b)) {

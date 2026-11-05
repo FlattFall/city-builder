@@ -362,16 +362,26 @@ function drawPylon(c, x, y, base, armV, onWater) {
 
 // Palo della luce di legno (bassa tensione): palo marrone con la traversa e due isolatori
 const POLE_TOP = 22;
-function drawPole(c, x, y, base, armV) {
+function drawPole(c, x, y, base, armV, feed) {
   const P = (u, v, h) => iso(x, y, u, v, base + h / STEP);
   const line = (p, q, col, w) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); c.moveTo(...p); c.lineTo(...q); c.stroke(); };
   c.fillStyle = 'rgba(0,0,0,0.18)';
   c.beginPath(); c.ellipse(...P(0.5, 0.5, 0), 3, 1.5, 0, 0, Math.PI * 2); c.fill();
+  if (feed) {   // collegato al cavo sotto la strada: pozzetto di cemento a terra dalla parte della strada
+    const u = 0.5 + feed[0] * 0.28, v = 0.5 + feed[1] * 0.28;
+    box(c, x, y, base, u - 0.1, v - 0.1, u + 0.1, v + 0.1, 2, { l: '#9a9a92', r: '#7f7f78', t: '#b4b4ac', plain: true });
+  }
   line(P(0.5, 0.5, 0), P(0.5, 0.5, POLE_TOP + 2), '#4a3020', 2.6);
   line(P(0.5, 0.5, 0), P(0.5, 0.5, POLE_TOP + 2), '#7a5434', 1.4);
   const A = armV ? P(0.5, 0.28, POLE_TOP) : P(0.28, 0.5, POLE_TOP), B = armV ? P(0.5, 0.72, POLE_TOP) : P(0.72, 0.5, POLE_TOP);
   line(A, B, '#5e3f27', 1.6);
   for (const p of [A, B]) { c.fillStyle = '#d9dde2'; c.fillRect(p[0] - 0.8, p[1] - 2.5, 1.6, 2.5); }
+  if (feed) {   // cavo che scende lungo il palo ed entra nel pozzetto (poi va sotto terra fino alla strada)
+    const u = 0.5 + feed[0] * 0.28, v = 0.5 + feed[1] * 0.28;
+    const top = P(0.5 + feed[0] * 0.05, 0.5 + feed[1] * 0.05, POLE_TOP - 1), mid = P(0.5 + feed[0] * 0.05, 0.5 + feed[1] * 0.05, 3), bot = P(u, v, 2);
+    c.strokeStyle = '#1e1e22'; c.lineWidth = 0.9;
+    c.beginPath(); c.moveTo(...top); c.lineTo(...mid); c.lineTo(...bot); c.stroke();
+  }
 }
 function poleArmEnds(x, y, base, armV) {
   const P = (u, v) => iso(x, y, u, v, base + (POLE_TOP + 2.5) / STEP);
@@ -455,6 +465,6 @@ function drawPowerLines(c) {
   for (const [a, b] of E.lvWires) pair(poleArmEnds(a.ax, a.ay, elevOf(a), a.armV), poleArmEnds(b.ax, b.ay, elevOf(b), b.armV));
   for (const [p, o] of E.lvLinks) {
     const from = iso(p.ax, p.ay, 0.5, 0.5, elevOf(p) + POLE_TOP / STEP);
-    sag(from, o.road ? iso(o.ax, o.ay, 0.5, 0.5, game.map[o.ay][o.ax].elev + 1 / STEP) : top(o));
+    sag(from, top(o));
   }
 }

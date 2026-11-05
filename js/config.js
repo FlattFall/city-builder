@@ -96,7 +96,7 @@ const CROPS = {
 const FARM = {
   fieldRadius: 6,     // i campi devono stare entro questa distanza (in tile) dalla fattoria
   inventoryCap: 100,  // inventario massimo della fattoria
-  cycleSec: 120,      // secondi dalla semina al raccolto (con tutto il personale)
+  cycleSec: 240,      // secondi dalla semina al raccolto (con tutto il personale; prima 120: il supermercato si riempiva troppo in fretta)
   yieldPerField: 1,   // unità raccolte per ogni campo (prima 4: con il deposito pieno 12 campi rendevano quasi come 170)
   vanCapacity: 25,    // quanto porta il furgone in un viaggio
   vanMinLoad: 10,     // il furgone parte quando c'è almeno questo
@@ -322,6 +322,9 @@ const SHOPS = {
   gasStation: { tick: 15, radius: 30, buyRate: 0.08 },   // le auto degli abitanti fanno benzina
 };
 const SHOP = SHOPS.supermarket;
+// Il panificio vende anche al banco (richiesta dell'utente): pane, biscotti e torte che fa lui,
+// agli abitanti vicini, come un piccolo negozio (quello che avanza lo manda alle destinazioni)
+const COUNTER = { bakery: { tick: 12, radius: 15, buyRate: 0.15, cat: 'bakery' } };
 const TAX_RATE = 0.5;                                 // tasse sulle vendite che vanno al giocatore
 
 // ---------- Lavoro ----------
