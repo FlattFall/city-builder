@@ -1938,6 +1938,7 @@ function check(cond, msg) {
     r.pipeUnder = useTool('pipe', 42, c - 1).ok && game.map[c - 1][42].pipe;
     toggleUnderground();
     r.undDemolish = game.underground && useTool('demolish', 42, c - 1).ok && !game.map[c - 1][42].pipe && !!game.map[c - 1][42].building;
+    r.undOnly = !useTool('demolish', 43, c - 1).ok && !!game.map[c - 1][43].building && !useTool('demolish', 44, c).ok && !!game.map[c][44].path;   // in superficie niente
     toggleUnderground();
     WATER.required = false;
     // bus: case vicino a una fermata, fabbrica lontana vicino a un'altra fermata dello stesso deposito
@@ -1957,7 +1958,7 @@ function check(cond, msg) {
   check(nw.up1 && nw.upMax, 'miglioramenti: fino a 3, costano e fanno lavorare più in fretta: ' + JSON.stringify(nw));
   check(nw.mixed, 'furgone con merci diverse per la stessa destinazione: ' + JSON.stringify(nw));
   check(nw.accident && nw.stopped, 'incidente stradale: costa soldi e i veicoli restano fermi: ' + JSON.stringify(nw));
-  check(nw.dry && nw.well && nw.noSewer && nw.sewageLand && nw.sewage && nw.notLinked && nw.wet && nw.stain && nw.pipeUnder && nw.undDemolish, 'acqua: pozzo + scarico sull\'acqua, case con l\'acqua, macchia marrone: ' + JSON.stringify(nw));
+  check(nw.dry && nw.well && nw.noSewer && nw.sewageLand && nw.sewage && nw.notLinked && nw.wet && nw.stain && nw.pipeUnder && nw.undDemolish && nw.undOnly, 'acqua: pozzo + scarico sull\'acqua, case con l\'acqua, macchia marrone: ' + JSON.stringify(nw));
   check(nw.busJobs && nw.busOut, 'bus: lavoratori da case lontane con le fermate, bus in giro: ' + JSON.stringify(nw));
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));

@@ -527,6 +527,7 @@ function checkTool(tool, x, y) {
   }
   if (tool === 'demolish') {
     const what = demolishTarget(x, y);
+    if (game.underground) return what === 'pipe' ? null : { silent: true };   // nel sottosuolo solo i tubi
     if (what === 'bridge') return bridgeOver(t).main ? { msg: TR('La strada principale non si può demolire') } : null;
     if (what === 'tunnel') return null;
     if (!t.building && t.path && t.main) return { msg: TR('La strada principale non si può demolire') };
@@ -541,7 +542,7 @@ function checkTool(tool, x, y) {
 function demolishTarget(x, y) {
   if (!inMap(x, y)) return null;
   const t = game.map[y][x];
-  if (t.pipe && game.underground) return 'pipe';   // vista del sottosuolo: la ruspa toglie i tubi (anche sotto gli edifici)
+  if (game.underground) return t.pipe ? 'pipe' : null;   // vista del sottosuolo: la ruspa toglie SOLO i tubi (anche sotto gli edifici), niente in superficie
   if (bridgeOver(t) && game.pickDeck !== false) return 'bridge';
   if (t.building) return 'building';
   if (t.path) return 'path';
