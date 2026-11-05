@@ -1934,6 +1934,11 @@ function check(cond, msg) {
     for (let i = 0; i < 40; i++) simUpdate(0.1);
     r.wet = h.watered >= 0.5 && houseCap(h) === HOUSE_CAPACITY && buildingStatus(h) !== 'noWater';
     r.stain = game.water.stain.size > 0;
+    // tubo anche sotto una casa; nel sottosuolo la ruspa toglie il tubo e lascia la casa
+    r.pipeUnder = useTool('pipe', 42, c - 1).ok && game.map[c - 1][42].pipe;
+    toggleUnderground();
+    r.undDemolish = game.underground && useTool('demolish', 42, c - 1).ok && !game.map[c - 1][42].pipe && !!game.map[c - 1][42].building;
+    toggleUnderground();
     WATER.required = false;
     // bus: case vicino a una fermata, fabbrica lontana vicino a un'altra fermata dello stesso deposito
     const far = game.map[c + 1][10].building;   // la fabbrica (x 10), le case sono a x 40+
@@ -1952,7 +1957,7 @@ function check(cond, msg) {
   check(nw.up1 && nw.upMax, 'miglioramenti: fino a 3, costano e fanno lavorare più in fretta: ' + JSON.stringify(nw));
   check(nw.mixed, 'furgone con merci diverse per la stessa destinazione: ' + JSON.stringify(nw));
   check(nw.accident && nw.stopped, 'incidente stradale: costa soldi e i veicoli restano fermi: ' + JSON.stringify(nw));
-  check(nw.dry && nw.well && nw.noSewer && nw.sewageLand && nw.sewage && nw.notLinked && nw.wet && nw.stain, 'acqua: pozzo + scarico sull\'acqua, case con l\'acqua, macchia marrone: ' + JSON.stringify(nw));
+  check(nw.dry && nw.well && nw.noSewer && nw.sewageLand && nw.sewage && nw.notLinked && nw.wet && nw.stain && nw.pipeUnder && nw.undDemolish, 'acqua: pozzo + scarico sull\'acqua, case con l\'acqua, macchia marrone: ' + JSON.stringify(nw));
   check(nw.busJobs && nw.busOut, 'bus: lavoratori da case lontane con le fermate, bus in giro: ' + JSON.stringify(nw));
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));

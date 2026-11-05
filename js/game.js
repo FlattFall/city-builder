@@ -361,6 +361,7 @@ function newGame(seed, size) {
   if (typeof resetUnlocks === 'function') resetUnlocks();   // mappa nuova: si parte con poco (progress.js)
   game.pathKeys = new Set();
   game.pipes = new Set();
+  game.underground = false;
   game.buildings = new Map();
   game.nextId = 1;
   game.fieldMode = null;
@@ -472,8 +473,7 @@ function checkTool(tool, x, y) {
   if (tool === 'pipe') {   // tubo dell'acqua sotto terra: non sull'acqua né sotto gli edifici; sotto le strade c'è già
     if (t.type === T.WATER) return { msg: TR("I tubi non vanno nell'acqua") };
     if (t.pipe || pipePath(t)) return { silent: true };
-    if (t.building) return { msg: TR('Tile occupato') };
-    return null;
+    return null;   // passa anche sotto case ed edifici (richiesta dell'utente)
   }
   if (tool === 'field') {
     // i campi si mettono solo dalla fattoria (modalità campi)
@@ -541,6 +541,7 @@ function checkTool(tool, x, y) {
 function demolishTarget(x, y) {
   if (!inMap(x, y)) return null;
   const t = game.map[y][x];
+  if (t.pipe && game.underground) return 'pipe';   // vista del sottosuolo: la ruspa toglie i tubi (anche sotto gli edifici)
   if (bridgeOver(t) && game.pickDeck !== false) return 'bridge';
   if (t.building) return 'building';
   if (t.path) return 'path';
@@ -626,6 +627,11 @@ function useTool(tool, x, y) {
   } else if (tool === 'demolish') {
     // priorità: ponte > edificio > percorso > campo > alberi > tunnel sotto
     const tun = t.bridge && !bridgeOver(t) ? bridgeAt(x, y) : null;
+    if (demolishTarget(x, y) === 'pipe' && game.underground) {
+      t.pipe = false; game.pipes.delete(y * game.size + x);
+      if (typeof elecChanged === 'function') elecChanged();
+      return { ok: true };
+    }
     if (demolishTarget(x, y) === 'bridge') removeBridge(bridgeOver(t));
     else if (t.building) {
       const b = t.building, back = Math.floor(BUILDINGS[b.kind].cost * DEMOLISH_REFUND);

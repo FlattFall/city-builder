@@ -202,6 +202,8 @@ const MANUAL = [
     b.appendChild(item('waterWell'));
     b.appendChild(item('waterPlant'));
     b.appendChild(item('sewage'));
+    b.appendChild(item('pipe'));
+    b.appendChild(mEl('div', 'man-tip', TR("Lo scarico si costruisce in riva al mare e si collega con il <b>tubo dell'acqua</b> (anche sotto case ed edifici) fino a una strada. Con il tasto <b>Sottosuolo (U)</b> vedi tutti i tubi e con la ruspa togli quelli messi per sbaglio.")));
     b.appendChild(mEl('p', null, TR("I <b>bus</b> portano la gente a lavorare: chi abita entro {n} tile da una fermata servita da un deposito lavora nelle attività vicine a un'altra fermata dello stesso deposito, anche lontanissime. Così le case non devono stare accanto alle fabbriche, e le attività con la fermata lavorano il {p}% più in fretta.", { n: BUS.walk, p: Math.round(BUS.boost * 100) })));
     b.appendChild(item('busStop'));
     b.appendChild(item('busDepot'));

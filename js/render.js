@@ -1442,7 +1442,6 @@ function drawFrame() {
     if (inArea(x, y) && !game.map[y][x].building) drawAreaTile(x, y);
     if (oilView) drawOilSpot(ctx, x, y);
     if (game.tool === 'waterWell') drawWaterSpot(ctx, x, y);
-    if (WATER_TOOLS.includes(game.tool)) drawPipeView(ctx, x, y);
     if (pv && inPreview(x, y)) {
       ctx.globalAlpha = 0.75;
       withPreview(pv, () => drawTile(ctx, x, y, detail, true));
@@ -1486,6 +1485,8 @@ function drawFrame() {
     for (let x = xa; x <= xb; x++) if (visible(x, y)) run(y * N + x);
   }
   drawPowerLines(ctx);
+  drawSewagePipes(ctx);   // tubo dello scarico sopra il mare (dopo i tile d'acqua, così non ci finisce sotto)
+  if (pipeViewOn()) drawPipeOverlay(ctx);   // mappa dei tubi sopra tutto (anche sotto le case)
   if ((game.tool === 'pylon' || game.tool === 'pole') && game.hover) drawPylonPreview(ctx, game.hover, game.tool === 'pole');
   if (game.tool === 'substation' && game.hover) drawSubstationPreview(ctx, game.hover);
   if (ELEC_TOOLS.includes(game.tool)) drawPowerIcons(ctx);

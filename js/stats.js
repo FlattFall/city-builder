@@ -126,5 +126,7 @@ function renderStats() {
 function initStats() {
   document.getElementById('stats-close').addEventListener('click', closeStats);
   document.getElementById('stats-btn').addEventListener('click', e => { e.target.blur(); toggleStats(); });
+  const ub = document.getElementById('under-btn');
+  if (ub) ub.addEventListener('click', e => { e.target.blur(); toggleUnderground(); });
   document.getElementById('stats').addEventListener('mousedown', e => { if (e.target.id === 'stats') closeStats(); });
 }

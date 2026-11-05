@@ -44,6 +44,7 @@ function buildWaterNets() {
       const side = (y === b.ay - 1 || y === b.ay + d.h) !== (x === b.ax - 1 || x === b.ax + d.w);
       if (side && ok(x, y)) { b.wnet = y * N + x; break; }
     }
+    if (b.wnet == null) for (const p of footprint(b.kind, b.ax, b.ay)) if (ok(p.x, p.y)) { b.wnet = p.y * N + p.x; break; }   // tubo che passa sotto
   }
   for (const b of game.buildings.values()) if (b.wnet != null) b.wnet = find(b.wnet);
   game.water = { ver: game.elecVer || 0, timer: 2, nets: new Map(), stain: new Map() };
@@ -110,7 +111,7 @@ function waterStatus(b) {
 }
 
 // uscita del tubo dello scarico: in mare, a metà del retro (coordinate della mappa)
-function sewageOutlet(b) { const p = rotUV(1, -1.4, b.rot || 0); return [b.ax + p[0], b.ay + p[1]]; }
+function sewageOutlet(b) { const p = rotUV(1, -0.6, b.rot || 0); return [b.ax + p[0], b.ay + p[1]]; }
 // un edificio ha un tubo (strada o tubo messo a mano) su un lato?
 function pipeNextTo(b) {
   const d = BUILDINGS[b.kind];
@@ -118,7 +119,18 @@ function pipeNextTo(b) {
     const side = (y === b.ay - 1 || y === b.ay + d.h) !== (x === b.ax - 1 || x === b.ax + d.w);
     if (side && inMap(x, y) && hasPipe(game.map[y][x])) return true;
   }
-  return false;
+  return footprint(b.kind, b.ax, b.ay).some(p => inMap(p.x, p.y) && hasPipe(game.map[p.y][p.x]));
+}
+// Vista del sottosuolo (tasto U, richiesta dell'utente): la città si scurisce e si vedono tutti i tubi;
+// con la ruspa si tolgono i tubi messi per sbaglio (anche sotto case ed edifici)
+function pipeViewOn() { return !!game.underground || WATER_TOOLS.includes(game.tool); }
+function toggleUnderground() {
+  if (!game.started) return;
+  game.underground = !game.underground;
+  const btn = document.getElementById('under-btn');
+  if (btn) btn.classList.toggle('active', game.underground);
+  if (typeof toast === 'function') toast(game.underground ? TR('Sottosuolo: si vedono i tubi dell\'acqua (con la ruspa si tolgono)') : TR('Sottosuolo nascosto'));
+  requestDraw();
 }
 // scarico appena costruito senza tubi accanto: si passa al tubo e si vede la mappa dei tubi
 // (richiesta dell'utente: non serve la strada, si collega con un tubo a quelli sotto le strade)
@@ -128,23 +140,40 @@ function onSewagePlaced(b) {
   if (typeof toast === 'function') toast(TR("Collega lo scarico: trascina il tubo fino a una strada (sotto ogni strada c'è un tubo dell'acqua)"));
 }
 const WATER_TOOLS = ['pipe', 'sewage', 'waterWell', 'waterPlant'];
-// mappa dei tubi (con il tubo o gli edifici dell'acqua in mano): linee azzurre sotto strade e tubi
+// mappa dei tubi (con il tubo o gli edifici dell'acqua in mano): linee azzurre sotto strade e tubi,
+// disegnata sopra tutto (si vede anche sotto case ed edifici). Tra due tile a quote diverse il tubo
+// scende/sale sul bordo, così si vede che è collegato anche se la strada è più in alto o più in basso.
+function drawPipeOverlay(c) {
+  const N = game.size;
+  if (game.underground) {   // sottosuolo: tutto più scuro, i tubi sopra
+    c.save(); c.setTransform(1, 0, 0, 1, 0, 0);
+    c.fillStyle = 'rgba(30,22,14,0.55)'; c.fillRect(0, 0, c.canvas.width, c.canvas.height);
+    c.restore();
+  }
+  for (const k of new Set([...game.pathKeys, ...(game.pipes || [])])) {
+    const x = k % N, y = (k - x) / N;
+    if (hasPipe(game.map[y][x])) drawPipeView(c, x, y);
+  }
+}
 function drawPipeView(c, x, y) {
   const t = game.map[y][x];
-  if (!hasPipe(t)) return;
-  const P = surface(x, y), m = P(0.5, 0.5);
-  c.strokeStyle = t.pipe ? 'rgba(79,170,255,0.95)' : 'rgba(79,170,255,0.6)'; c.lineWidth = t.pipe ? 3 : 2;
+  const P = surface(x, y), m = P(0.5, 0.5), mine = !!t.pipe;
   c.lineCap = 'round';
   for (const D of DIRS) {
     const nx = x + D.dx, ny = y + D.dy;
     if (!inMap(nx, ny)) continue;
     const n = game.map[ny][nx];
-    const linked = hasPipe(n) || (n.building && (t.pipe || pipePath(t)) && !BUILDINGS[n.building.kind].water);
-    if (!linked) continue;
-    c.beginPath(); c.moveTo(...m); c.lineTo(...P(0.5 + D.dx * 0.5, 0.5 + D.dy * 0.5)); c.stroke();
+    const toBuilding = n.building && !hasPipe(n) && !BUILDINGS[n.building.kind].water && n.building !== t.building;
+    if (!hasPipe(n) && !toBuilding) continue;
+    const edge = P(0.5 + D.dx * 0.5, 0.5 + D.dy * 0.5);
+    const other = toBuilding ? edge : surface(nx, ny)(0.5 - D.dx * 0.5, 0.5 - D.dy * 0.5);   // stesso bordo visto dal vicino
+    c.strokeStyle = mine || toBuilding ? 'rgba(79,170,255,0.95)' : 'rgba(79,170,255,0.65)';
+    c.lineWidth = mine || toBuilding ? 3 : 2;
+    c.beginPath(); c.moveTo(...m); c.lineTo(...edge); if (Math.abs(other[1] - edge[1]) > 0.5) c.lineTo(...other); c.stroke();
+    if (toBuilding) { c.fillStyle = '#ffffff'; c.beginPath(); c.arc(edge[0], edge[1], 2.2, 0, Math.PI * 2); c.fill(); }   // attacco all'edificio
   }
-  c.fillStyle = t.pipe ? '#4faaff' : 'rgba(79,170,255,0.7)';
-  c.beginPath(); c.arc(m[0], m[1], t.pipe ? 2 : 1.4, 0, Math.PI * 2); c.fill();
+  c.fillStyle = mine ? '#4faaff' : 'rgba(79,170,255,0.75)';
+  c.beginPath(); c.arc(m[0], m[1], mine ? 2.2 : 1.5, 0, Math.PI * 2); c.fill();
   c.lineCap = 'butt';
 }
 
@@ -208,20 +237,47 @@ function drawSewage(c, ax, ay, base, r, flow = 1) {
       roof: { rh: 4, back: '#4a4f5a', roof: '#5b616c', gable: '#b5ac95' },
       doors: [{ face: '+v', a: 1.35, b: 1.7, z1: 8, color: '#4a4f5a' }] },
     { box: [0.85, 1.25, 1.15, 1.55], h: 10, col: { l: '#6b7077', r: '#55595f', t: '#8a8f96' } },   // pozzetto dove arrivano i tubi
-    { box: [0.88, -1.3, 1.12, 0.2], h: 4, z: 1, col: conc,   // tubo verso il mare (sul retro)
-      after() {
-        const p = rotUV(1, -1.3, r);
-        const [ex, ey] = iso(ax, ay, p[0], p[1], base + 3 / STEP), [wx, wy] = iso(ax, ay, p[0], p[1], 0);
-        c.fillStyle = '#2f2f2f'; c.beginPath(); c.ellipse(ex, ey, 2.4, 1.4, 0, 0, Math.PI * 2); c.fill();
-        if (!(flow > 0) || !DETAIL) return;
-        animSeen = true;   // getto marrone che cade in mare, con gli schizzi
-        c.fillStyle = 'rgba(120,88,44,0.85)';
-        c.beginPath(); c.moveTo(ex - 1.5, ey); c.quadraticCurveTo(ex - 1, (ey + wy) / 2, ex - 2.5, wy); c.lineTo(ex + 2.5, wy); c.quadraticCurveTo(ex + 1, (ey + wy) / 2, ex + 1.5, ey); c.closePath(); c.fill();
-        for (let i = 0; i < 4; i++) {
-          const t = (animT * 1.5 + i / 4) % 1;
-          c.fillStyle = 'rgba(150,115,65,' + (0.8 * (1 - t)).toFixed(2) + ')';
-          c.beginPath(); c.arc(wx + (i - 1.5) * 2.5 * t, wy - 2 * Math.sin(t * Math.PI), 0.8 + t, 0, Math.PI * 2); c.fill();
-        }
-      } },
   ]);
+  // retro verso il fondo dello schermo: il tubo sta dietro all'edificio e si disegna qui;
+  // retro verso lo schermo: si disegna dopo i tile d'acqua davanti (drawSewagePipes)
+  if (!sewageBackFront(r)) drawSewagePipe(c, { ax, ay, rot: r, flow }, base);
+}
+function sewageBackFront(r) { const a = rotUV(1, -0.5, r), b = rotUV(1, 1, r); return (a[0] - b[0]) + (a[1] - b[1]) > 0; }
+
+// Tubo dello scarico: esce dal retro, fa una curva di 90 gradi e scende dritto nel mare (richiesta
+// dell'utente: non deve sporgere tanto). Si disegna dopo tutti i tile, così l'acqua non lo copre
+// anche quando lo scarico è solo 1 livello sopra il mare.
+function drawSewagePipes(c) {
+  for (const b of game.buildings.values()) if (b.kind === 'sewage' && sewageBackFront(b.rot || 0)) drawSewagePipe(c, b, game.map[b.ay][b.ax].elev);
+}
+function drawSewagePipe(c, b, base) {
+  {
+    const r = b.rot || 0, ax = b.ax, ay = b.ay;
+    const P = (u, v, h) => { const p = rotUV(u, v, r); return iso(ax, ay, p[0], p[1], h); };
+    const z = base + 4 / STEP, w = 0.13, end = -0.45;   // quota del tubo, mezza larghezza, dove scende
+    const conc = '#a9a9a2', dark = '#86867f', light = '#c4c4bc';
+    // tratto orizzontale dal muro del retro fino alla curva (scatola tra v = end e v = 0)
+    const quad = (pts, col) => { c.fillStyle = col; c.beginPath(); c.moveTo(...pts[0]); for (const p of pts.slice(1)) c.lineTo(...p); c.closePath(); c.fill(); };
+    const top = [P(1 - w, end, z + w * 1.2), P(1 + w, end, z + w * 1.2), P(1 + w, 0.05, z + w * 1.2), P(1 - w, 0.05, z + w * 1.2)];
+    const side1 = [P(1 - w, end, z - w), P(1 - w, 0.05, z - w), P(1 - w, 0.05, z + w * 1.2), P(1 - w, end, z + w * 1.2)];
+    const side2 = [P(1 + w, end, z - w), P(1 + w, 0.05, z - w), P(1 + w, 0.05, z + w * 1.2), P(1 + w, end, z + w * 1.2)];
+    quad(side1, dark); quad(side2, dark); quad(top, light);
+    // curva e tratto verticale fino all'acqua (quota 0)
+    const down = [P(1 - w, end - w, 0), P(1 + w, end - w, 0), P(1 + w, end - w, z + w * 1.2), P(1 - w, end - w, z + w * 1.2)];
+    const down2 = [P(1 - w, end - w, 0), P(1 - w, end + w, 0), P(1 - w, end + w, z + w * 1.2), P(1 - w, end - w, z + w * 1.2)];
+    const down3 = [P(1 + w, end - w, 0), P(1 + w, end + w, 0), P(1 + w, end + w, z + w * 1.2), P(1 + w, end - w, z + w * 1.2)];
+    quad(down2, dark); quad(down3, dark); quad(down, conc);
+    quad([P(1 - w, end - w, z + w * 1.2), P(1 + w, end - w, z + w * 1.2), P(1 + w, end + w, z + w * 1.2), P(1 - w, end + w, z + w * 1.2)], light);   // tappo della curva
+    // getto marrone dove il tubo entra nel mare, con cerchi che si allargano
+    if (!(b.flow > 0) || !DETAIL) return;
+    animSeen = true;
+    const [wx, wy] = P(1, end, 0);
+    for (let i = 0; i < 3; i++) {
+      const t = (animT * 0.7 + i / 3) % 1;
+      c.strokeStyle = 'rgba(150,115,65,' + (0.8 * (1 - t)).toFixed(2) + ')'; c.lineWidth = 1;
+      c.beginPath(); c.ellipse(wx, wy, 3 + t * 9, 1.5 + t * 4.5, 0, 0, Math.PI * 2); c.stroke();
+    }
+    c.fillStyle = 'rgba(120,88,44,0.7)';
+    c.beginPath(); c.ellipse(wx, wy, 3.5, 1.8, 0, 0, Math.PI * 2); c.fill();
+  }
 }

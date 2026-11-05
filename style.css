@@ -9,6 +9,8 @@ canvas { display: block; }
 #topbar b { color: #ffd966; }
 #topbar button { font: inherit; padding: 2px 8px; cursor: pointer; }
 #topbar .top-btns { margin-left: auto; display: flex; gap: 6px; }
+@media (max-width: 1500px) { #topbar .top-btns button { font-size: 12px; padding: 2px 5px; } #topbar .top-btns { gap: 4px; } }
+@media (max-width: 1250px) { #topbar { flex-wrap: wrap; } }
 
 /* ---------- Barra strumenti: icone, numero in alto a sinistra, nome sotto ---------- */
 #toolbar {
@@ -23,6 +25,7 @@ canvas { display: block; }
 #toolbar .tool { width: 82px; }
 #toolbar .tool .lbl.long { font-size: 10px; letter-spacing: -0.4px; white-space: nowrap; }
 #toolbar .tool:hover, #submenu .sub:hover { background: #3a3e5e; }
+#under-btn.active { border-color: #4faaff; background: #2f55b0; color: #fff; }
 #toolbar .tool.active, #submenu .sub.active { border-color: #ffd966; background: #4a4f78; }
 #toolbar img, #submenu img { width: 64px; height: 48px; image-rendering: pixelated; display: block; }
 #toolbar .lbl { font-size: 12px; margin-top: 2px; }
