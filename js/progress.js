@@ -2,7 +2,8 @@
 // In una mappa nuova si parte con poco (strade, case, fattoria, magazzino alimenti, supermercato):
 // il resto si sblocca pagando, nella finestra Progressi (tasto P). Alcune cose ne vogliono
 // prima un'altra (needs). I salvataggi di prima (senza "unlocked") hanno tutto sbloccato.
-const START_TOOLS = ['hand', 'road', 'dirt', 'house', 'farm', 'warehouse', 'supermarket', 'field', 'demolish', 'raise', 'lower', 'level'];
+const START_TOOLS = ['hand', 'road', 'dirt', 'house', 'farm', 'warehouse', 'supermarket', 'field', 'demolish', 'raise', 'lower', 'level',
+  'pylon', 'pole', 'substation'];   // corrente: tralicci, pali e sottostazione sbloccati da subito (richiesta dell'utente)
 const START_CROPS = ['wheat', 'carrot', 'potato'];
 
 const UNLOCKS = [
@@ -33,11 +34,10 @@ const UNLOCKS = [
   { id: 'clothingFactory', sector: 'Tessile', tools: ['clothingFactory'], cost: 11000, needs: ['textileMill'] },
   { id: 'clothingStore', sector: 'Tessile', tools: ['clothingStore'], cost: 8000, needs: ['clothingFactory'] },
   // energia e petrolio
-  { id: 'powerGrid', sector: 'Energia', tools: ['pylon', 'pole', 'substation'], cost: 1500, desc: 'Tralicci, pali della luce e sottostazioni: comprare e vendere la corrente fuori mappa e portarla dove serve.' },
   { id: 'charcoalKiln', sector: 'Energia', tools: ['charcoalKiln'], cost: 3000, needs: ['forestry'] },
-  { id: 'coalPlant', sector: 'Energia', tools: ['coalPlant'], cost: 8000, needs: ['charcoalKiln', 'powerGrid'] },
-  { id: 'solarPlant', sector: 'Energia', tools: ['solarPlant'], cost: 10000, needs: ['powerGrid'] },
-  { id: 'windPlant', sector: 'Energia', tools: ['windPlant'], cost: 9000, needs: ['powerGrid'] },
+  { id: 'coalPlant', sector: 'Energia', tools: ['coalPlant'], cost: 8000, needs: ['charcoalKiln'] },
+  { id: 'solarPlant', sector: 'Energia', tools: ['solarPlant'], cost: 10000 },
+  { id: 'windPlant', sector: 'Energia', tools: ['windPlant'], cost: 9000 },
   { id: 'oilWell', sector: 'Petrolio', tools: ['oilWell', 'goodsWarehouse'], cost: 6000, desc: 'Pozzo petrolifero (e magazzino merci).' },
   { id: 'refinery', sector: 'Petrolio', tools: ['refinery'], cost: 12000, needs: ['oilWell'] },
   { id: 'gasStation', sector: 'Petrolio', tools: ['gasStation'], cost: 5000, needs: ['refinery'] },
