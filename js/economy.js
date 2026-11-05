@@ -469,7 +469,11 @@ function consumerDemand(b) { return b.kind === 'house' ? (b.residents || 0) * GR
 function elecChanged() { if (typeof game !== 'undefined') game.elecVer = (game.elecVer || 0) + 1; }
 function lvTile(x, y) {   // il tile porta la bassa tensione: strade (non binari) e pali
   const t = game.map[y][x];
-  return (t.path && t.path !== 'rail') || (t.building && t.building.kind === 'pole');
+  return cablePath(t) || (t.building && t.building.kind === 'pole');
+}
+// strade con i cavi sotto: asfalto, senso unico, autostrada. Le strade di terra e i binari no (richiesta
+// dell'utente): chi sta solo su una strada di terra va collegato con i pali della luce
+function cablePath(t) { return !!t.path && t.path !== 'rail' && t.path !== 'dirt';
 }
 // albero più corto tra punti vicini (per i fili): [[a, b], ...] e unione nel union-find
 function wireTree(list, range, unite) {
@@ -513,7 +517,7 @@ function buildElecNets() {
     let best = null, bd = Infinity;
     for (let dy = -ELEC.poleReach; dy <= ELEC.poleReach; dy++) for (let dx = -ELEC.poleReach; dx <= ELEC.poleReach; dx++) {
       const x = p.ax + dx, y = p.ay + dy;
-      if (!inMap(x, y) || !game.map[y][x].path || game.map[y][x].path === 'rail') continue;
+      if (!inMap(x, y) || !cablePath(game.map[y][x])) continue;
       const d = dx * dx + dy * dy;
       if (d < bd) { bd = d; best = [x, y]; }
     }
@@ -526,7 +530,7 @@ function buildElecNets() {
     const d = BUILDINGS[b.kind];
     for (let y = b.ay - 1; y <= b.ay + d.h && b.lv == null; y++) for (let x = b.ax - 1; x <= b.ax + d.w; x++) {
       const side = (y === b.ay - 1 || y === b.ay + d.h) !== (x === b.ax - 1 || x === b.ax + d.w);   // solo i 4 lati, non gli angoli
-      if (!side || !inMap(x, y) || !game.map[y][x].path || game.map[y][x].path === 'rail') continue;
+      if (!side || !inMap(x, y) || !cablePath(game.map[y][x])) continue;
       b.lv = find(y * N + x); break;
     }
     if (b.lv == null) {

@@ -1809,6 +1809,22 @@ function check(cond, msg) {
     r.sys = s && { gen: s.gen, demand: s.demand, outside: s.outside, exported: s.exported };
     r.sold = !!s && s.outside && s.exported > 0 && game.grid.exportIncome > 0;
     r.houses = [...game.buildings.values()].filter(b => b.kind === 'house').every(b => b.powered === 1);
+    // strada di terra: niente cavi. Centrale eolica lontana su una strada di terra: non dà corrente
+    // finché non la colleghi con i pali della luce fino alla strada asfaltata
+    for (let y = c + 3; y <= c + 14; y++) useTool('dirt', c - 12, y);
+    for (let x = c - 11; x <= c - 10; x++) useTool('dirt', x, c + 14);
+    r.windOk = useTool('windPlant', c - 10, c + 12).ok;
+    const wd = game.map[c + 12][c - 10].building;
+    for (let i = 0; i < 30; i++) simUpdate(0.1);
+    r.dirtNoCable = wd.lv == null && buildingStatus(wd) === 'noPower';
+    const gen0 = systemOf(game.map[c + 1][c + 6].building).gen;
+    setTool('pole'); game.lastPylon = null; lastTile = null;
+    for (let y = c + 3; y <= c + 12; y++) paintTo({ x: c - 8, y });
+    lastTile = null; setTool('hand');
+    for (let i = 0; i < 30; i++) simUpdate(0.1);
+    const gen1 = systemOf(game.map[c + 1][c + 6].building).gen;
+    r.windPoles = wd.lv != null && gen1 > gen0 && buildingStatus(wd) !== 'noPower';
+    r.gen = [gen0, gen1];
     // finestra Produzione: bilancio in positivo, corrente venduta e soldi al minuto
     noteMade('wheat', 30);
     openStats();
@@ -1817,12 +1833,13 @@ function check(cond, msg) {
     r.wheatRow = [...document.querySelectorAll('#stats .st-table td')].some(td => td.textContent.includes(GOODS.wheat.name));
     closeStats(); r.closed = document.getElementById('stats').hidden;
     // senza centrali: si compra e il bilancio è in negativo
-    for (const b of [...game.buildings.values()]) if (b.kind === 'solarPlant') removeBuilding(b);
+    for (const b of [...game.buildings.values()]) if (POWER[b.kind]) removeBuilding(b);
     for (let i = 0; i < 40; i++) simUpdate(0.1);
     openStats(); r.neg = !!document.querySelector('#stats .st-card.neg'); closeStats();
     return r;
   });
   check(ex.statsOpen && ex.pos && ex.wheatRow && ex.closed && ex.neg, 'finestra Produzione: corrente in positivo quando si vende, in negativo quando si compra, merci prodotte: ' + JSON.stringify(ex));
+  check(ex.windOk && ex.dirtNoCable && ex.windPoles, 'strade di terra senza cavi; centrale eolica collegata con i pali della luce fino alla sottostazione: ' + JSON.stringify(ex));
   check(ex.solar && ex.sold && ex.houses, 'pannelli solari: corrente alle case vicine e quella in più venduta fuori mappa: ' + JSON.stringify(ex));
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
