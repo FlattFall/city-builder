@@ -67,7 +67,7 @@ for n, (sha, when, msg, paths) in reversed(list(enumerate(versions, 1))):
                 % (n, n, html.escape(msg), when.strftime('%d/%m/%Y alle %H:%M'), n))
 index = '''<!doctype html>
 <html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>City Builder - tutte le versioni</title>
+<title>Supplyville - tutte le versioni</title>
 <style>
 body { margin: 0; background: #1a1c2c; color: #f4f4f4; font-family: monospace; }
 main { max-width: 860px; margin: 0 auto; padding: 24px 16px 40px; }
@@ -84,7 +84,7 @@ a.btn { color: #f4f4f4; text-decoration: none; background: #3f7a4a; border: 2px 
 a.btn:hover { background: #4a8f57; }
 .now { display: inline-block; margin-top: 8px; color: #ffd966; }
 </style></head><body><main>
-<h1>CITY BUILDER</h1>
+<h1>SUPPLYVILLE</h1>
 <p>Tutte le versioni del gioco, dalla prima all'ultima (%d versioni). Ogni versione si apre e si gioca com'era quel giorno:
 in basso a destra c'è il numero della versione. Ogni versione ha i suoi salvataggi.</p>
 <a class="now" href="../">&rarr; Gioca alla versione attuale</a>

@@ -1,9 +1,15 @@
 name: Build Windows
 
+# Crea il programma da scaricare per Windows (installatore + versione portatile).
+# Parte da solo quando si spinge un tag "v..." (es. v0.2.0) e mette i file in una Release di GitHub:
+# https://github.com/FlattFall/city-builder/releases
 on:
   workflow_dispatch:
   push:
     tags: ['v*']
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -15,7 +21,22 @@ jobs:
           node-version: 20
       - run: npm install
       - run: npm run dist
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
       - uses: actions/upload-artifact@v4
         with:
-          name: city-builder-windows
+          name: supplyville-windows
           path: dist/*.exe
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Supplyville ${{ github.ref_name }}
+          files: dist/*.exe
+          body: |
+            **Supplyville** - city builder isometrico in stile retro.
+
+            - **Supplyville-Setup-….exe**: installatore (icona sul desktop e nel menu Start).
+            - **Supplyville-…-portable.exe**: si apre con un doppio clic, senza installare.
+
+            Windows può mostrare "Windows ha protetto il PC": clic su *Ulteriori informazioni* → *Esegui comunque*.

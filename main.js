@@ -6,9 +6,11 @@ function createWindow() {
     width: 1280,
     height: 720,
     backgroundColor: '#1a1c2c',
-    title: 'City Builder',
+    title: 'Supplyville',
+    icon: require('path').join(__dirname, 'build', 'icon.png'),
     webPreferences: { contextIsolation: true }
   });
+  win.maximize();
   win.loadFile('index.html');
   // i link esterni (es. la segnalazione dei bug su GitHub) si aprono nel browser
   win.webContents.setWindowOpenHandler(({ url }) => {

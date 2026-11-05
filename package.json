@@ -1,22 +1,48 @@
 {
-  "name": "city-builder",
-  "version": "0.1.0",
-  "description": "City builder isometrico retro",
+  "name": "supplyville",
+  "version": "0.2.0",
+  "description": "Supplyville - city builder isometrico retro",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win portable"
+    "dist": "electron-builder --win nsis portable"
   },
   "devDependencies": {
     "electron": "^33.2.0",
     "electron-builder": "^25.1.8"
   },
   "build": {
-    "appId": "com.tuonome.citybuilder",
-    "productName": "CityBuilder",
-    "files": ["index.html", "style.css", "main.js", "package.json", "js/**/*"],
+    "appId": "com.flattfall.supplyville",
+    "productName": "Supplyville",
+    "files": [
+      "index.html",
+      "style.css",
+      "main.js",
+      "package.json",
+      "js/**/*",
+      "assets/**/*"
+    ],
+    "directories": {
+      "buildResources": "build"
+    },
     "win": {
-      "target": "portable"
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Supplyville",
+      "artifactName": "Supplyville-Setup-${version}.exe"
+    },
+    "portable": {
+      "artifactName": "Supplyville-${version}-portable.exe"
     }
-  }
+  },
+  "author": "FlattFall"
 }

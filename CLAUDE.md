@@ -1,6 +1,6 @@
-# City Builder - note per Claude
+# Supplyville - note per Claude
 
-Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacchettato con Electron per Windows. L'utente parla italiano: testi del gioco e risposte in italiano.
+Supplyville (nome scelto dall'utente): gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacchettato con Electron per Windows. L'utente parla italiano: testi del gioco e risposte in italiano.
 
 ## Struttura
 - `index.html` + `style.css`: pagina e interfaccia (barra in alto, barra strumenti con sottomenu, info tile, toast, menu).
@@ -182,6 +182,7 @@ Gioco city builder isometrico in stile retro, in JavaScript + Canvas 2D, impacch
 - `.github/workflows/pages.yml` pubblica su GitHub Pages ad ogni push su main (https://flattfall.github.io/city-builder/).
 - Pagina delle versioni (https://flattfall.github.io/city-builder/versioni/, richiesta dell'utente per i video del progresso): `tools/build-versions.py` nel workflow (checkout con `fetch-depth: 0`) crea `site/versioni/NN/` per ogni commit che cambia il gioco (index.html, style.css, js, assets) e un elenco con data e messaggio del commit. Ogni versione ha i salvataggi con prefisso `vN:` e un'etichetta in basso. Per questo i messaggi dei commit vanno scritti in italiano e chiari: sono le note delle versioni.
 - `avvia.bat` (CRLF): git pull + npm start. In Electron F5 ricarica.
+- Versione da scaricare per Windows (richiesta dell'utente): `.github/workflows/build.yml` parte con un tag `v*` (es. `git tag v0.2.0 && git push origin v0.2.0`), `npm run dist` = electron-builder `--win nsis portable` (installatore `Supplyville-Setup-<versione>.exe` con collegamenti e versione portatile), icona `build/icon.png` (isola del profilo social), e mette i file in una Release di GitHub (https://github.com/FlattFall/city-builder/releases). Prima di un nuovo tag alzare `version` in package.json. Non è firmato: Windows mostra l'avviso SmartScreen.
 
 ## Aggiungere uno strumento
 1. Definizione in `config.js` (`PATHS` o `BUILDINGS`, oppure un costo in `COSTS`).
