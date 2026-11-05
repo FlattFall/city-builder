@@ -1774,7 +1774,11 @@ function check(cond, msg) {
     // senza strada la sottostazione non lavora: la corrente da fuori non arriva più
     useTool('demolish', c - 8, c + 1); useTool('demolish', c - 9, c + 1);
     for (let i = 0; i < 30; i++) simUpdate(0.1);
-    r.noRoadStops = !sub.works && game.map[c][c - 5].building.powered === 0;
+    r.noRoadStops = !sub.works && game.map[c][c - 5].building.powered === 0 && buildingStatus(sub) === 'noPower';
+    // senza strada ma con un palo della luce vicino (che arriva alla strada) la sottostazione lavora di nuovo
+    useTool('pole', c - 8, c + 2); useTool('pole', c - 6, c + 2);
+    for (let i = 0; i < 30; i++) simUpdate(0.1);
+    r.poleSub = !!sub.works && game.map[c][c - 5].building.powered === 1 && buildingStatus(sub) === null;
     // traliccio sull'acqua
     Object.assign(game.map[5][40], { type: T.WATER, elev: 0 });
     r.water = useTool('pylon', 40, 5).ok === true;
@@ -1782,7 +1786,7 @@ function check(cond, msg) {
   });
   check(pw.none && pw.pylons >= 5 && pw.pylons <= 13 && pw.wires, `tralicci trascinati uno ogni 5 tile (${pw.pylons}) e collegati con i fili`);
   check(pw.outside && pw.subWorks && pw.powered && pw.farDark && pw.noPowerIcon && pw.paid && pw.industries, 'fuori mappa -> tralicci -> sottostazione -> strade: case con la corrente, bollette e corrente comprata: ' + JSON.stringify(pw));
-  check(pw.poles >= 2 && pw.poles <= 5 && pw.farLit && pw.noRoadStops && pw.water, 'pali della luce, sottostazione senza strada ferma, traliccio sull\'acqua: ' + JSON.stringify(pw));
+  check(pw.poles >= 2 && pw.poles <= 5 && pw.farLit && pw.noRoadStops && pw.poleSub && pw.water, 'pali della luce, sottostazione senza strada né palo ferma (con un palo riparte), traliccio sull\'acqua: ' + JSON.stringify(pw));
 
   // 63. centrali a bassa tensione: la corrente in più passa dalla sottostazione e si vende fuori mappa
   const ex = await page.evaluate(() => {

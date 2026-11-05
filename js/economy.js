@@ -562,8 +562,9 @@ function buildElecNets() {
   }
   game.elec = { ver: game.elecVer || 0, hvNets, wires, links, lvWires, lvLinks, systems: new Map(), timer: 0 };
 }
-// sottostazione che lavora: strada e attaccata ai due lati (niente lavoratori: va da sola, richiesta dell'utente)
-function substationWorks(s) { return s.lv != null && s.hv != null && accessTiles(s).length > 0; }
+// sottostazione che lavora: attaccata ai due lati, alta (traliccio) e bassa tensione (strada accanto o palo
+// della luce vicino). Niente lavoratori e niente strada obbligatoria: va da sola (richiesta dell'utente)
+function substationWorks(s) { return s.lv != null && s.hv != null; }
 function systemOf(b) {
   if (!game.elec) return null;
   const k = b.kind === 'pylon' ? 'H' + b.hv : b.lv != null ? 'L' + b.lv : b.hv != null ? 'H' + b.hv : null;
@@ -662,6 +663,7 @@ function buildingStatus(b) {
   if (b.kind === 'house') return (!accessTiles(b).length || b.unreachable) ? 'noRoad' : powerStatus(b);
   if (BUILDINGS[b.kind].water) return b.full ? 'full' : b.noInput ? 'noInput' : null;   // piattaforma: niente strada né lavoratori dalle case
   if (b.kind === 'pylon' || b.kind === 'pole') return null;   // tralicci e pali: niente strada né lavoratori
+  if (b.kind === 'substation') return gridExists() ? powerStatus(b) : null;   // niente strada né lavoratori: solo i collegamenti
   const need = JOBS[b.kind];
   if (need && (b.workers || 0) < need) return b.workers ? 'fewWorkers' : 'noWorkers';
   if (!accessTiles(b).length) return 'noRoad';

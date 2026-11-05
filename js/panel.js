@@ -458,7 +458,7 @@ function netSection(box, b) {
   }));
   if (b.kind === 'substation') box.appendChild(liveText('div', b.works ? 'pnote' : 'pwarn', () => {
     if (b.hv == null) return TR('Manca il traliccio: mettine uno entro {n} tile.', { n: ELEC.linkRange });
-    if (b.lv == null || !accessTiles(b).length) return TR('Manca la strada: la sottostazione va collegata a una strada.');
+    if (b.lv == null) return TR('Non collegata alla bassa tensione: mettila accanto a una strada o a un palo della luce entro {n} tile.', { n: ELEC.poleReach });
     return TR('Trasforma: alta tensione ⇄ bassa tensione (case e attività).');
   }));
   box.appendChild(liveText('div', 'prow', () => { const n = net(); return n ? TR('Centrali {p} - sottostazioni {s} - tralicci {t}', { p: n.plants, s: n.subs, t: n.pylons }) : ''; }));
