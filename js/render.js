@@ -824,6 +824,8 @@ function drawBuildingOn(c, x, y, b) {
   }
   if (b.kind === 'bakery') { drawBakery(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (b.kind === 'charcoalKiln') { drawCharcoalKiln(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
+  if (b.kind === 'pylon') { drawPylon(c, x, y, game.map[y][x].elev, b.armV !== false); return; }
+  if (b.kind === 'substation') { drawSubstation(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (b.kind === 'oilWell') { drawOilWell(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (b.kind === 'gasStation') { drawGasStation(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (x !== b.ax + def.w - 1 || y !== b.ay + def.h - 1) return;
@@ -1409,17 +1411,19 @@ function drawFrame() {
   // sollevata e non si capiva quali tile ne facevano parte)
   const fArea = (() => {
     const f = game.fieldMode ? game.buildings.get(game.fieldMode) : (game.tool === 'farm' && game.hover ? { ax: game.hover.x, ay: game.hover.y } : null);
-    if (!f) return null;
-    const R = FARM.fieldRadius;
-    return { x0: f.ax - R, y0: f.ay - R, x1: f.ax + 1 + R, y1: f.ay + 1 + R };
+    if (f) { const R = FARM.fieldRadius; return { x0: f.ax - R, y0: f.ay - R, x1: f.ax + 1 + R, y1: f.ay + 1 + R }; }
+    // sottostazione (in mano o scelta con la Mano): la zona dove porta la corrente
+    const s = game.tool === 'substation' && game.hover ? { ax: game.hover.x, ay: game.hover.y } : (sel && sel.kind === 'substation' ? sel : null);
+    if (s) { const R = ELEC.subRadius; return { x0: s.ax - R, y0: s.ay - R, x1: s.ax + R, y1: s.ay + R, elec: true }; }
+    return null;
   })();
   const inArea = (x, y) => fArea && x >= fArea.x0 && x <= fArea.x1 && y >= fArea.y0 && y <= fArea.y1;
   const drawAreaTile = (x, y) => {
     const h = cornerHeights(x, y), P = k => iso(x, y, CORNERS[k][0], CORNERS[k][1], h[k]);
     const pts = [0, 1, 2, 3].map(P);
-    ctx.fillStyle = 'rgba(255, 217, 102, 0.16)';
+    ctx.fillStyle = fArea.elec ? 'rgba(111, 227, 255, 0.13)' : 'rgba(255, 217, 102, 0.16)';
     ctx.beginPath(); ctx.moveTo(...pts[0]); for (const p of pts.slice(1)) ctx.lineTo(...p); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = '#ffd966'; ctx.lineWidth = 1.4;
+    ctx.strokeStyle = fArea.elec ? '#6fe3ff' : '#ffd966'; ctx.lineWidth = 1.4;
     for (let d = 0; d < 4; d++) {
       if (inArea(x + DIRS[d].dx, y + DIRS[d].dy)) continue;   // bordo solo verso fuori
       const [a, b] = EDGES[d];
@@ -1472,6 +1476,9 @@ function drawFrame() {
     const xa = rowA(y), xb = rowB(y);
     for (let x = xa; x <= xb; x++) if (visible(x, y)) run(y * N + x);
   }
+  drawPowerLines(ctx);
+  if (game.tool === 'pylon' && game.hover) drawPylonPreview(ctx, game.hover);
+  if (ELEC_TOOLS.includes(game.tool)) drawPowerIcons(ctx);
   drawWorkerIcons(ctx);
   if (sel) drawOwnVehicles(ctx, sel);
   DETAIL = true; FINE = true;   // icone e altri disegni fuori dal fotogramma: sempre dettagliati
@@ -1499,6 +1506,38 @@ function drawOwnVehicles(c, b) {
     c.fillStyle = '#6fe3ff'; c.strokeStyle = '#1a1c2c'; c.lineWidth = 1;
     c.beginPath(); c.moveTo(sx - 4, y - 6); c.lineTo(sx + 4, y - 6); c.lineTo(sx, y); c.closePath(); c.fill(); c.stroke();
     animSeen = true;
+  }
+}
+
+// Con il traliccio in mano: linee tratteggiate verso i tralicci (e centrali/sottostazioni) a cui si collegherebbe
+const ELEC_TOOLS = ['pylon', 'substation', 'coalPlant', 'solarPlant', 'windPlant'];
+function drawPylonPreview(c, h) {
+  if (!inMap(h.x, h.y)) return;
+  const e = game.map[h.y][h.x].elev, from = iso(h.x, h.y, 0.5, 0.5, e + (PYLON_ARM - 3) / STEP);
+  const edge = h.x === 0 || h.y === 0 || h.x === game.size - 1 || h.y === game.size - 1;
+  c.save(); c.setLineDash([4, 3]); c.lineWidth = 1.4; c.strokeStyle = '#6fe3ff';
+  for (const b of game.buildings.values()) {
+    let ok = false, to;
+    if (b.kind === 'pylon') { ok = (b.ax - h.x) ** 2 + (b.ay - h.y) ** 2 <= ELEC.pylonRange ** 2; to = iso(b.ax, b.ay, 0.5, 0.5, game.map[b.ay][b.ax].elev + (PYLON_ARM - 3) / STEP); }
+    else if (b.kind === 'substation' || POWER[b.kind]) { ok = distToBuilding(b, h.x, h.y) <= ELEC.linkRange; const d = BUILDINGS[b.kind]; to = iso(b.ax, b.ay, d.w / 2, d.h / 2, game.map[b.ay][b.ax].elev + 1); }
+    if (!ok || (b.ax === h.x && b.ay === h.y)) continue;
+    c.beginPath(); c.moveTo(...from); c.lineTo(...to); c.stroke();
+  }
+  c.restore();
+  if (edge) {   // sul bordo: si compra la corrente da fuori
+    c.fillStyle = '#6fe3ff'; c.font = 'bold 9px monospace'; c.textAlign = 'center';
+    c.fillText('⚡ ' + TR('da fuori mappa'), from[0], from[1] - 10);
+  }
+}
+// Con gli strumenti dell'energia: sopra case e attività un fulmine giallo (corrente) o grigio (senza)
+function drawPowerIcons(c) {
+  for (const b of game.buildings.values()) {
+    if (!isConsumer(b)) continue;
+    const d = BUILDINGS[b.kind], e = game.map[b.ay][b.ax].elev;
+    const [x, y] = iso(b.ax, b.ay, d.w / 2, d.h / 2, e + (Math.min(d.height, 30) + 8) / STEP);
+    const on = (b.powered || 0) > 0.5;
+    c.fillStyle = on ? '#ffd34d' : '#5b5b66'; c.strokeStyle = '#1a1c2c'; c.lineWidth = 0.8;
+    c.beginPath(); c.moveTo(x + 1, y - 5); c.lineTo(x - 2.5, y + 0.5); c.lineTo(x, y + 0.5); c.lineTo(x - 1, y + 5); c.lineTo(x + 2.5, y - 0.5); c.lineTo(x, y - 0.5); c.closePath(); c.fill(); c.stroke();
   }
 }
 

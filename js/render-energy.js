@@ -311,3 +311,104 @@ function drawOilSpot(c, x, y) {
   c.fillStyle = 'rgba(20,16,12,' + (0.15 + 0.45 * o).toFixed(2) + ')';
   c.beginPath(); c.moveTo(...P(0.08, 0.08)); c.lineTo(...P(0.92, 0.08)); c.lineTo(...P(0.92, 0.92)); c.lineTo(...P(0.08, 0.92)); c.closePath(); c.fill();
 }
+
+// ---------- Rete elettrica: tralicci, sottostazione, fili ----------
+// Traliccio dell'alta tensione: torre a traliccio (4 gambe che si stringono, controventi a X),
+// due mensole con gli isolatori. Le mensole stanno di traverso rispetto ai fili (b.armV).
+const PYLON_TOP = 44, PYLON_ARM = 34;
+function pylonArmEnds(x, y, base, armV) {   // punti dove si attaccano i fili (due per lato)
+  const P = (u, v) => iso(x, y, u, v, base + (PYLON_ARM - 3) / STEP);
+  return armV ? [P(0.5, 0.08), P(0.5, 0.92)] : [P(0.08, 0.5), P(0.92, 0.5)];
+}
+function drawPylon(c, x, y, base, armV) {
+  const P = (u, v, h) => iso(x, y, u, v, base + h / STEP);
+  const at = h => { const k = h / PYLON_TOP, w = 0.22 - 0.16 * k; return [0.5 - w, 0.5 + w]; };   // gambe che si stringono
+  const leg = (su, sv, h) => { const [a, b] = at(h); return P(su < 0 ? a : b, sv < 0 ? a : b, h); };
+  const line = (p, q, col, w) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); c.moveTo(...p); c.lineTo(...q); c.stroke(); };
+  const STEEL_D = '#4d525a', STEEL_L = '#8c929b';
+  // ombra a terra
+  c.fillStyle = 'rgba(0,0,0,0.18)';
+  c.beginPath(); for (const [u, v] of [[0.26, 0.26], [0.74, 0.26], [0.74, 0.74], [0.26, 0.74]]) { const p = P(u, v, 0); c.lineTo(...p); } c.closePath(); c.fill();
+  const legs = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+  const backFirst = legs.slice().sort((a, b) => (a[0] + a[1]) - (b[0] + b[1]));
+  const levels = [0, 10, 19, 27, PYLON_ARM, PYLON_TOP];
+  for (const [su, sv] of backFirst) {
+    const front = su + sv > 0;
+    line(leg(su, sv, 0), leg(su, sv, PYLON_TOP), front ? STEEL_L : STEEL_D, DETAIL ? 1.1 : 1.3);
+  }
+  if (DETAIL) {   // controventi a X sulle due facce visibili, e i traversi
+    for (const [a, b] of [[[-1, 1], [1, 1]], [[1, -1], [1, 1]]]) {
+      for (let i = 0; i < levels.length - 1; i++) {
+        const h0 = levels[i], h1 = levels[i + 1];
+        line(leg(...a, h0), leg(...b, h1), STEEL_D, 0.5);
+        line(leg(...b, h0), leg(...a, h1), STEEL_D, 0.5);
+        line(leg(...a, h1), leg(...b, h1), STEEL_L, 0.6);
+      }
+    }
+  }
+  // mensole con gli isolatori
+  for (const [h, len] of [[PYLON_ARM, 0.42], [PYLON_ARM + 7, 0.3]]) {
+    const A = armV ? P(0.5, 0.5 - len, h) : P(0.5 - len, 0.5, h), B = armV ? P(0.5, 0.5 + len, h) : P(0.5 + len, 0.5, h);
+    line(A, B, STEEL_L, 1.3);
+    if (DETAIL) for (const p of [A, B]) { line(p, [p[0], p[1] + 3], '#d9dde2', 1.4); }   // isolatori
+  }
+  line(P(0.5, 0.5, PYLON_TOP), P(0.5, 0.5, PYLON_TOP + 4), STEEL_L, 1);   // punta
+}
+
+// Sottostazione elettrica: piazzale recintato con due trasformatori, sostegni e una casetta di controllo
+function drawSubstation(c, x, y, base, r) {
+  const steel = { l: '#9aa0a8', r: '#7a8088', t: '#b8bec6' }, tr = { l: '#6f7a72', r: '#56605a', t: '#86918a' };
+  drawParts1(c, x, y, base, r, [
+    { box: [0.05, 0.05, 0.95, 0.95], h: 1, col: { l: '#a9a9a2', r: '#8f8f88', t: '#bdbdb5' } },   // piazzale
+    { box: [0.14, 0.16, 0.44, 0.46], h: 9, col: tr },                                                     // trasformatori
+    { box: [0.54, 0.16, 0.84, 0.46], h: 9, col: tr },
+    { box: [0.22, 0.24, 0.36, 0.38], h: 3, z: 9, col: { l: '#c96a3a', r: '#a65530', t: '#d9844e' } },  // isolatori in cima
+    { box: [0.62, 0.24, 0.76, 0.38], h: 3, z: 9, col: { l: '#c96a3a', r: '#a65530', t: '#d9844e' } },
+    { box: [0.16, 0.58, 0.48, 0.86], h: 10, col: { l: '#e8dcc0', r: '#c9bc9e', t: '#b5473a' } },        // casetta di controllo
+    { box: [0.6, 0.6, 0.65, 0.65], h: 18, col: steel },                                                  // sostegni dei fili
+    { box: [0.78, 0.6, 0.83, 0.65], h: 18, col: steel },
+    { box: [0.6, 0.6, 0.83, 0.65], h: 1.5, z: 16, col: steel },
+    { box: [0.6, 0.8, 0.65, 0.85], h: 14, col: steel },
+  ]);
+  if (DETAIL) {   // recinzione sui due lati davanti
+    const P = (u, v, h) => iso(x, y, u, v, base + h / STEP);
+    c.strokeStyle = 'rgba(60,64,70,0.8)'; c.lineWidth = 0.6;
+    for (const h of [2, 5]) {
+      c.beginPath(); c.moveTo(...P(0.05, 0.95, h)); c.lineTo(...P(0.95, 0.95, h)); c.lineTo(...P(0.95, 0.05, h)); c.stroke();
+    }
+    for (let k = 0; k <= 6; k++) {
+      const t = 0.05 + k * 0.15;
+      c.beginPath(); c.moveTo(...P(t, 0.95, 1)); c.lineTo(...P(t, 0.95, 5.5)); c.stroke();
+      c.beginPath(); c.moveTo(...P(0.95, t, 1)); c.lineTo(...P(0.95, t, 5.5)); c.stroke();
+    }
+    // cartello giallo di pericolo
+    const s = P(0.95, 0.45, 4);
+    c.fillStyle = '#ffd34d'; c.beginPath(); c.moveTo(s[0], s[1] - 2.5); c.lineTo(s[0] + 2.2, s[1] + 1.3); c.lineTo(s[0] - 2.2, s[1] + 1.3); c.closePath(); c.fill();
+  }
+}
+
+// Fili dell'alta tensione: tra i tralicci collegati (due fili che pendono un po') e dal traliccio alla
+// centrale o alla sottostazione. Si disegnano sopra la città, dopo tutti i tile.
+function drawPowerLines(c) {
+  const E = game.elec;
+  if (!E) return;
+  const elevOf = b => game.map[b.ay][b.ax].elev;
+  const sag = (p, q) => {
+    const d = Math.hypot(q[0] - p[0], q[1] - p[1]), m = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2 + 3 + d * 0.06];
+    c.beginPath(); c.moveTo(...p); c.quadraticCurveTo(...m, ...q); c.stroke();
+  };
+  c.lineWidth = DETAIL ? 0.7 : 0.9; c.strokeStyle = 'rgba(28, 30, 36, 0.85)';
+  for (const [a, b] of E.wires) {
+    const ea = pylonArmEnds(a.ax, a.ay, elevOf(a), a.armV), eb = pylonArmEnds(b.ax, b.ay, elevOf(b), b.armV);
+    // si collegano i due capi più vicini fra loro (così i fili non si incrociano)
+    const d0 = Math.hypot(ea[0][0] - eb[0][0], ea[0][1] - eb[0][1]) + Math.hypot(ea[1][0] - eb[1][0], ea[1][1] - eb[1][1]);
+    const d1 = Math.hypot(ea[0][0] - eb[1][0], ea[0][1] - eb[1][1]) + Math.hypot(ea[1][0] - eb[0][0], ea[1][1] - eb[0][1]);
+    if (d0 <= d1) { sag(ea[0], eb[0]); sag(ea[1], eb[1]); } else { sag(ea[0], eb[1]); sag(ea[1], eb[0]); }
+  }
+  for (const [p, o] of E.links) {   // al traliccio (o alla sottostazione) dalla centrale
+    const from = p.kind === 'pylon' ? iso(p.ax, p.ay, 0.5, 0.5, elevOf(p) + (PYLON_ARM - 3) / STEP) : iso(p.ax, p.ay, 0.7, 0.62, elevOf(p) + 17 / STEP);
+    const d = BUILDINGS[o.kind];
+    const to = o.kind === 'substation' ? iso(o.ax, o.ay, 0.7, 0.62, elevOf(o) + 17 / STEP) : iso(o.ax, o.ay, d.w / 2, d.h / 2, elevOf(o) + Math.min(d.height, 30) * 0.6 / STEP);
+    sag(from, to);
+  }
+}

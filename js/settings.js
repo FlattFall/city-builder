@@ -46,7 +46,7 @@ function refreshKeyLabels() {
   set('manual-btn', TR('Manuale') + ' (' + keyName(keyOf('manual')) + ')');
   set('progress-btn', TR('Progressi') + ' (' + keyName(keyOf('progress')) + ')');
   const help = document.getElementById('help');
-  if (help) help.innerHTML = TR('Sinistro: usa lo strumento<br>Mano: trascina la mappa, clic su edificio = info<br>Destro/centrale + trascina: muovi | Rotella: zoom<br>{up}{left}{down}{right}/frecce: muovi | 1-8: strumenti | {r}: ruota<br>{m}: manuale | {p}: progressi | {i}: sblocca tutto | Esc: menu<br>{sp}: pausa | ▶ ▶▶ ▶▶▶ in alto: velocità', {
+  if (help) help.innerHTML = TR('Sinistro: usa lo strumento<br>Mano: trascina la mappa, clic su edificio = info<br>Destro/centrale + trascina: muovi | Rotella: zoom<br>{up}{left}{down}{right}/frecce: muovi | 1-9: strumenti | {r}: ruota<br>{m}: manuale | {p}: progressi | {i}: sblocca tutto | Esc: menu<br>{sp}: pausa | ▶ ▶▶ ▶▶▶ in alto: velocità', {
     up: keyName(keyOf('up')), left: keyName(keyOf('left')), down: keyName(keyOf('down')), right: keyName(keyOf('right')),
     r: keyName(keyOf('rotate')), m: keyName(keyOf('manual')), p: keyName(keyOf('progress')), i: keyName(keyOf('unlock')), sp: keyName(keyOf('pause')) });
 }
@@ -82,7 +82,7 @@ function renderSettings() {
     row.append(name, btn);
     list.appendChild(row);
   }
-  for (const [k, label] of [['1 - 8', 'Gruppi della barra'], ['↑ ↓ ← →', 'Muovi la mappa'], ['Esc', 'Menu e chiudi le finestre']]) {
+  for (const [k, label] of [['1 - 9', 'Gruppi della barra'], ['↑ ↓ ← →', 'Muovi la mappa'], ['Esc', 'Menu e chiudi le finestre']]) {
     const row = document.createElement('div');
     row.className = 'set-row fixed';
     const name = document.createElement('span'); name.textContent = TR(label);
@@ -108,7 +108,7 @@ function initSettings() {
     e.preventDefault(); e.stopImmediatePropagation();
     const k = e.key.toLowerCase();
     if (k === 'escape') { keyListening = null; renderSettings(); return; }
-    if (/^[1-8]$/.test(k) || k.startsWith('arrow')) { toast(TR('Questo tasto è già usato dal gioco')); return; }
+    if (/^[1-9]$/.test(k) || k.startsWith('arrow')) { toast(TR('Questo tasto è già usato dal gioco')); return; }
     setKey(keyListening, k);
     keyListening = null;
     renderSettings();

@@ -146,9 +146,11 @@ function check(cond, msg) {
   await page.waitForTimeout(150);
   await page.screenshot({ path: SHOTS + '/3-zoom.png' });
 
-  // 8. demolizione (tasto 8): casa e strade
-  await page.keyboard.press('8');
-  await page.keyboard.press('Escape'); // chiude il sottomenu che si apre col tasto 8
+  // 8. demolizione (tasto 9): casa e strade
+  await page.keyboard.press('9');
+  await page.keyboard.press('Escape'); // chiude il sottomenu che si apre col tasto 9
+  await page.evaluate(() => { cam.y -= 150; requestDraw(); });   // la barra (9 gruppi) copriva la casa in basso
+  await page.waitForTimeout(50);
   const roadsBefore = await page.evaluate(() => game.roads);
   const a2 = await screenOf(run.x, run.y), b2 = await screenOf(run.x + 5, run.y);
   await page.mouse.move(a2.x, a2.y);
@@ -1066,7 +1068,7 @@ function check(cond, msg) {
   check(rn.name === 'Filanda 1' && rn.title === 'Filanda 1' && rn.tool === 'hand', 'cambio nome dal pannello: ' + JSON.stringify(rn));
   await page.evaluate(() => closePanel());
   const bar = await page.evaluate(() => [...document.querySelectorAll('#toolbar .lbl')].map(e => e.textContent).join(','));
-  check(bar === 'Mano,Strade,Case,Agroalimentare,Legno,Tessile,Energia,Demolisci', 'barra: ' + bar);
+  check(bar === 'Mano,Strade,Case,Agroalimentare,Legno,Tessile,Petrolio,Energia,Demolisci', 'barra: ' + bar);
 
   // 34. allevamento unico: scelta dell'animale dal pannello, vecchi salvataggi convertiti
   const lvs = await page.evaluate(() => {
@@ -1296,6 +1298,9 @@ function check(cond, msg) {
     for (let hx = c - 34; hx <= c + 16; hx++) { useTool('house', hx, c - 1); useTool('house', hx, c - 2); }
     for (let hx = 0; hx < N; hx++) useTool('road', hx, c - 3);
     for (const h of game.buildings.values()) if (h.kind === 'house') h.residents = HOUSE_CAPACITY;
+    // rete: tralicci accanto alle centrali, poi su fino a una sottostazione vicino alle case
+    for (let px = c - 32; px <= c - 2; px += 5) useTool('pylon', px, c + 4);
+    useTool('pylon', c - 12, c + 3); useTool('pylon', c - 12, c - 4); useTool('substation', c - 12, c - 5);
     recount();
     const B = k => [...game.buildings.values()].find(b => b.kind === k);
     const fo = B('forestry'), ki = B('charcoalKiln'), cp = B('coalPlant'), so = B('solarPlant'), wi = B('windPlant'), we = B('oilWell'),
@@ -1723,6 +1728,35 @@ function check(cond, msg) {
     return r;
   });
   check(vb.start && vb.four && vb.max, 'furgoni: 2 all\'inizio, se ne comprano fino a 4: ' + JSON.stringify(vb));
+
+  // 62. rete elettrica: tralicci fino al bordo = corrente comprata da fuori; senza sottostazione niente corrente
+  const pw = await page.evaluate(() => {
+    clearVehicles(); newGame(21, 128); unlockAll(); game.started = true; if (menuIsOpen()) closeMenu();
+    const N = game.size, c = N / 2;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) Object.assign(game.map[y][x], { type: T.GRASS, path: null, main: false, field: false, farm: null, building: null, rb: null, elev: 2, bridge: null });
+    game.bridges = new Map(); rebuildBridgeIndex(); recount(); game.money = 1e7;
+    for (let x = c - 5; x <= c + 5; x++) useTool('house', x, c);
+    for (const h of game.buildings.values()) if (h.kind === 'house') h.residents = HOUSE_CAPACITY;
+    const r = {};
+    simUpdate(0.1); r.none = [...game.buildings.values()].every(b => !b.powered);
+    // tralicci trascinati dal bordo verso la città (uno ogni 5 tile)
+    setTool('pylon'); game.lastPylon = null; lastTile = null;
+    for (let x = 0; x <= c - 8; x++) paintTo({ x, y: c - 2 });
+    lastTile = null; setTool('hand');
+    r.pylons = [...game.buildings.values()].filter(b => b.kind === 'pylon').length;
+    useTool('substation', c - 7, c - 2);
+    const m0 = game.money;
+    for (let i = 0; i < 260; i++) simUpdate(0.1);
+    const n = game.elec.nets.get(game.map[c - 2][c - 7].building.net);
+    r.outside = !!n && n.outside && n.cover === 1 && n.imported > 0;
+    r.powered = [...game.buildings.values()].filter(b => b.kind === 'house').every(b => b.powered === 1);
+    r.paid = game.grid.importCost > 0 && game.grid.bills > 0;
+    r.wires = game.elec.wires.length >= r.pylons - 1;
+    r.industries = game.industries === 0;
+    return r;
+  });
+  check(pw.none && pw.pylons >= 5 && pw.pylons <= 13 && pw.wires, `tralicci trascinati uno ogni 5 tile (${pw.pylons}) e collegati con i fili`);
+  check(pw.outside && pw.powered && pw.paid && pw.industries, 'rete collegata fuori mappa: case con la corrente, bollette e corrente comprata: ' + JSON.stringify(pw));
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();

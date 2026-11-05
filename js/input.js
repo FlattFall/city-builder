@@ -23,7 +23,7 @@ function paintTo(tile) {
   // gli edifici grandi si piazzano uno per clic; percorsi, campi, case e ruspa si trascinano
   const big = BUILDINGS[game.tool] && BUILDINGS[game.tool].w > 1;
   if (big && lastTile) return;
-  const path = (lastTile && !BUILDINGS[game.tool]) ? tilePath(lastTile, tile) : [tile];
+  const path = (lastTile && (!BUILDINGS[game.tool] || game.tool === 'pylon')) ? tilePath(lastTile, tile) : [tile];
   let changed = false, prev = lastTile;
   for (const p of path) {
     if (lastTile && p.x === lastTile.x && p.y === lastTile.y) continue;
@@ -57,7 +57,10 @@ function paintTo(tile) {
         return;
       }
     }
+    // tralicci trascinati: uno ogni ELEC.pylonSpacing tile (non uno per casella)
+    if (game.tool === 'pylon' && game.lastPylon && Math.hypot(p.x - game.lastPylon.x, p.y - game.lastPylon.y) < ELEC.pylonSpacing) { prev = p; continue; }
     const r = useTool(game.tool, p.x, p.y);
+    if (r.ok && game.tool === 'pylon') game.lastPylon = { x: p.x, y: p.y };
     if (r.ok) { changed = true; game.dirty = true; paintedNow.add(p.y * game.size + p.x); if (r.refund) toast(TR('Demolito: ti ridanno {m}', { m: money(r.refund) })); }
     else if (r.msg) toast(r.msg);
     prev = p;
@@ -104,6 +107,7 @@ canvas.addEventListener('mousedown', e => {
     lastTile = null;
     game.levelTarget = null; // Livella: la quota la decide il primo tile
     startTerrainStroke();     // ogni passata = un passo da annullare con Ctrl+Z
+    game.lastPylon = null;
     const tile = pickTile(e.clientX, e.clientY);
     if (tile) paintTo(tile);
   }

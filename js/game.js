@@ -353,7 +353,7 @@ function newGame(seed, size) {
   game.size = size || MAP_SIZES[0].size;
   game.map = generateTerrain(seed, game.size);
   game.money = START_MONEY;
-  game.grid = null;
+  game.grid = null; game.elec = null;
   game.undoStack = []; game.undoStroke = null;   // niente da annullare in una mappa nuova
   game.speed = 1;   // velocità normale
   if (typeof refreshSpeed === 'function') refreshSpeed();
@@ -401,7 +401,7 @@ function recount() {
         const b = t.building;
         game.buildings.set(b.id, b);
         if (b.id >= game.nextId) game.nextId = b.id + 1;
-        if (b.kind === 'house') { game.houses++; game.population += b.residents || 0; } else game.industries++;
+        if (b.kind === 'house') { game.houses++; game.population += b.residents || 0; } else if (!BUILDINGS[b.kind].infra) game.industries++;
       }
     }
   updateRoundabouts();
@@ -592,7 +592,8 @@ function useTool(tool, x, y) {
       q.building = b;
     }
     game.buildings.set(b.id, b);
-    if (tool === 'house') game.houses++; else game.industries++;
+    if (tool === 'house') game.houses++; else if (!BUILDINGS[tool].infra) game.industries++;
+    if (typeof elecChanged === 'function') elecChanged();   // la rete elettrica si ricalcola
     if (tool === 'farm' && typeof onFarmPlaced === 'function') onFarmPlaced(b);
   } else if (tool === 'raise' || tool === 'lower' || tool === 'level') {
     const target = tool === 'raise' ? t.elev + 1 : tool === 'lower' ? t.elev - 1 : game.levelTarget;
@@ -630,7 +631,8 @@ function useTool(tool, x, y) {
 function removeBuilding(b) {
   for (const p of footprint(b.kind, b.ax, b.ay)) game.map[p.y][p.x].building = null;
   game.buildings.delete(b.id);
-  if (b.kind === 'house') { game.houses--; game.population -= b.residents || 0; } else game.industries--;
+  if (b.kind === 'house') { game.houses--; game.population -= b.residents || 0; } else if (!BUILDINGS[b.kind].infra) game.industries--;
+  if (typeof elecChanged === 'function') elecChanged();
   if (b.kind === 'farm') {
     const R = FARM.fieldRadius;
     for (let y = b.ay - R; y < b.ay + 2 + R; y++) for (let x = b.ax - R; x < b.ax + 2 + R; x++)

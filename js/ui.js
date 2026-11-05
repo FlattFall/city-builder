@@ -29,6 +29,8 @@ const TOOL_INFO = {
   furnitureStore: { label: "Mercato dell'arredamento (2x2)", cost: BUILDINGS.furnitureStore.cost, desc: 'Vende mobili (e legname) agli abitanti vicini: per ogni vendita incassi le tasse. I mobili si comprano più di rado ma costano di più.' },
   charcoalKiln: { label: 'Carbonaia', cost: BUILDINGS.charcoalKiln.cost, desc: "Fa il carbone bruciando piano la legna sotto la terra: legna da ardere dall'azienda forestale." },
   coalPlant: { label: 'Centrale a carbone (2x2)', cost: BUILDINGS.coalPlant.cost, desc: 'Brucia il carbone della carbonaia e produce tanta energia per la rete elettrica.' },
+  pylon: { label: 'Traliccio', cost: BUILDINGS.pylon.cost, desc: 'Porta la corrente ad alta tensione: si collega ai tralicci entro ' + ELEC.pylonRange + ' tile e a centrali e sottostazioni vicine. Trascinando li metti in fila. Non servono lavoratori né strada. Un traliccio sul bordo della mappa compra la corrente da fuori.' },
+  substation: { label: 'Sottostazione elettrica', cost: BUILDINGS.substation.cost, desc: "Trasforma l'alta tensione e porta la corrente a case e attività entro " + ELEC.subRadius + ' tile. Va collegata a un traliccio (o accanto a una centrale).' },
   solarPlant: { label: 'Centrale solare (2x2)', cost: BUILDINGS.solarPlant.cost, desc: 'Pannelli solari: energia pulita senza materie prime, basta un lavoratore.' },
   windPlant: { label: 'Centrale eolica (2x2)', cost: BUILDINGS.windPlant.cost, desc: "Pale eoliche: energia senza materie prime. Più in alto la costruisci, più vento c'è e più energia fa. La strada si può collegare da qualsiasi lato." },
   oilWell:   { label: 'Pozzo petrolifero', cost: BUILDINGS.oilWell.cost, desc: 'Estrae il petrolio grezzo da un giacimento a terra (con lo strumento in mano vedi le zone scure dove ce n\'è).' },
@@ -51,8 +53,9 @@ const TOOL_GROUPS = [
     'warehouse', 'factory', 'dairy', 'slaughterhouse', 'bakery', 'supermarket'] },
   { key: '5', id: 'wood',     label: 'Legno',     tools: ['forestry', 'sawmill', 'furnitureFactory', 'furnitureStore', 'goodsWarehouse'] },
   { key: '6', id: 'textile',  label: 'Tessile',   tools: ['textileMill', 'clothingFactory', 'clothingStore', 'goodsWarehouse'] },
-  { key: '7', id: 'energy',   label: 'Energia',   tools: ['charcoalKiln', 'coalPlant', 'solarPlant', 'windPlant', 'oilWell', 'oilPlatform', 'port', 'refinery', 'gasStation', 'goodsWarehouse'] },
-  { key: '8', id: 'demolish', label: 'Demolisci', tools: ['demolish', 'raise', 'lower', 'level'] },
+  { key: '7', id: 'oil',      label: 'Petrolio',  tools: ['oilWell', 'oilPlatform', 'port', 'refinery', 'gasStation', 'goodsWarehouse'] },
+  { key: '8', id: 'energy',   label: 'Energia',   tools: ['pylon', 'substation', 'solarPlant', 'windPlant', 'coalPlant', 'charcoalKiln'] },
+  { key: '9', id: 'demolish', label: 'Demolisci', tools: ['demolish', 'raise', 'lower', 'level'] },
 ];
 const groupChoice = {};   // gruppo -> ultimo strumento scelto
 const ICONS = {};         // strumento -> immagine (data URL)
@@ -332,6 +335,8 @@ function buildIcons() {
   ICONS.oilWell = tileIcon((c, P) => { diamond(c, P, GROUND.oilWell); drawOilWell(c, 0, 0, 0, 0); });
   ICONS.gasStation = tileIcon((c, P) => { diamond(c, P, GROUND.gasStation); drawGasStation(c, 0, 0, 0, 0); });
   ICONS.coalPlant = bigIcon(c => drawCoalPlant(c, 0, 0, 0, 0), GROUND.coalPlant);
+  ICONS.pylon = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawPylon(c, 0, 0, 0, true); }, 0.85);
+  ICONS.substation = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawSubstation(c, 0, 0, 0, 0); }, 1.3);
   ICONS.solarPlant = bigIcon(c => drawSolarPlant(c, 0, 0, 0, 0), GROUND.solarPlant);
   ICONS.windPlant = makeIcon(c => {   // più piccola: le torri sono alte
     const s = 0.52;

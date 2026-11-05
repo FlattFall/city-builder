@@ -61,6 +61,9 @@ const BUILDINGS = {
   clothingFactory: { name: 'Fabbrica di abbigliamento', w: 2, h: 2, cost: 1700, height: 24, group: 'textile' },
   clothingStore: { name: 'Negozio di abbigliamento', w: 2, h: 2, cost: 1300, height: 20, group: 'textile' },
   // settore energia e petrolio
+  // rete elettrica (gruppo Energia): tralicci e sottostazioni, senza lavoratori né strada (infra: non contano tra le industrie)
+  pylon:      { name: 'Traliccio', w: 1, h: 1, cost: 80, height: 46, group: 'power', infra: true },
+  substation: { name: 'Sottostazione elettrica', w: 1, h: 1, cost: 900, height: 20, group: 'power', infra: true },
   charcoalKiln: { name: 'Carbonaia', w: 1, h: 1, cost: 600, height: 16, group: 'energy' },
   coalPlant:  { name: 'Centrale a carbone', w: 2, h: 2, cost: 4000, height: 44, group: 'energy' },
   solarPlant: { name: 'Centrale solare', w: 2, h: 2, cost: 5000, height: 10, group: 'energy' },
@@ -266,6 +269,10 @@ const POWER = {
 // Rete elettrica (una sola per tutta la mappa): consumo = abitanti + attività; le case pagano la
 // bolletta, le attività con la corrente lavorano più in fretta (boost)
 const GRID = { perResident: 1, perBusiness: 4, bill: 0.4, billEvery: 20, boost: 0.25 };
+// Reti elettriche (richiesta dell'utente): la corrente va dalle centrali ai tralicci (alta tensione) e
+// dalle sottostazioni a case e attività vicine. Un traliccio sul bordo della mappa collega la rete
+// all'esterno: si compra la corrente che manca (importPrice per unità ogni billEvery secondi).
+const ELEC = { pylonRange: 7, linkRange: 3, subRadius: 14, importPrice: 0.3, pylonSpacing: 5 };
 // Due magazzini: alimenti (cibo e animali) e merci (legno, mobili, fibre, tessuti, vestiti)
 const WAREHOUSE_CATS = {
   warehouse: ['raw', 'animal', 'food', 'bakery', 'dairy', 'meat'],

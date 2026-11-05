@@ -421,12 +421,9 @@ function renderPanel() {
       box.appendChild(bar(() => (b.input || {})[P.fuel] || 0, CAPS[b.kind].input));
       box.appendChild(liveText('div', 'pwarn', () => b.noInput ? TR('Senza carbone è spenta: mandalo qui dalla carbonaia o mettilo in un magazzino merci.') : ''));
     }
-    const g = () => game.grid || { gen: 0, demand: 0, cover: 0, bills: 0 };
-    box.appendChild(el('div', 'plabel', TR('Rete elettrica (tutta la città)')));
-    box.appendChild(liveText('div', 'prow', () => TR('Produzione {a} - consumo {b} - coperto {c}%', { a: g().gen, b: g().demand, c: Math.round(g().cover * 100) })));
-    box.appendChild(bar(() => g().cover, 1));
-    box.appendChild(liveText('div', 'pnote', () => TR('Bollette incassate: {m}. Con la corrente le attività lavorano fino al {n}% più in fretta.', { m: money(g().bills || 0), n: Math.round(GRID.boost * 100) })));
+    netSection(box, b);
   }
+  if (b.kind === 'pylon' || b.kind === 'substation') netSection(box, b);
 
   if (SHOPS[b.kind]) {
     const S = SHOPS[b.kind], cap = CAPS[b.kind].store;
@@ -442,7 +439,31 @@ function renderPanel() {
     box.appendChild(row);
     box.appendChild(el('div', 'pnote', TR('Si rifornisce dai magazzini che lo hanno come uscita. Tasse: {n}% del prezzo.', { n: Math.round(TAX_RATE * 100) })));
   }
+  if (isConsumer(b)) box.appendChild(liveText('div', (b.powered || 0) > 0.5 ? 'pnote' : 'pwarn', () => (b.powered || 0) > 0.5
+    ? TR('⚡ Corrente: sì ({n}%)', { n: Math.round((b.powered || 0) * 100) })
+    : TR('⚡ Senza corrente: serve una sottostazione entro {n} tile collegata alla rete.', { n: ELEC.subRadius })));
   renderSubpanel(b);
+}
+
+// La rete elettrica di una centrale, di un traliccio o di una sottostazione
+function netSection(box, b) {
+  const net = () => game.elec && b.net != null ? game.elec.nets.get(b.net) : null;
+  box.appendChild(el('div', 'plabel', TR('Rete elettrica')));
+  box.appendChild(liveText('div', 'prow', () => {
+    const n = net();
+    if (!n || (!n.pylons && !n.subs.length)) return POWER[b.kind] ? TR('Non collegata: metti un traliccio entro {n} tile (o una sottostazione accanto).', { n: ELEC.linkRange }) : TR('Rete da sola: collega altri tralicci.');
+    return TR('Centrali {p} - sottostazioni {s} - tralicci {t}', { p: n.plants.length, s: n.subs.length, t: n.pylons });
+  }));
+  box.appendChild(liveText('div', 'prow', () => { const n = net(); return n ? TR('Produzione {a} - consumo {b} - coperto {c}%', { a: Math.round(n.gen), b: n.demand, c: Math.round(n.cover * 100) }) : ''; }));
+  box.appendChild(bar(() => (net() || { cover: 0 }).cover, 1));
+  box.appendChild(liveText('div', 'pnote', () => {
+    const n = net();
+    if (!n) return '';
+    if (n.outside) return TR('Collegata fuori mappa: compra {n} di corrente ({m} ogni {s} s).', { n: Math.round(n.imported), m: money(n.imported * ELEC.importPrice), s: GRID.billEvery });
+    if (!n.subs.length) return TR('Senza sottostazioni la corrente non arriva a case e attività.');
+    return n.gen < n.demand ? TR('Manca corrente: costruisci centrali o porta i tralicci fino al bordo della mappa per comprarla da fuori.') : '';
+  }));
+  box.appendChild(liveText('div', 'pnote', () => { const g = game.grid || {}; return TR('Bollette incassate: {m}. Corrente comprata da fuori: {c}. Con la corrente le attività lavorano fino al {n}% più in fretta.', { m: money(g.bills || 0), c: money(g.importCost || 0), n: Math.round(GRID.boost * 100) }); }));
 }
 
 // aggiornamento del pannello aperto (chiamato dal ciclo del gioco)

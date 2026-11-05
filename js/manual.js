@@ -167,7 +167,10 @@ const MANUAL = [
   } },
 
   { id: 'energy', title: 'Energia e petrolio', icon: 'coalPlant', build(b) {
-    b.appendChild(mEl('p', null, TR('La città ha una sola <b>rete elettrica</b>: le centrali producono, abitanti e attività consumano ({a} per abitante, {b} per attività). Ogni {s} secondi gli abitanti con la corrente pagano la <b>bolletta</b> e le attività con la corrente lavorano fino al <b>{p}%</b> più in fretta. Nel pannello di ogni centrale vedi produzione, consumo e quanta città è coperta.', { a: GRID.perResident, b: GRID.perBusiness, s: GRID.billEvery, p: Math.round(GRID.boost * 100) })));
+    b.appendChild(mEl('p', null, TR('La corrente viaggia sui <b>tralicci</b> (alta tensione): ogni traliccio si collega a quelli entro {r} tile e a centrali e sottostazioni entro {l} tile. La <b>sottostazione</b> porta la corrente a case e attività entro {s} tile. Abitanti e attività consumano ({a} per abitante, {b} per attività); ogni {t} secondi gli abitanti con la corrente pagano la <b>bolletta</b> e le attività con la corrente lavorano fino al <b>{p}%</b> più in fretta.', { r: ELEC.pylonRange, l: ELEC.linkRange, s: ELEC.subRadius, a: GRID.perResident, b: GRID.perBusiness, t: GRID.billEvery, p: Math.round(GRID.boost * 100) })));
+    b.appendChild(item('pylon'));
+    b.appendChild(item('substation'));
+    b.appendChild(mEl('div', 'man-tip', TR('Senza centrali: porta i tralicci fino al <b>bordo della mappa</b> e la corrente che manca si compra da fuori ({m} per unità ogni {t} s). Poi costruisci le tue centrali (pannelli solari, pale eoliche, carbone) e ne compri di meno. Con gli strumenti dell\'energia in mano vedi un fulmine giallo sopra chi ha la corrente e grigio sopra chi non ce l\'ha.', { m: ELEC.importPrice.toLocaleString(LOCALE()) + ' €', t: GRID.billEvery })));
     b.appendChild(mEl('h4', null, TR('Carbone')));
     b.appendChild(item('charcoalKiln'));
     for (const r of RECIPES.charcoalKiln) b.appendChild(recipeRow('charcoalKiln', r));

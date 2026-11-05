@@ -280,7 +280,7 @@ function pullGoods(b) {
 function farmCap(f) { return Math.max(CAPS.farm.store, 2 * (f.fields || 0) * FARM.yieldPerField); }
 function updateFarm(f, dt) {
   // cresce solo se ha campi, personale e posto in inventario; più personale = più veloce
-  const staff = (f.workers || 0) / JOBS.farm * gridBoost();
+  const staff = (f.workers || 0) / JOBS.farm * gridBoost(f);
   const cap = farmCap(f), crop = (f.fields || 0) * FARM.yieldPerField;
   f.full = sumOf(f.store) + crop > cap;   // non c'è posto per il prossimo raccolto intero: si aspetta
   if (f.fields > 0 && staff > 0 && !f.full) {
@@ -322,11 +322,11 @@ function oilUnder(kind, ax, ay) {
 // Personale: chi non prende lavoratori dalle case (la piattaforma) lavora sempre a pieno.
 // Con la corrente della rete elettrica si lavora più in fretta.
 function staffOf(b) { return JOBS[b.kind] ? (b.workers || 0) / JOBS[b.kind] : 1; }
-function gridBoost() { return 1 + GRID.boost * ((game.grid && game.grid.cover) || 0); }
+function gridBoost(b) { return 1 + GRID.boost * ((b && b.powered) || 0); }   // con la corrente si lavora più in fretta
 
 function updateLivestock(b, dt) {
   const L = natureOf(b), cap = CAPS[b.kind].store;
-  let staff = staffOf(b) * gridBoost();
+  let staff = staffOf(b) * gridBoost(b);
   if (L.oil) {   // pozzo e piattaforma: in proporzione al giacimento sotto
     if (b.oil === undefined) b.oil = oilUnder(b.kind, b.ax, b.ay);
     staff *= b.oil;
@@ -351,7 +351,7 @@ function updateLivestock(b, dt) {
 
 // Trasformatori: a ogni ciclo ogni ricetta attiva con le materie prime fa 1 prodotto
 function updateProducer(b, dt) {
-  const staff = staffOf(b) * gridBoost();
+  const staff = staffOf(b) * gridBoost(b);
   const cap = CAPS[b.kind].store;
   b.full = sumOf(b.store) >= cap;
   if (staff > 0 && !b.full) {
@@ -429,20 +429,100 @@ function updatePower(b, dt) {
 }
 
 // Rete elettrica: produzione delle centrali contro consumo di abitanti e attività
+// ---------- Reti elettriche ----------
+// Nodi: tralicci, sottostazioni e centrali. Due tralicci sono collegati se distano al massimo
+// ELEC.pylonRange; centrali e sottostazioni si collegano a un traliccio entro ELEC.linkRange (o
+// direttamente tra loro). Un traliccio sul bordo della mappa porta la corrente da fuori.
+// La forma delle reti si ricalcola solo quando cambia qualcosa (game.elecVer); case e attività
+// prendono la corrente dalla sottostazione collegata più vicina entro ELEC.subRadius.
+function isConsumer(b) { return !BUILDINGS[b.kind].infra && !POWER[b.kind] && !BUILDINGS[b.kind].water; }
+function consumerDemand(b) { return b.kind === 'house' ? (b.residents || 0) * GRID.perResident : GRID.perBusiness; }
+function elecChanged() { game.elecVer = (game.elecVer || 0) + 1; }
+function buildElecNets() {
+  const N = game.size, all = [...game.buildings.values()];
+  const pylons = all.filter(b => b.kind === 'pylon'), subs = all.filter(b => b.kind === 'substation');
+  const plants = all.filter(b => POWER[b.kind]);
+  const nodes = pylons.concat(subs, plants), idx = new Map(nodes.map((b, i) => [b.id, i]));
+  const parent = nodes.map((_, i) => i);
+  const find = i => { while (parent[i] !== i) i = parent[i] = parent[parent[i]]; return i; };
+  const edges = [];   // tralicci collegati tra loro (per i fili: si tiene l'albero più corto)
+  const links = [];   // traliccio -> centrale / sottostazione
+  const R2 = ELEC.pylonRange * ELEC.pylonRange;
+  for (let i = 0; i < pylons.length; i++) for (let j = i + 1; j < pylons.length; j++) {
+    const a = pylons[i], b = pylons[j], d2 = (a.ax - b.ax) ** 2 + (a.ay - b.ay) ** 2;
+    if (d2 <= R2) edges.push([d2, a, b]);
+  }
+  edges.sort((p, q) => p[0] - q[0]);
+  const wires = [];
+  for (const [, a, b] of edges) {
+    const ra = find(idx.get(a.id)), rb = find(idx.get(b.id));
+    if (ra !== rb) { parent[ra] = rb; wires.push([a, b]); }
+  }
+  for (const p of pylons) {   // le mensole di traverso rispetto ai fili
+    let sx = 0, sy = 0;
+    for (const [a, b] of wires) if (a === p || b === p) { sx += Math.abs(a.ax - b.ax); sy += Math.abs(a.ay - b.ay); }
+    p.armV = sx >= sy;
+  }
+  for (const o of subs.concat(plants)) {   // al traliccio più vicino entro linkRange
+    let best = null, bd = Infinity;
+    for (const p of pylons) { const d = distToBuilding(o, p.ax, p.ay); if (d <= ELEC.linkRange && d < bd) { best = p; bd = d; } }
+    if (best) { parent[find(idx.get(o.id))] = find(idx.get(best.id)); links.push([best, o]); }
+  }
+  for (const sb of subs) for (const pl of plants)   // sottostazione accanto alla centrale: anche senza tralicci
+    if (distToBuilding(pl, sb.ax, sb.ay) <= ELEC.linkRange && find(idx.get(sb.id)) !== find(idx.get(pl.id))) {
+      parent[find(idx.get(sb.id))] = find(idx.get(pl.id)); links.push([sb, pl]);
+    }
+  const nets = new Map();
+  nodes.forEach((b, i) => {
+    const r = find(i);
+    if (!nets.has(r)) nets.set(r, { id: r, pylons: 0, subs: [], plants: [], outside: false, gen: 0, demand: 0, cover: 0, imported: 0 });
+    const n = nets.get(r);
+    b.net = r;
+    if (b.kind === 'pylon') { n.pylons++; if (b.ax === 0 || b.ay === 0 || b.ax === N - 1 || b.ay === N - 1) n.outside = true; }
+    else if (b.kind === 'substation') n.subs.push(b);
+    else n.plants.push(b);
+  });
+  // case e attività: la sottostazione più vicina entro subRadius
+  for (const b of all) {
+    if (!isConsumer(b)) continue;
+    let best = null, bd = Infinity;
+    for (const sb of subs) { const d = distToBuilding(b, sb.ax, sb.ay); if (d <= ELEC.subRadius && d < bd) { best = sb; bd = d; } }
+    b.net = best ? best.net : null;
+  }
+  game.elec = { ver: game.elecVer || 0, nets, wires, links, timer: 0 };
+}
 function updateGrid(gen, dt) {
-  let demand = 0;
-  for (const b of game.buildings.values()) {
-    if (b.kind === 'house') demand += (b.residents || 0) * GRID.perResident;
-    else if (!POWER[b.kind]) demand += GRID.perBusiness;
+  if (!game.elec || game.elec.ver !== (game.elecVer || 0) || (game.elec.timer -= dt) <= 0) {   // ogni 2 s (case nuove) o se cambia la rete
+    buildElecNets(); game.elec.timer = 2;
+  }
+  const nets = game.elec.nets;
+  for (const n of nets.values()) { n.gen = 0; n.demand = 0; }
+  for (const n of nets.values()) for (const p of n.plants) n.gen += p.power || 0;
+  for (const b of game.buildings.values()) if (isConsumer(b) && b.net != null && nets.has(b.net)) nets.get(b.net).demand += consumerDemand(b);
+  let tg = 0, td = 0, covered = 0, imported = 0;
+  for (const n of nets.values()) {
+    n.cover = !n.subs.length ? 0 : n.outside ? 1 : n.demand ? Math.min(1, n.gen / n.demand) : (n.gen > 0 ? 1 : 0);
+    n.imported = n.outside && n.subs.length ? Math.max(0, n.demand - n.gen) : 0;
+    tg += n.gen; td += n.demand; covered += n.demand * n.cover; imported += n.imported;
+  }
+  let allDemand = 0;
+  for (const b of game.buildings.values()) if (isConsumer(b)) {
+    const n = b.net != null && nets.get(b.net);
+    b.powered = n ? n.cover : 0;
+    allDemand += consumerDemand(b);
   }
   const g = game.grid = game.grid || { billTimer: GRID.billEvery, bills: 0 };
-  g.gen = Math.round(gen); g.demand = demand;
-  g.cover = demand ? Math.min(1, gen / demand) : (gen > 0 ? 1 : 0);
+  g.gen = Math.round(tg); g.demand = allDemand; g.imported = Math.round(imported);
+  g.cover = allDemand ? covered / allDemand : 0;
   g.billTimer -= dt;
-  if (g.billTimer <= 0) {   // bollette: ogni abitante con la corrente paga
+  if (g.billTimer <= 0) {   // bollette: ogni abitante con la corrente paga; la corrente comprata da fuori si paga
     g.billTimer += GRID.billEvery;
-    const pay = Math.round(game.population * GRID.bill * g.cover);
-    if (pay > 0) { game.money += pay; g.bills += pay; updateHud(); }
+    let pay = 0;
+    for (const b of game.buildings.values()) if (b.kind === 'house') pay += (b.residents || 0) * GRID.bill * (b.powered || 0);
+    pay = Math.round(pay);
+    const cost = Math.round(imported * ELEC.importPrice);
+    g.lastBills = pay; g.lastImport = cost;
+    if (pay || cost) { game.money += pay - cost; g.bills += pay; g.importCost = (g.importCost || 0) + cost; updateHud(); }
   }
 }
 
@@ -469,6 +549,8 @@ function buildingStatus(b) {
   // casa senza strada accanto o non raggiungibile dalla strada principale
   if (b.kind === 'house') return (!accessTiles(b).length || b.unreachable) ? 'noRoad' : null;
   if (BUILDINGS[b.kind].water) return b.full ? 'full' : b.noInput ? 'noInput' : null;   // piattaforma: niente strada né lavoratori dalle case
+  if (b.kind === 'pylon') return null;   // tralicci: niente strada né lavoratori
+  if (b.kind === 'substation') { const n = game.elec && game.elec.nets.get(b.net); return n && (n.gen > 0 || n.outside) ? null : 'noInput'; }
   const need = JOBS[b.kind];
   if (need && (b.workers || 0) < need) return b.workers ? 'fewWorkers' : 'noWorkers';
   if (!accessTiles(b).length) return 'noRoad';

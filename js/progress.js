@@ -33,15 +33,16 @@ const UNLOCKS = [
   { id: 'clothingFactory', sector: 'Tessile', tools: ['clothingFactory'], cost: 11000, needs: ['textileMill'] },
   { id: 'clothingStore', sector: 'Tessile', tools: ['clothingStore'], cost: 8000, needs: ['clothingFactory'] },
   // energia e petrolio
+  { id: 'powerGrid', sector: 'Energia', tools: ['pylon', 'substation'], cost: 1500, desc: 'Tralicci e sottostazioni: la corrente da fuori mappa o dalle tue centrali.' },
   { id: 'charcoalKiln', sector: 'Energia', tools: ['charcoalKiln'], cost: 3000, needs: ['forestry'] },
-  { id: 'coalPlant', sector: 'Energia', tools: ['coalPlant'], cost: 8000, needs: ['charcoalKiln'] },
-  { id: 'solarPlant', sector: 'Energia', tools: ['solarPlant'], cost: 10000 },
-  { id: 'windPlant', sector: 'Energia', tools: ['windPlant'], cost: 9000 },
-  { id: 'oilWell', sector: 'Energia', tools: ['oilWell', 'goodsWarehouse'], cost: 6000, desc: 'Pozzo petrolifero (e magazzino merci).' },
-  { id: 'refinery', sector: 'Energia', tools: ['refinery'], cost: 12000, needs: ['oilWell'] },
-  { id: 'gasStation', sector: 'Energia', tools: ['gasStation'], cost: 5000, needs: ['refinery'] },
-  { id: 'port', sector: 'Energia', tools: ['port'], cost: 8000 },
-  { id: 'oilPlatform', sector: 'Energia', tools: ['oilPlatform'], cost: 9000, needs: ['port', 'oilWell'] },
+  { id: 'coalPlant', sector: 'Energia', tools: ['coalPlant'], cost: 8000, needs: ['charcoalKiln', 'powerGrid'] },
+  { id: 'solarPlant', sector: 'Energia', tools: ['solarPlant'], cost: 10000, needs: ['powerGrid'] },
+  { id: 'windPlant', sector: 'Energia', tools: ['windPlant'], cost: 9000, needs: ['powerGrid'] },
+  { id: 'oilWell', sector: 'Petrolio', tools: ['oilWell', 'goodsWarehouse'], cost: 6000, desc: 'Pozzo petrolifero (e magazzino merci).' },
+  { id: 'refinery', sector: 'Petrolio', tools: ['refinery'], cost: 12000, needs: ['oilWell'] },
+  { id: 'gasStation', sector: 'Petrolio', tools: ['gasStation'], cost: 5000, needs: ['refinery'] },
+  { id: 'port', sector: 'Petrolio', tools: ['port'], cost: 8000 },
+  { id: 'oilPlatform', sector: 'Petrolio', tools: ['oilPlatform'], cost: 9000, needs: ['port', 'oilWell'] },
 ];
 const UNLOCK_BY_ID = Object.fromEntries(UNLOCKS.map(u => [u.id, u]));
 
