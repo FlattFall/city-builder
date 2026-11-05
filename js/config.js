@@ -64,7 +64,7 @@ const BUILDINGS = {
   // rete elettrica (gruppo Energia): tralicci e sottostazioni, senza lavoratori né strada (infra: non contano tra le industrie)
   pylon:      { name: 'Traliccio', w: 1, h: 1, cost: 80, height: 46, group: 'power', infra: true, anyWater: true },   // anche sull'acqua
   pole:       { name: 'Palo della luce', w: 1, h: 1, cost: 20, height: 24, group: 'power', infra: true },          // palo di legno: bassa tensione
-  substation: { name: 'Sottostazione elettrica', w: 1, h: 1, cost: 900, height: 20, group: 'power' },   // vuole strada e lavoratori
+  substation: { name: 'Sottostazione elettrica', w: 1, h: 1, cost: 900, height: 20, group: 'power', infra: true },   // vuole la strada, ma niente lavoratori (va da sola)
   charcoalKiln: { name: 'Carbonaia', w: 1, h: 1, cost: 600, height: 16, group: 'energy' },
   coalPlant:  { name: 'Centrale a carbone', w: 2, h: 2, cost: 4000, height: 44, group: 'energy' },
   solarPlant: { name: 'Centrale solare', w: 2, h: 2, cost: 5000, height: 10, group: 'energy' },
@@ -331,7 +331,7 @@ const JOBS = { farm: 4, warehouse: 2, factory: 6, bakery: 2, supermarket: 3,
   livestock: 3, dairy: 5, slaughterhouse: 5,
   forestry: 3, sawmill: 4, furnitureFactory: 5, furnitureStore: 3, goodsWarehouse: 2,
   textileMill: 5, clothingFactory: 5, clothingStore: 3,
-  charcoalKiln: 2, coalPlant: 5, solarPlant: 1, windPlant: 1, oilWell: 2, port: 4, refinery: 6, gasStation: 2, substation: 2 };
+  charcoalKiln: 2, coalPlant: 5, solarPlant: 1, windPlant: 1, oilWell: 2, port: 4, refinery: 6, gasStation: 2 };
 // la piattaforma petrolifera non prende lavoratori dalle case (il personale vive a bordo)
 const JOB_RADIUS = 12;
 function jobRadiusOf(kind) { return (BUILDINGS[kind] && BUILDINGS[kind].jobRadius) || JOB_RADIUS; }

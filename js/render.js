@@ -1586,7 +1586,7 @@ function drawSelection(c, b) {
 // Icone di stato sopra le attività:
 //  persona rossa/arancione = mancano lavoratori, scatola arancione = deposito pieno,
 //  cassa vuota blu = mancano materie prime, scaffale viola = supermercato senza merce
-const STATUS_COLORS = { noWorkers: '#d94141', fewWorkers: '#e8a33a', full: '#e07b39', noInput: '#3f6fd9', empty: '#8e5bd1', noRoad: '#5b5b66' };
+const STATUS_COLORS = { noWorkers: '#d94141', fewWorkers: '#e8a33a', full: '#e07b39', noInput: '#3f6fd9', empty: '#8e5bd1', noRoad: '#5b5b66', noPower: '#c99a1e' };
 function drawWorkerIcons(c) {
   for (const b of game.buildings.values()) {
     const st = buildingStatus(b);
@@ -1616,6 +1616,10 @@ function drawStatusIcon(c, st, x, y) {
     } else if (st === 'noRoad') {                                     // strada sbarrata
       c.fillRect(x - 3.5, y - 3, 1, 6); c.fillRect(x + 2.5, y - 3, 1, 6);
       c.fillRect(x - 0.5, y - 3, 1, 1.5); c.fillRect(x - 0.5, y + 0.5, 1, 1.5);
+      c.strokeStyle = '#ff5d5d'; c.lineWidth = 1.6;
+      c.beginPath(); c.moveTo(x - 4, y + 4); c.lineTo(x + 4, y - 4); c.stroke();
+    } else if (st === 'noPower') {                                    // fulmine sbarrato
+      c.beginPath(); c.moveTo(x + 1, y - 4.5); c.lineTo(x - 2.5, y + 0.5); c.lineTo(x - 0.2, y + 0.5); c.lineTo(x - 1, y + 4.5); c.lineTo(x + 2.5, y - 0.5); c.lineTo(x + 0.2, y - 0.5); c.closePath(); c.fill();
       c.strokeStyle = '#ff5d5d'; c.lineWidth = 1.6;
       c.beginPath(); c.moveTo(x - 4, y + 4); c.lineTo(x + 4, y - 4); c.stroke();
     } else if (st === 'empty') {

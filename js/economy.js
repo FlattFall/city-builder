@@ -562,8 +562,8 @@ function buildElecNets() {
   }
   game.elec = { ver: game.elecVer || 0, hvNets, wires, links, lvWires, lvLinks, systems: new Map(), timer: 0 };
 }
-// sottostazione che lavora: strada, lavoratori, attaccata ai due lati
-function substationWorks(s) { return s.lv != null && s.hv != null && (s.workers || 0) > 0 && accessTiles(s).length > 0; }
+// sottostazione che lavora: strada e attaccata ai due lati (niente lavoratori: va da sola, richiesta dell'utente)
+function substationWorks(s) { return s.lv != null && s.hv != null && accessTiles(s).length > 0; }
 function systemOf(b) {
   if (!game.elec) return null;
   const k = b.kind === 'pylon' ? 'H' + b.hv : b.lv != null ? 'L' + b.lv : b.hv != null ? 'H' + b.hv : null;
@@ -647,16 +647,27 @@ function economyUpdate(dt) {
 }
 
 // Stato da mostrare con un'icona sopra l'edificio (null = tutto bene)
+// Icona "senza corrente" (richiesta dell'utente, come quella della strada): solo quando in città c'è
+// già una rete elettrica (centrali, tralicci o pali), così all'inizio non compare su tutto.
+function gridExists() { const E = game.elec; return !!E && (E.hvNets.size > 0 || E.lvWires.length > 0 || (game.grid && game.grid.gen > 0)); }
+function powerStatus(b) {
+  if (!gridExists()) return null;
+  if (POWER[b.kind]) return b.lv == null ? 'noPower' : null;   // centrale non attaccata a strade o pali
+  if (b.kind === 'substation') return b.lv == null || b.hv == null ? 'noPower' : null;
+  if (isConsumer(b)) return (b.powered || 0) < 0.5 ? 'noPower' : null;
+  return null;
+}
 function buildingStatus(b) {
   // casa senza strada accanto o non raggiungibile dalla strada principale
-  if (b.kind === 'house') return (!accessTiles(b).length || b.unreachable) ? 'noRoad' : null;
+  if (b.kind === 'house') return (!accessTiles(b).length || b.unreachable) ? 'noRoad' : powerStatus(b);
   if (BUILDINGS[b.kind].water) return b.full ? 'full' : b.noInput ? 'noInput' : null;   // piattaforma: niente strada né lavoratori dalle case
   if (b.kind === 'pylon' || b.kind === 'pole') return null;   // tralicci e pali: niente strada né lavoratori
   const need = JOBS[b.kind];
   if (need && (b.workers || 0) < need) return b.workers ? 'fewWorkers' : 'noWorkers';
   if (!accessTiles(b).length) return 'noRoad';
+  const pw = powerStatus(b);
+  if (pw) return pw;
   if (b.full) return 'full';
-  if (b.kind === 'substation') return b.hv == null || b.lv == null ? 'noInput' : null;   // manca il traliccio o il cavo
   if (b.noInput) return 'noInput';
   if (b.empty) return 'empty';
   return null;

@@ -1749,14 +1749,20 @@ function check(cond, msg) {
     const m0 = game.money;
     for (let i = 0; i < 260; i++) simUpdate(0.1);
     const sub = game.map[c][c - 8].building, n = systemOf(sub);
-    r.subWorks = !!sub.works && sub.workers > 0;
+    r.subWorks = !!sub.works && !JOBS.substation;   // va da sola: niente lavoratori
     r.outside = !!n && n.outside && n.cover === 1 && n.imported > 0;
     const far = game.map[c + 8][c + 12].building;
     r.powered = [...game.buildings.values()].filter(b => b.kind === 'house' && b !== far).every(b => b.powered === 1);
-    r.farDark = !far.powered;
+    r.farDark = !far.powered && buildingStatus(far) === 'noRoad';
+    // icona "senza corrente": una casa con la strada ma in una rete senza corrente
+    useTool('road', c + 20, c + 20); useTool('house', c + 20, c + 19); recount();
+    for (let i = 0; i < 25; i++) simUpdate(0.1);
+    const dark = game.map[c + 19][c + 20].building;
+    dark.unreachable = false;
+    r.noPowerIcon = buildingStatus(dark) === 'noPower' && (h => { h.unreachable = false; return buildingStatus(h); })(game.map[c][c - 5].building) === null;
     r.paid = game.grid.importCost > 0 && game.grid.bills > 0;
     r.wires = game.elec.wires.length >= r.pylons - 1;
-    r.industries = game.industries === 1;   // la sottostazione sì, i tralicci no
+    r.industries = game.industries === 0;   // sottostazione e tralicci non sono industrie
     // pali di legno: dalla strada fino alla casa lontana
     setTool('pole'); game.lastPylon = null; lastTile = null;
     for (let y = c + 2; y <= c + 8; y++) paintTo({ x: c + 6, y });
@@ -1775,7 +1781,7 @@ function check(cond, msg) {
     return r;
   });
   check(pw.none && pw.pylons >= 5 && pw.pylons <= 13 && pw.wires, `tralicci trascinati uno ogni 5 tile (${pw.pylons}) e collegati con i fili`);
-  check(pw.outside && pw.subWorks && pw.powered && pw.farDark && pw.paid && pw.industries, 'fuori mappa -> tralicci -> sottostazione -> strade: case con la corrente, bollette e corrente comprata: ' + JSON.stringify(pw));
+  check(pw.outside && pw.subWorks && pw.powered && pw.farDark && pw.noPowerIcon && pw.paid && pw.industries, 'fuori mappa -> tralicci -> sottostazione -> strade: case con la corrente, bollette e corrente comprata: ' + JSON.stringify(pw));
   check(pw.poles >= 2 && pw.poles <= 5 && pw.farLit && pw.noRoadStops && pw.water, 'pali della luce, sottostazione senza strada ferma, traliccio sull\'acqua: ' + JSON.stringify(pw));
 
   // 63. centrali a bassa tensione: la corrente in più passa dalla sottostazione e si vende fuori mappa
