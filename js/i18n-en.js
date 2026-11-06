@@ -9,7 +9,7 @@ DICT.en = {
   'Progressi': 'Progress', 'Manuale': 'Manual', 'Come funziona ogni settore': 'How every sector works',
   'Riprendi': 'Resume', 'Salva partita': 'Save game', 'Nuova mappa': 'New map', 'Carica mappa': 'Load map', 'Opzioni': 'Options', 'Esci': 'Quit',
   'Nuova mappa: grandezza': 'New map: size', 'Indietro': 'Back', 'Lingua': 'Language', 'Audio, grafica e controlli: ci stiamo lavorando!': 'Audio, graphics and controls: we are working on it!',
-  'Pausa': 'Paused', 'Menu principale': 'Main menu', 'Le modifiche non salvate andranno perse. Continuare?': 'Unsaved changes will be lost. Continue?',
+  'Pausa': 'Paused', 'Tutti i diritti riservati': 'All rights reserved', 'Menu principale': 'Main menu', 'Le modifiche non salvate andranno perse. Continuare?': 'Unsaved changes will be lost. Continue?',
   'Creazione della mappa {n} x {n}...': 'Creating the {n} x {n} map...', 'Partita salvata.': 'Game saved.', 'Impossibile salvare: spazio pieno o non disponibile.': 'Cannot save: storage is full or not available.',
   'Nessuna partita salvata. Durante una partita usa "Salva partita" nel menu (Esc).': 'No saved games. During a game use "Save game" in the menu (Esc).',
   '{r} strade, {h} case': '{r} roads, {h} houses', 'Carica': 'Load', 'Salvataggio non leggibile.': 'This save cannot be read.', 'Elimina': 'Delete',

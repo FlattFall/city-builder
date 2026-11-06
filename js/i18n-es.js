@@ -9,7 +9,7 @@ DICT.es = {
   'Progressi': 'Progreso', 'Manuale': 'Manual', 'Come funziona ogni settore': 'Cómo funciona cada sector',
   'Riprendi': 'Continuar', 'Salva partita': 'Guardar partida', 'Nuova mappa': 'Nuevo mapa', 'Carica mappa': 'Cargar mapa', 'Opzioni': 'Opciones', 'Esci': 'Salir',
   'Nuova mappa: grandezza': 'Nuevo mapa: tamaño', 'Indietro': 'Atrás', 'Lingua': 'Idioma', 'Audio, grafica e controlli: ci stiamo lavorando!': 'Audio, gráficos y controles: ¡estamos trabajando en ello!',
-  'Pausa': 'Pausa', 'Menu principale': 'Menú principal', 'Le modifiche non salvate andranno perse. Continuare?': 'Los cambios no guardados se perderán. ¿Continuar?',
+  'Pausa': 'Pausa', 'Tutti i diritti riservati': 'Todos los derechos reservados', 'Menu principale': 'Menú principal', 'Le modifiche non salvate andranno perse. Continuare?': 'Los cambios no guardados se perderán. ¿Continuar?',
   'Creazione della mappa {n} x {n}...': 'Creando el mapa de {n} x {n}...', 'Partita salvata.': 'Partida guardada.', 'Impossibile salvare: spazio pieno o non disponibile.': 'No se puede guardar: espacio lleno o no disponible.',
   'Nessuna partita salvata. Durante una partita usa "Salva partita" nel menu (Esc).': 'No hay partidas guardadas. Durante una partida usa "Guardar partida" en el menú (Esc).',
   '{r} strade, {h} case': '{r} carreteras, {h} casas', 'Carica': 'Cargar', 'Salvataggio non leggibile.': 'No se puede leer esta partida.', 'Elimina': 'Borrar',

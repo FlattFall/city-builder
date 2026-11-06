@@ -1,4 +1,6 @@
-# City Builder
+# Supplyville
+
+© 2026 FlattFall. Tutti i diritti riservati. Il codice è visibile ma non è open source: non si può copiare, modificare o ripubblicare (neanche su Roblox o altre piattaforme) senza permesso. Vedi [LICENSE](LICENSE).
 
 City builder isometrico in stile retro: terreno generato, strada principale, strade con rampe e rotonde, binari, case con abitanti che arrivano in auto, fattorie con campi e furgoni che portano il cibo ai magazzini.
 
