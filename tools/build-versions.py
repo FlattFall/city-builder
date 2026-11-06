@@ -87,7 +87,7 @@ a.btn:hover { background: #4a8f57; }
 <h1>SUPPLYVILLE</h1>
 <p>Tutte le versioni del gioco, dalla prima all'ultima (%d versioni). Ogni versione si apre e si gioca com'era quel giorno:
 in basso a destra c'è il numero della versione. Ogni versione ha i suoi salvataggi.</p>
-<a class="now" href="../">&rarr; Gioca alla versione attuale</a>
+<a class="now" href="../play/">&rarr; Gioca alla versione attuale</a>
 <ul>
 %s
 </ul>
