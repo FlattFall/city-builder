@@ -35,6 +35,8 @@ img { max-width: 100%; display: block; }
 .btn-small { padding: 7px 14px; font-size: 14px; box-shadow: 3px 3px 0 #000; }
 .btn-big { padding: 15px 26px; font-size: 18px; }
 .btn-alt { background: var(--blue); }
+.btn-soon { background: #d9dde8; color: #4a4f63; border-style: dashed; box-shadow: none; cursor: default; }
+.btn-soon:hover, .btn-soon:active { transform: none; box-shadow: none; }
 
 /* copertina */
 .hero { position: relative; min-height: 82vh; display: grid; place-items: center; text-align: center; padding: 70px 20px 90px;
