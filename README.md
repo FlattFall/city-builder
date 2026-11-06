@@ -8,7 +8,7 @@ City builder isometrico in stile retro: terreno generato, strada principale, str
 
 Ad ogni modifica, GitHub pubblica da solo la versione web del gioco in un paio di minuti:
 
-**https://flattfall.github.io/city-builder/play/** (il sito con la presentazione del gioco è https://flattfall.github.io/city-builder/)
+**https://flattfall.github.io/city-builder/** (il sito con la presentazione del gioco è https://www.supplyville.com, repository FlattFall/supplyville-web)
 
 Basta aprire il link (o premere F5 se è già aperto). Lo stato della pubblicazione si vede in **Actions** > **Versione web**.
 
