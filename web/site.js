@@ -6,7 +6,7 @@ const TEXT = {
     'hero.badge': 'In sviluppo · novità ogni settimana',
     'hero.tagline': 'Costruisci la città. Gestisci la filiera.',
     'hero.lead': "Un city builder isometrico retro dove ogni pagnotta del supermercato è partita come grano in una fattoria. Strade, fabbriche, furgoni, navi, corrente e acqua: decidi tu come funziona tutto.",
-    'hero.play': '▶ Gioca gratis nel browser', 'hero.download': '⏳ Download per PC: a breve',
+    'hero.play': '▶ Gioca gratis nel browser', 'hero.download': '⏳ Disponibile a breve',
     'hero.mobile': 'Si gioca meglio al computer con mouse e tastiera.',
     'feat.title': 'Tutto è collegato',
     'feat.sub': 'Niente spunta dal nulla: ogni prodotto viaggia sulle tue strade, dalla materia prima al negozio.',
@@ -33,7 +33,7 @@ const TEXT = {
     'hero.badge': 'In development · new features every week',
     'hero.tagline': 'Build the city. Run the supply chain.',
     'hero.lead': 'A retro isometric city builder where every loaf of bread in the supermarket started as wheat on a farm. Roads, factories, vans, ships, power and water: you decide how it all works.',
-    'hero.play': '▶ Play free in your browser', 'hero.download': '⏳ PC download: coming soon',
+    'hero.play': '▶ Play free in your browser', 'hero.download': '⏳ Coming soon',
     'hero.mobile': 'Best played on a computer with mouse and keyboard.',
     'feat.title': 'Everything is connected',
     'feat.sub': 'Nothing appears out of thin air: every product travels on your roads, from raw material to the shop.',
@@ -67,14 +67,8 @@ function setLang(l) {
   document.querySelectorAll('[data-t]').forEach(e => { const k = e.dataset.t; if (d[k] != null) e.textContent = d[k]; });
   document.documentElement.lang = l;
   document.querySelectorAll('.langs button').forEach(b => b.classList.toggle('on', b.dataset.lang === l));
-  try { localStorage.setItem('supplyville.site.lang', l); } catch (e) {}
 }
 
 document.querySelectorAll('.langs button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
-let start = null;
-try { start = localStorage.getItem('supplyville.site.lang'); } catch (e) {}
-if (!start) {
-  const nav = (navigator.language || 'es').slice(0, 2).toLowerCase();
-  start = DOC_LANG[nav] ? nav : 'en';
-}
-setLang(start);
+// richiesta dell'utente: il sito si apre sempre in spagnolo; le altre lingue con i pulsanti in alto
+setLang('es');
