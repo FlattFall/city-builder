@@ -68,8 +68,8 @@ function translateDom() {
 
 function initLanguage() {
   let l = null;
-  try { l = localStorage.getItem(LANG_KEY); } catch (e) { /* niente memoria: si resta in italiano */ }
-  LANG = LANGS[l] ? l : 'it';
+  try { l = localStorage.getItem(LANG_KEY); } catch (e) { /* niente memoria: lingua predefinita */ }
+  LANG = LANGS[l] ? l : 'es';   // senza una scelta salvata si parte in spagnolo (richiesta dell'utente), su PC e telefono
   applyLanguage();
 }
 

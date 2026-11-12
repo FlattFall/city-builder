@@ -12,6 +12,8 @@ function check(cond, msg) {
 (async () => {
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  // i test sono scritti con i testi italiani: senza una lingua scelta il gioco partirebbe in spagnolo
+  await page.addInitScript(() => { try { if (!localStorage.getItem('citybuilder.lang')) localStorage.setItem('citybuilder.lang', 'it'); } catch (e) {} });
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
