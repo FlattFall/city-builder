@@ -95,18 +95,14 @@ function touchHint() {
 
 // Sul telefono i tasti tra parentesi ("Manuale (M)") non servono e occupano spazio: si tolgono
 // (anche quando la lingua o i tasti cambiano e i pulsanti vengono riscritti)
+// Sul telefono i pulsanti in alto mostrano solo l'icona (topicons.js; style.css body.touch .tlabel) e dal
+// pulsante Ruota si toglie il tasto tra parentesi
 if (isTouch) {
-  // pulsanti in alto: un'icona al posto della scritta, così stanno su una riga anche in orizzontale
-  const ICON = { 'manual-btn': '📖', 'under-btn': '💧', 'stats-btn': '📊', 'progress-btn': '⭐', 'menu-btn': '☰' };
   const strip = () => {
-    for (const b of document.querySelectorAll('#topbar .top-btns button, #rotate-btn')) {
-      const t = b.textContent, s = t.replace(/\s*\([^()]*\)\s*$/, '');
-      const icon = ICON[b.id];
-      if (icon) { if (t !== icon) { b.title = s; b.textContent = icon; } }
-      else if (s !== t) b.textContent = s;
-    }
+    const b = document.getElementById('rotate-btn');
+    const t = b.textContent, s = t.replace(/\s*\([^()]*\)\s*$/, '');
+    if (s !== t) b.textContent = s;
   };
-  new MutationObserver(strip).observe(document.getElementById('topbar'), { subtree: true, childList: true, characterData: true });
   new MutationObserver(strip).observe(document.getElementById('rotate-btn'), { subtree: true, childList: true, characterData: true });
   strip();
 }
@@ -146,7 +142,7 @@ function toggleFullscreen() {
   // il gioco è già aperto dalla schermata Home
   btn.hidden = isStandalone() || !(fullscreenApi() || isTouch);
   btn.addEventListener('click', () => { toggleFullscreen(); btn.blur(); });
-  const upd = () => { btn.textContent = fullscreenOn() ? '🗗' : '⛶'; btn.title = fullscreenOn() ? TR('Esci dallo schermo intero') : TR('Schermo intero'); setTimeout(resize, 50); };
+  const upd = () => { const img = btn.querySelector('img'); if (img) img.src = TOP_ICONS[fullscreenOn() ? 'exitFullscreen' : 'fullscreen']; btn.title = fullscreenOn() ? TR('Esci dallo schermo intero') : TR('Schermo intero'); setTimeout(resize, 50); };
   document.addEventListener('fullscreenchange', upd);
   document.addEventListener('webkitfullscreenchange', upd);
 })();

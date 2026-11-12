@@ -471,3 +471,14 @@ body.tut-open #help { display: none; }
   #tutorial .tut-foot { margin-top: 6px; }
   #tutorial .tut-foot button { padding: 3px 8px; }
 }
+
+/* icone disegnate dei pulsanti in alto (topicons.js) */
+#topbar .top-btns button, #topbar .speed-btns button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+#topbar img.ticon { width: 18px; height: 18px; image-rendering: pixelated; display: block; flex: none; }
+#topbar .speed-btns img.ticon { width: 16px; height: 16px; }
+#topbar .top-btns button { background: #2c2f48; color: #f4f4f4; border: 2px solid #5a5f8a; border-radius: 3px; }
+#topbar .top-btns button:hover { border-color: #ffd966; }
+#fs-btn { padding: 2px 5px; }
+body.touch #topbar .tlabel { display: none; }
+body.touch #topbar .top-btns button { padding: 3px 5px; }
+body.touch #topbar img.ticon { width: 20px; height: 20px; }

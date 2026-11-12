@@ -77,7 +77,6 @@ const MANUAL = [
       'Costruisci un <b>supermercato</b> e, dal pannello della fattoria (clic con la Mano), scegli il supermercato come destinazione: le verdure si vendono anche fresche.',
       'Aggiungi un <b>magazzino alimenti</b> per tenere da parte il raccolto.',
       'Con i soldi delle tasse apri la finestra <b>Progressi</b> (tasto <span class="man-key">P</span>) e sblocca fabbrica alimentare, allevamenti, legno, tessile, energia...',
-      'Per provare il gioco senza accumulare soldi: tasto <span class="man-key">I</span> = sblocca tutto.',
     ].map(x => '<li>' + TR(x) + '</li>').join('');
     b.appendChild(ol);
     b.appendChild(mEl('div', 'man-tip', TR("Ogni attività ha bisogno di lavoratori che abitano vicino (entro {n} tile) e di una strada davanti all'entrata. Quando piazzi un edificio vedi l'entrata: verde = c'è la strada, giallo = manca.", { n: JOB_RADIUS })));

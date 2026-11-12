@@ -1355,12 +1355,14 @@ function check(cond, msg) {
   check(en.shipBack, 'porto demolito: la nave torna alla piattaforma con il petrolio '+ (en.shipBack ? '' : ' ' + JSON.stringify(en.dbg)));
   check(en.oilShare > 0.05 && en.oilShare < 0.6, 'giacimenti di petrolio: ' + Math.round(en.oilShare * 100) + '% della mappa');
 
-  // 46. tasto I: sblocca tutto
+  // 46. codice "makemoney": sblocca tutto (il tasto I da solo non fa più niente)
   await page.evaluate(() => { closeMenu(); clearVehicles(); __newGame(9, 128); game.started = true; enterGame(); });
   const i0 = await page.evaluate(() => toolLocked('refinery'));
   await page.keyboard.press('i');
+  const iKey = await page.evaluate(() => toolLocked('refinery'));
+  await page.keyboard.type('makemoney');
   const i1 = await page.evaluate(() => !toolLocked('refinery') && !cropLocked('cotton') && UNLOCKS.every(u => isUnlocked(u.id)));
-  check(i0 && i1, 'tasto I: sblocca tutto');
+  check(i0 && iKey && i1, 'codice makemoney: sblocca tutto (il tasto I no)');
 
   // 47. lingue: inglese e spagnolo dal menu Opzioni, tutto tradotto, la scelta resta
   await page.keyboard.press('Escape');

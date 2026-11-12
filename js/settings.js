@@ -12,7 +12,6 @@ const KEY_ACTIONS = [
   { id: 'progress', label: 'Progressi', def: 'p' },
   { id: 'stats', label: 'Produzione della città', def: 'c' },
   { id: 'underground', label: 'Sottosuolo (tubi)', def: 'u' },
-  { id: 'unlock', label: 'Sblocca tutto (prove)', def: 'i' },
 ];
 const SETTINGS_KEY = 'citybuilder.settings';
 const settings = { keys: {}, volume: { music: 70, sfx: 80 } };
@@ -44,15 +43,15 @@ function panDir(k) {
 
 // Pulsanti e aiuto che mostrano i tasti
 function refreshKeyLabels() {
-  const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+  const set = (id, text) => setTopLabel(id, text);   // icona + scritta (topicons.js)
   set('manual-btn', TR('Manuale') + ' (' + keyName(keyOf('manual')) + ')');
   set('progress-btn', TR('Progressi') + ' (' + keyName(keyOf('progress')) + ')');
   set('stats-btn', TR('Produzione') + ' (' + keyName(keyOf('stats')) + ')');
   set('under-btn', TR('Sottosuolo') + ' (' + keyName(keyOf('underground')) + ')');
   const help = document.getElementById('help');
-  if (help) help.innerHTML = TR('Sinistro: usa lo strumento<br>Mano: trascina la mappa, clic su edificio = info<br>Destro/centrale + trascina: muovi | Rotella: zoom<br>{up}{left}{down}{right}/frecce: muovi | 1-9: strumenti | {r}: ruota<br>{m}: manuale | {p}: progressi | {i}: sblocca tutto | Esc: menu<br>{sp}: pausa | ▶ ▶▶ ▶▶▶ in alto: velocità', {
+  if (help) help.innerHTML = TR('Sinistro: usa lo strumento<br>Mano: trascina la mappa, clic su edificio = info<br>Destro/centrale + trascina: muovi | Rotella: zoom<br>{up}{left}{down}{right}/frecce: muovi | 1-9: strumenti | {r}: ruota<br>{m}: manuale | {p}: progressi | Esc: menu<br>{sp}: pausa | ▶ ▶▶ ▶▶▶ in alto: velocità', {
     up: keyName(keyOf('up')), left: keyName(keyOf('left')), down: keyName(keyOf('down')), right: keyName(keyOf('right')),
-    r: keyName(keyOf('rotate')), m: keyName(keyOf('manual')), p: keyName(keyOf('progress')), i: keyName(keyOf('unlock')), sp: keyName(keyOf('pause')) });
+    r: keyName(keyOf('rotate')), m: keyName(keyOf('manual')), p: keyName(keyOf('progress')), sp: keyName(keyOf('pause')) });
 }
 
 // ---------- Pagina Opzioni ----------

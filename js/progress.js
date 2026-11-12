@@ -51,7 +51,19 @@ const UNLOCK_BY_ID = Object.fromEntries(UNLOCKS.map(u => [u.id, u]));
 function unlockName(u) { return u.name || TOOL_INFO[u.tools[0]].label.replace(/ \(.*\)$/, ''); }
 function isUnlocked(id) { return !game.unlocked || game.unlocked.has(id); }
 function unlockAll() { game.unlocked = new Set(UNLOCKS.map(u => u.id)); refreshLocks(); }
-// Tasto I: sblocca tutto (per provare il gioco senza dover accumulare i soldi)
+// Codice segreto "makemoney" (scritto sulla tastiera durante la partita): sblocca tutto e dà 10 milioni,
+// per provare il gioco senza accumulare soldi. Prima era il tasto I, ma i giocatori lo premevano per sbaglio
+// (richiesta dell'utente). Il codice non è scritto da nessuna parte nel gioco.
+const CHEAT_CODE = 'makemoney';
+let cheatBuf = '';
+function cheatTyped(k) {
+  if (k.length !== 1) return false;
+  cheatBuf = (cheatBuf + k.toLowerCase()).slice(-CHEAT_CODE.length);
+  if (cheatBuf !== CHEAT_CODE) return false;
+  cheatBuf = '';
+  cheatUnlockAll();
+  return true;
+}
 function cheatUnlockAll() {
   if (!game.started) return;
   unlockAll();
@@ -59,7 +71,7 @@ function cheatUnlockAll() {
   game.dirty = true;
   updateHud();
   if (progressIsOpen()) renderProgress();
-  toast(TR('Tutto sbloccato e 10 milioni di fondi (tasto I)'));
+  toast(TR('Tutto sbloccato e 10 milioni di fondi'));
 }
 function resetUnlocks() { game.unlocked = new Set(); }
 

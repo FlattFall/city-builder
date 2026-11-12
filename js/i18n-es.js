@@ -4,8 +4,8 @@ DICT.es = {
   // menú y barra superior
   'Fondi:': 'Fondos:', 'Abitanti:': 'Habitantes:', 'Disoccupati:': 'Desempleados:', 'Case:': 'Casas:', 'Industrie:': 'Industrias:',
   'Manuale (M)': 'Manual (M)', 'Progressi (P)': 'Progreso (P)', 'Menu (Esc)': 'Menú (Esc)', 'Fatto': 'Hecho', '↻ Ruota (R)': '↻ Girar (R)',
-  'Sinistro: usa lo strumento<br>Mano: trascina la mappa, clic su edificio = info<br>Destro/centrale + trascina: muovi | Rotella: zoom<br>WASD/frecce: muovi | 1-9: strumenti | R: ruota<br>M: manuale | P: progressi | I: sblocca tutto | Esc: menu<br>Spazio: pausa | ▶ ▶▶ ▶▶▶ in alto: velocità':
-    'Clic izquierdo: usar la herramienta<br>Mano: arrastrar el mapa, clic en edificio = info<br>Derecho/central + arrastrar: mover | Rueda: zoom<br>WASD/flechas: mover | 1-9: herramientas | R: girar<br>M: manual | P: progreso | I: desbloquear todo | Esc: menú<br>Espacio: pausa | ▶ ▶▶ ▶▶▶ arriba: velocidad',
+  'Sinistro: usa lo strumento<br>Mano: trascina la mappa, clic su edificio = info<br>Destro/centrale + trascina: muovi | Rotella: zoom<br>WASD/frecce: muovi | 1-9: strumenti | R: ruota<br>M: manuale | P: progressi | Esc: menu<br>Spazio: pausa | ▶ ▶▶ ▶▶▶ in alto: velocità':
+    'Clic izquierdo: usar la herramienta<br>Mano: arrastrar el mapa, clic en edificio = info<br>Derecho/central + arrastrar: mover | Rueda: zoom<br>WASD/flechas: mover | 1-9: herramientas | R: girar<br>M: manual | P: progreso | Esc: menú<br>Espacio: pausa | ▶ ▶▶ ▶▶▶ arriba: velocidad',
   'Progressi': 'Progreso', 'Manuale': 'Manual', 'Come funziona ogni settore': 'Cómo funciona cada sector',
   'Riprendi': 'Continuar', 'Salva partita': 'Guardar partida', 'Nuova mappa': 'Nuevo mapa', 'Carica mappa': 'Cargar mapa', 'Opzioni': 'Opciones', 'Esci': 'Salir',
   'Nuova mappa: grandezza': 'Nuevo mapa: tamaño', 'Indietro': 'Atrás', 'Lingua': 'Idioma', 'Audio, grafica e controlli: ci stiamo lavorando!': 'Audio, gráficos y controles: ¡estamos trabajando en ello!',
@@ -65,7 +65,7 @@ DICT.es = {
   'Pozzo petrolifero (e magazzino merci).': 'Pozo petrolífero (y almacén de mercancías).',
   'Già sbloccato': 'Ya desbloqueado', 'Prima sblocca: {list}': 'Primero desbloquea: {list}', 'Fondi insufficienti (servono {m})': 'Fondos insuficientes (hacen falta {m})',
   'Sbloccato: {x}': 'Desbloqueado: {x}', 'Sbloccati {a} di {b} - Fondi: {m}': 'Desbloqueados {a} de {b} - Fondos: {m}', 'Già disponibili:': 'Ya disponibles:', 'colture:': 'cultivos:',
-  'Serve prima: {list}': 'Necesita antes: {list}', 'Sbloccato': 'Desbloqueado', 'Sblocca - {m}': 'Desbloquear - {m}', 'Tutto sbloccato e 10 milioni di fondi (tasto I)': 'Todo desbloqueado y 10 millones de fondos (tecla I)',
+  'Serve prima: {list}': 'Necesita antes: {list}', 'Sbloccato': 'Desbloqueado', 'Sblocca - {m}': 'Desbloquear - {m}', 'Tutto sbloccato e 10 milioni di fondi': 'Todo desbloqueado y 10 millones de fondos',
   'Bloccato: sbloccalo nei Progressi (P)': 'Bloqueado: desbloquéalo en Progreso (P)',
   // mensajes de construcción y carreteras
   'Fondi insufficienti': 'Fondos insuficientes', 'Fuori dalla mappa': 'Fuera del mapa', "C'è già un binario": 'Ya hay vías de tren', "C'è già una strada": 'Ya hay una carretera',
@@ -213,7 +213,7 @@ DICT.es = {
   'I suoni arriveranno presto: il volume scelto resta salvato.': 'Los sonidos llegarán pronto: el volumen elegido queda guardado.',
   'Tasti': 'Teclas',
   'Ripristina i tasti': 'Restablecer teclas',
-  'Sinistro: usa lo strumento<br>Mano: trascina la mappa, clic su edificio = info<br>Destro/centrale + trascina: muovi | Rotella: zoom<br>{up}{left}{down}{right}/frecce: muovi | 1-9: strumenti | {r}: ruota<br>{m}: manuale | {p}: progressi | {i}: sblocca tutto | Esc: menu<br>{sp}: pausa | ▶ ▶▶ ▶▶▶ in alto: velocità': 'Clic izquierdo: usar la herramienta<br>Mano: arrastrar el mapa, clic en edificio = info<br>Derecho/central + arrastrar: mover | Rueda: zoom<br>{up}{left}{down}{right}/flechas: mover | 1-9: herramientas | {r}: girar<br>{m}: manual | {p}: progreso | {i}: desbloquear todo | Esc: menú<br>{sp}: pausa | ▶ ▶▶ ▶▶▶ arriba: velocidad',
+  'Sinistro: usa lo strumento<br>Mano: trascina la mappa, clic su edificio = info<br>Destro/centrale + trascina: muovi | Rotella: zoom<br>{up}{left}{down}{right}/frecce: muovi | 1-9: strumenti | {r}: ruota<br>{m}: manuale | {p}: progressi | Esc: menu<br>{sp}: pausa | ▶ ▶▶ ▶▶▶ in alto: velocità': 'Clic izquierdo: usar la herramienta<br>Mano: arrastrar el mapa, clic en edificio = info<br>Derecho/central + arrastrar: mover | Rueda: zoom<br>{up}{left}{down}{right}/flechas: mover | 1-9: herramientas | {r}: girar<br>{m}: manual | {p}: progreso | Esc: menú<br>{sp}: pausa | ▶ ▶▶ ▶▶▶ arriba: velocidad',
   'Pausa / riprendi': 'Pausa / seguir',
   "Terreno com'era prima (Ctrl+Z)": "Terreno como estaba antes (Ctrl+Z)",
   "Niente da annullare: Ctrl+Z annulla solo le modifiche del terreno": "Nada que deshacer: Ctrl+Z solo deshace los cambios del terreno",

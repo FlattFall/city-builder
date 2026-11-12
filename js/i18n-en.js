@@ -4,8 +4,8 @@ DICT.en = {
   // menu and top bar
   'Fondi:': 'Funds:', 'Abitanti:': 'Residents:', 'Disoccupati:': 'Unemployed:', 'Case:': 'Houses:', 'Industrie:': 'Industries:',
   'Manuale (M)': 'Manual (M)', 'Progressi (P)': 'Progress (P)', 'Menu (Esc)': 'Menu (Esc)', 'Fatto': 'Done', '↻ Ruota (R)': '↻ Rotate (R)',
-  'Sinistro: usa lo strumento<br>Mano: trascina la mappa, clic su edificio = info<br>Destro/centrale + trascina: muovi | Rotella: zoom<br>WASD/frecce: muovi | 1-9: strumenti | R: ruota<br>M: manuale | P: progressi | I: sblocca tutto | Esc: menu<br>Spazio: pausa | ▶ ▶▶ ▶▶▶ in alto: velocità':
-    'Left click: use the tool<br>Hand: drag the map, click a building = info<br>Right/middle + drag: move | Wheel: zoom<br>WASD/arrows: move | 1-9: tools | R: rotate<br>M: manual | P: progress | I: unlock all | Esc: menu<br>Space: pause | ▶ ▶▶ ▶▶▶ at the top: speed',
+  'Sinistro: usa lo strumento<br>Mano: trascina la mappa, clic su edificio = info<br>Destro/centrale + trascina: muovi | Rotella: zoom<br>WASD/frecce: muovi | 1-9: strumenti | R: ruota<br>M: manuale | P: progressi | Esc: menu<br>Spazio: pausa | ▶ ▶▶ ▶▶▶ in alto: velocità':
+    'Left click: use the tool<br>Hand: drag the map, click a building = info<br>Right/middle + drag: move | Wheel: zoom<br>WASD/arrows: move | 1-9: tools | R: rotate<br>M: manual | P: progress | Esc: menu<br>Space: pause | ▶ ▶▶ ▶▶▶ at the top: speed',
   'Progressi': 'Progress', 'Manuale': 'Manual', 'Come funziona ogni settore': 'How every sector works',
   'Riprendi': 'Resume', 'Salva partita': 'Save game', 'Nuova mappa': 'New map', 'Carica mappa': 'Load map', 'Opzioni': 'Options', 'Esci': 'Quit',
   'Nuova mappa: grandezza': 'New map: size', 'Indietro': 'Back', 'Lingua': 'Language', 'Audio, grafica e controlli: ci stiamo lavorando!': 'Audio, graphics and controls: we are working on it!',
@@ -65,7 +65,7 @@ DICT.en = {
   'Pozzo petrolifero (e magazzino merci).': 'Oil well (and goods warehouse).',
   'Già sbloccato': 'Already unlocked', 'Prima sblocca: {list}': 'Unlock first: {list}', 'Fondi insufficienti (servono {m})': 'Not enough funds ({m} needed)',
   'Sbloccato: {x}': 'Unlocked: {x}', 'Sbloccati {a} di {b} - Fondi: {m}': 'Unlocked {a} of {b} - Funds: {m}', 'Già disponibili:': 'Already available:', 'colture:': 'crops:',
-  'Serve prima: {list}': 'Needs first: {list}', 'Sbloccato': 'Unlocked', 'Sblocca - {m}': 'Unlock - {m}', 'Tutto sbloccato e 10 milioni di fondi (tasto I)': 'Everything unlocked and 10 million in funds (I key)',
+  'Serve prima: {list}': 'Needs first: {list}', 'Sbloccato': 'Unlocked', 'Sblocca - {m}': 'Unlock - {m}', 'Tutto sbloccato e 10 milioni di fondi': 'Everything unlocked and 10 million in funds',
   'Bloccato: sbloccalo nei Progressi (P)': 'Locked: unlock it in Progress (P)',
   // building and road messages
   'Fondi insufficienti': 'Not enough funds', 'Fuori dalla mappa': 'Outside the map', "C'è già un binario": 'There is already a railway', "C'è già una strada": 'There is already a road',
@@ -213,7 +213,7 @@ DICT.en = {
   'I suoni arriveranno presto: il volume scelto resta salvato.': 'Sounds are coming soon: the volume you choose is saved.',
   'Tasti': 'Keys',
   'Ripristina i tasti': 'Reset keys',
-  'Sinistro: usa lo strumento<br>Mano: trascina la mappa, clic su edificio = info<br>Destro/centrale + trascina: muovi | Rotella: zoom<br>{up}{left}{down}{right}/frecce: muovi | 1-9: strumenti | {r}: ruota<br>{m}: manuale | {p}: progressi | {i}: sblocca tutto | Esc: menu<br>{sp}: pausa | ▶ ▶▶ ▶▶▶ in alto: velocità': 'Left click: use the tool<br>Hand: drag the map, click a building = info<br>Right/middle + drag: move | Wheel: zoom<br>{up}{left}{down}{right}/arrows: move | 1-9: tools | {r}: rotate<br>{m}: manual | {p}: progress | {i}: unlock all | Esc: menu<br>{sp}: pause | ▶ ▶▶ ▶▶▶ at the top: speed',
+  'Sinistro: usa lo strumento<br>Mano: trascina la mappa, clic su edificio = info<br>Destro/centrale + trascina: muovi | Rotella: zoom<br>{up}{left}{down}{right}/frecce: muovi | 1-9: strumenti | {r}: ruota<br>{m}: manuale | {p}: progressi | Esc: menu<br>{sp}: pausa | ▶ ▶▶ ▶▶▶ in alto: velocità': 'Left click: use the tool<br>Hand: drag the map, click a building = info<br>Right/middle + drag: move | Wheel: zoom<br>{up}{left}{down}{right}/arrows: move | 1-9: tools | {r}: rotate<br>{m}: manual | {p}: progress | Esc: menu<br>{sp}: pause | ▶ ▶▶ ▶▶▶ at the top: speed',
   'Pausa / riprendi': 'Pause / resume',
   "Terreno com'era prima (Ctrl+Z)": "Terrain back as it was (Ctrl+Z)",
   "Niente da annullare: Ctrl+Z annulla solo le modifiche del terreno": "Nothing to undo: Ctrl+Z only undoes terrain changes",
