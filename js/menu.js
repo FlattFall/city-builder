@@ -12,6 +12,7 @@ function showMenuPage(page) {
   if (page === 'main') {
     $('m-resume').hidden = !game.started;
     $('m-save').hidden = !game.started;
+    $('m-tutorial').hidden = !game.started;
   }
   if (page === 'load') renderSaveList();
   if (page === 'new') sizeLabels();
@@ -71,6 +72,7 @@ function startNewMap(size) {
     game.started = true;
     if (panelIsOpen()) closePanel();
     enterGame();
+    maybeStartTutorial();   // tutorial o gioca subito (richiesta dell'utente)
   }, 30);
 }
 
@@ -200,6 +202,7 @@ function exitGame() {
 function initMenu() {
   $('m-resume').addEventListener('click', closeMenu);
   $('m-save').addEventListener('click', saveFromMenu);
+  $('m-tutorial').addEventListener('click', () => { closeMenu(); openTutorial(1); });   // tutorial dal menu (riparte dal primo passo)
   $('save-ok').addEventListener('click', () => doSave(false));
   $('save-new').addEventListener('click', () => doSave(true));
   $('save-name').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') doSave(false); if (e.key === 'Escape') showMenuPage('main'); });

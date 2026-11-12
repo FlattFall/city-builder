@@ -432,3 +432,42 @@ body.touch #topbar .top-btns { width: auto; margin-left: auto; }
 body.touch .overlay, body.touch #menu { padding: max(6px, env(safe-area-inset-top)) max(6px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left)); }
 body.touch .ov-close { font-size: 18px; padding: 4px 12px; }
 body.touch .ov-head { position: sticky; top: 0; }
+
+/* ---------- Tutorial (tutorial.js): scheda in alto a sinistra, si gioca mentre si legge ---------- */
+#tutorial { position: fixed; top: 46px; left: 12px; width: 340px; z-index: 7; background: #262b44; border: 3px solid #ffd966;
+  border-radius: 6px; box-shadow: 0 0 0 3px #0e0f1a, 6px 6px 0 rgba(0, 0, 0, .45); padding: 10px 12px; font-size: 13px;
+  max-height: calc(var(--app-h, 100vh) - 170px); overflow-y: auto; box-sizing: border-box; }
+#tutorial[hidden] { display: none; }
+#tutorial .tut-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+#tutorial .tut-head img { width: 48px; height: 36px; image-rendering: pixelated; flex: none; }
+#tutorial .tut-head div { flex: 1; display: flex; flex-direction: column; }
+#tutorial .tut-head small { color: #94b0c2; font-size: 11px; }
+#tutorial .tut-head b { color: #ffd966; font-size: 15px; }
+#tutorial .tut-x { flex: none; align-self: flex-start; font: inherit; background: #1a1c2c; color: #f4f4f4; border: 2px solid #44486b; border-radius: 3px; cursor: pointer; padding: 1px 7px; }
+#tutorial .tut-text { line-height: 1.5; color: #e8ecf2; }
+#tutorial .tut-text b { color: #ffd966; }
+#tutorial .tut-status { margin-top: 8px; padding: 5px 8px; border-radius: 4px; background: #1a1c2c; color: #94b0c2; font-size: 12px; }
+#tutorial .tut-status.ok { color: #a7f070; background: #1f3320; }
+#tutorial .tut-foot { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; align-items: center; }
+#tutorial .tut-foot button { font: inherit; cursor: pointer; color: #f4f4f4; background: #3a3f63; border: 2px solid #5a5f8a; border-radius: 3px; padding: 5px 10px; }
+#tutorial .tut-foot button.main { background: #4a4f78; border-color: #ffd966; margin-left: auto; }
+#tutorial .tut-foot button:hover { border-color: #ffd966; }
+#tutorial .tut-foot button.pulse { animation: tutpulse 1s infinite alternate; }
+@keyframes tutpulse { from { box-shadow: 0 0 0 0 rgba(255, 217, 102, .7); } to { box-shadow: 0 0 0 4px rgba(255, 217, 102, 0); } }
+#tutorial .tut-never { flex-basis: 100%; font-size: 11px; color: #94b0c2; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+body.touch #help { display: none; }
+@media (max-width: 820px), (max-height: 520px) {
+  #tutorial { top: 36px; left: 6px; width: min(300px, calc(100vw - 12px)); font-size: 12px; padding: 8px 10px; max-height: calc(var(--app-h, 100vh) - 110px); }
+  #tutorial .tut-head img { width: 36px; height: 27px; }
+}
+body.tut-open #help { display: none; }
+#tutorial .tut-foot { position: sticky; bottom: -10px; background: #262b44; padding-bottom: 2px; }
+@media (max-height: 520px) and (orientation: landscape) {
+  #tutorial { top: 32px; width: min(440px, 56vw); font-size: 11px; padding: 6px 10px; max-height: calc(var(--app-h, 100vh) - 92px); }
+  #tutorial .tut-head { margin-bottom: 4px; }
+  #tutorial .tut-head b { font-size: 13px; }
+  #tutorial .tut-text { line-height: 1.35; }
+  #tutorial .tut-status { margin-top: 5px; padding: 3px 6px; }
+  #tutorial .tut-foot { margin-top: 6px; }
+  #tutorial .tut-foot button { padding: 3px 8px; }
+}

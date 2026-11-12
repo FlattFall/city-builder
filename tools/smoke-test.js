@@ -22,7 +22,8 @@ function check(cond, msg) {
   await page.waitForTimeout(300);
   // i test più vecchi provano tutti gli strumenti: le mappe nuove hanno tutto sbloccato
   // (i progressi si provano alla fine con la newGame vera, __newGame)
-  await page.evaluate(() => { ACCIDENT.maxChance = 0; WATER.required = false;   // niente incidenti a caso né acqua nelle prove vecchie (si provano a parte)
+  await page.evaluate(() => { localStorage.setItem('citybuilder.tutorial', 'off');   // il tutorial (tutorial.js) si prova a parte
+    ACCIDENT.maxChance = 0; WATER.required = false;   // niente incidenti a caso né acqua nelle prove vecchie (si provano a parte)
     window.__oilAt = oilAt; window.__newGame = newGame; newGame = (...a) => { __newGame(...a); unlockAll(); }; });
   await page.screenshot({ path: SHOTS + '/1-start.png' });
 
@@ -1386,7 +1387,8 @@ function check(cond, msg) {
   });
   await page.reload();
   await page.waitForTimeout(300);
-  await page.evaluate(() => { ACCIDENT.maxChance = 0; WATER.required = false; window.__oilAt = oilAt; window.__newGame = newGame; newGame = (...a) => { __newGame(...a); unlockAll(); }; });   // come all'inizio
+  await page.evaluate(() => { localStorage.setItem('citybuilder.tutorial', 'off');   // il tutorial (tutorial.js) si prova a parte
+    ACCIDENT.maxChance = 0; WATER.required = false; window.__oilAt = oilAt; window.__newGame = newGame; newGame = (...a) => { __newGame(...a); unlockAll(); }; });   // come all'inizio
   const kept = await page.evaluate(() => LANG === 'es' && document.getElementById('m-new').textContent === 'Nuevo mapa');
   await page.evaluate(() => setLanguage('it'));
   const back = await page.evaluate(() => GOODS.wheat.name === 'Grano' && TOOL_GROUPS[1].label === 'Strade' && document.getElementById('m-new').textContent === 'Nuova mappa');
