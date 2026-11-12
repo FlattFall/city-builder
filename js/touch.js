@@ -112,21 +112,39 @@ if (isTouch) {
 }
 
 // Schermo intero (richiesta dell'utente): pulsante ⛶ nella barra in alto. Sul telefono gira anche in
-// orizzontale dove il browser lo permette (Android). Su iPhone Safari lo schermo intero non esiste:
-// il pulsante non si vede (lì si può aggiungere il gioco alla schermata Home).
+// orizzontale dove il browser lo permette (Android). Su iPhone nessun browser ha lo schermo intero
+// (Chrome compreso: su iPhone usano tutti il motore di Safari): il pulsante spiega come aggiungere il
+// gioco alla schermata Home, da dove si apre senza le barre del browser (manifest.json).
 function fullscreenOn() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+function fullscreenApi() { const el = document.documentElement; return !!((document.fullscreenEnabled || document.webkitFullscreenEnabled) && (el.requestFullscreen || el.webkitRequestFullscreen)); }
+function isStandalone() { return navigator.standalone === true || matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches; }
+function showHomeScreenHelp() {
+  let box = document.getElementById('home-help');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'home-help'; box.className = 'overlay';
+    box.innerHTML = '<div class="ov-box" style="max-width:420px"><div class="ov-head"><h2></h2><button class="ov-close">✕</button></div><div class="ov-body" style="padding:12px 16px;line-height:1.5;font-size:13px"></div></div>';
+    document.body.appendChild(box);
+    box.addEventListener('click', e => { if (e.target === box || e.target.classList.contains('ov-close')) box.hidden = true; });
+  }
+  box.querySelector('h2').textContent = TR('Schermo intero');
+  box.querySelector('.ov-body').innerHTML = TR("Su iPhone i browser (Safari e anche Chrome) non permettono lo schermo intero.<br><br>Per giocare senza barre: in Safari tocca <b>Condividi</b> (il quadrato con la freccia) e poi <b>Aggiungi alla schermata Home</b>. Apri Supplyville dall'icona: si gioca a tutto schermo, come un'app.");
+  box.hidden = false;
+}
 function toggleFullscreen() {
   const el = document.documentElement;
   if (fullscreenOn()) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+  if (!fullscreenApi()) { showHomeScreenHelp(); return; }
   const req = el.requestFullscreen || el.webkitRequestFullscreen;
-  if (!req) return;
   const p = req.call(el, { navigationUI: 'hide' });
-  if (isTouch && p && p.then) p.then(() => { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {}); }).catch(() => {});
+  if (isTouch && p && p.then) p.then(() => { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {}); }).catch(() => { if (isTouch) showHomeScreenHelp(); });
 }
 (() => {
   const btn = document.getElementById('fs-btn');
   if (!btn) return;
-  btn.hidden = !(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+  // si vede se lo schermo intero c'è, oppure sul telefono (iPhone: spiega la schermata Home); non serve se
+  // il gioco è già aperto dalla schermata Home
+  btn.hidden = isStandalone() || !(fullscreenApi() || isTouch);
   btn.addEventListener('click', () => { toggleFullscreen(); btn.blur(); });
   const upd = () => { btn.textContent = fullscreenOn() ? '🗗' : '⛶'; btn.title = fullscreenOn() ? TR('Esci dallo schermo intero') : TR('Schermo intero'); setTimeout(resize, 50); };
   document.addEventListener('fullscreenchange', upd);

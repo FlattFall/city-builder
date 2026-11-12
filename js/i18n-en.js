@@ -91,6 +91,7 @@ DICT.en = {
   'La collina continua fino al bordo della mappa': 'The hill goes on to the edge of the map', "C'è già un ponte o un tunnel in mezzo": 'There is already a bridge or tunnel in the way',
   "Qui davanti non c'è una collina": 'There is no hill in front of here', "All'uscita: {m}": 'At the exit: {m}', "Dall'altra parte il terreno è troppo più basso": 'On the other side the ground is much too low',
   'Gira il telefono in orizzontale per giocare meglio': 'Turn your phone sideways to play better', 'Schermo intero': 'Full screen', 'Esci dallo schermo intero': 'Exit full screen',
+  "Su iPhone i browser (Safari e anche Chrome) non permettono lo schermo intero.<br><br>Per giocare senza barre: in Safari tocca <b>Condividi</b> (il quadrato con la freccia) e poi <b>Aggiungi alla schermata Home</b>. Apri Supplyville dall'icona: si gioca a tutto schermo, come un'app.": "On iPhone the browsers (Safari and Chrome too) don't allow full screen.<br><br>To play without bars: in Safari tap <b>Share</b> (the square with the arrow) and then <b>Add to Home Screen</b>. Open Supplyville from the icon: it plays full screen, like an app.",
   'Ponte annullato': 'Bridge cancelled', 'Un dito: usa lo strumento. Due dita: muovi la mappa e zoom': 'One finger: use the tool. Two fingers: move the map and zoom',
   'Mettilo ai piedi di una collina o di una montagna': 'Place it at the foot of a hill or mountain', 'Tunnel costruito': 'Tunnel built',
   "Ora clicca sull'altra sponda (tasto destro per annullare)": 'Now click the other bank (right click to cancel)',

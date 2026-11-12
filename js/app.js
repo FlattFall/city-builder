@@ -1,10 +1,15 @@
 // ---------- Avvio del gioco ----------
 function resize() {
+  // altezza vera dello schermo visibile (sul telefono 100vh comprende le barre del browser e la X del
+  // manuale finiva fuori: segnalazione dell'utente)
+  document.documentElement.style.setProperty('--app-h', innerHeight + 'px');
   view.w = canvas.width = innerWidth;
   view.h = canvas.height = innerHeight;
   requestDraw();
 }
 addEventListener('resize', resize);
+if (window.visualViewport) visualViewport.addEventListener('resize', resize);
+addEventListener('orientationchange', () => setTimeout(resize, 200));
 
 let lastTime = performance.now(), lastWaterFrame = 0;
 function loop(now) {

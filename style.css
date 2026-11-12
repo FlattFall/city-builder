@@ -181,9 +181,9 @@ canvas { display: block; }
 /* ---------- Finestre: progressi e manuale ---------- */
 .overlay { position: fixed; inset: 0; z-index: 9; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(10, 12, 24, .62); }
 .overlay[hidden] { display: none; }
-.ov-box { width: 100%; max-width: 860px; max-height: calc(100vh - 32px); display: flex; flex-direction: column;
+.ov-box { width: 100%; max-width: 860px; max-height: calc(var(--app-h, 100vh) - 32px); display: flex; flex-direction: column;
   background: #262b44; border: 3px solid #5d6aa8; border-radius: 6px; box-shadow: 0 0 0 3px #0e0f1a, 8px 8px 0 rgba(0, 0, 0, .45); }
-.ov-box.wide { max-width: 1000px; height: calc(100vh - 32px); }
+.ov-box.wide { max-width: 1000px; height: calc(var(--app-h, 100vh) - 32px); }
 .ov-head { display: flex; align-items: baseline; gap: 12px; padding: 12px 16px 8px; border-bottom: 2px solid #3a3e5e; }
 .ov-head h2 { margin: 0; font-size: 20px; color: #ffd966; letter-spacing: 2px; text-shadow: 2px 2px 0 #0e0f1a; }
 .ov-sub { font-size: 12px; color: #94b0c2; }
@@ -385,14 +385,14 @@ body.touch #rotate-btn { font-size: 15px; padding: 6px 14px; }
   #subpanel { top: 40px; left: 6px; right: 6px; width: auto; max-height: 52vh; z-index: 7; }
   #fieldbar { top: 40px; max-width: 94vw; font-size: 12px; }
   .overlay, #menu { padding: 6px; }
-  .ov-box, .ov-box.wide { max-height: calc(100vh - 12px); height: auto; }
-  .ov-box.wide { height: calc(100vh - 12px); }
+  .ov-box, .ov-box.wide { max-height: calc(var(--app-h, 100vh) - 12px); height: auto; }
+  .ov-box.wide { height: calc(var(--app-h, 100vh) - 12px); }
   .ov-head { padding: 8px 10px 6px; gap: 8px; flex-wrap: wrap; }
   .ov-head h2 { font-size: 16px; }
   .man-wrap { flex-direction: column; }
   #manual-nav { width: auto; flex-direction: row; overflow-x: auto; overflow-y: hidden; border-right: none; border-bottom: 2px solid #3a3e5e; }
   #manual-nav button { flex: none; white-space: nowrap; }
-  .menu-box { padding: 14px; max-height: calc(100vh - 12px); overflow-y: auto; box-sizing: border-box; }
+  .menu-box { padding: 14px; max-height: calc(var(--app-h, 100vh) - 12px); overflow-y: auto; box-sizing: border-box; }
   .menu-page > button { margin: 6px 0; padding: 8px; font-size: 15px; }
 }
 
@@ -406,15 +406,15 @@ body.touch #rotate-btn { font-size: 15px; padding: 6px 14px; }
   #toolbar { left: 50%; right: auto; transform: translateX(-50%); border-radius: 6px 6px 0 0; padding: 3px 4px; padding-bottom: max(3px, env(safe-area-inset-bottom)); }
   #toolbar .tool { width: 58px; max-width: none; }
   #toolbar img { max-width: 36px; }
-  #submenu { bottom: 50px; max-height: calc(100vh - 92px); left: 50% !important; right: auto; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 16px); border-radius: 6px; }
+  #submenu { bottom: 50px; max-height: calc(var(--app-h, 100vh) - 92px); left: 50% !important; right: auto; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 16px); border-radius: 6px; }
   #subdesc { max-height: 22vh; }
   #toolname { bottom: 50px; }
   #rotate-btn { bottom: 54px; right: max(8px, env(safe-area-inset-right)); }
   #toast { bottom: 64px; }
-  #panel { top: 30px; left: auto; right: max(6px, env(safe-area-inset-right)); width: 260px; max-height: calc(100vh - 90px); }
-  #subpanel { top: 30px; left: auto; right: calc(max(6px, env(safe-area-inset-right)) + 272px); width: 230px; max-height: calc(100vh - 90px); }
+  #panel { top: 30px; left: auto; right: max(6px, env(safe-area-inset-right)); width: 260px; max-height: calc(var(--app-h, 100vh) - 90px); }
+  #subpanel { top: 30px; left: auto; right: calc(max(6px, env(safe-area-inset-right)) + 272px); width: 230px; max-height: calc(var(--app-h, 100vh) - 90px); }
   #fieldbar { top: 30px; }
-  .ov-box.wide { height: calc(100vh - 12px); }
+  .ov-box.wide { height: calc(var(--app-h, 100vh) - 12px); }
   .man-wrap { flex-direction: row; }
   #manual-nav { width: 150px; flex-direction: column; overflow-y: auto; overflow-x: hidden; border-right: 2px solid #3a3e5e; border-bottom: none; }
   #manual-nav button { white-space: normal; font-size: 11px; }
@@ -428,3 +428,7 @@ body.touch #topbar .top-btns { width: auto; margin-left: auto; }
   body.touch #topbar .top-btns button { font-size: 13px; padding: 2px 4px; }
   #topbar .speed-btns { gap: 2px; margin-left: 0; }
 }
+/* finestre sul telefono: dentro lo schermo visibile anche con le barre del browser e la tacca */
+body.touch .overlay, body.touch #menu { padding: max(6px, env(safe-area-inset-top)) max(6px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left)); }
+body.touch .ov-close { font-size: 18px; padding: 4px 12px; }
+body.touch .ov-head { position: sticky; top: 0; }
