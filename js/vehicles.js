@@ -7,7 +7,7 @@ let vehicles = [];
 let moveInTimer = 0, houseCursor = 0, jobsTimer = 0;
 const CAR_COLORS = ['#d94141', '#3f6fd9', '#e8c23a', '#3fa34d', '#e8e8e8', '#2b2b33', '#e07b39', '#8e5bd1'];
 
-function clearVehicles() { vehicles = []; moveInTimer = 0; }
+function clearVehicles() { vehicles = []; moveInTimer = 0; if (typeof clearPeds === 'function') clearPeds(); }
 
 // ---------- Percorsi in auto ----------
 // Nelle rotonde da ogni quarto si può andare solo verso il quarto successivo (senso antiorario)
@@ -369,7 +369,8 @@ function simUpdate(dt) {
   moveInTimer -= dt;
   if (moveInTimer <= 0) { moveInTimer = MOVE_IN_EVERY; spawnResident(); }
   economyUpdate(dt);
-  if (vehicles.length) requestDraw();
+  if (typeof pedsUpdate === 'function') pedsUpdate(dt);   // passanti (people.js)
+  if (vehicles.length || (typeof peds !== 'undefined' && peds.length)) requestDraw();
 }
 
 // Un edificio demolito: i veicoli non spariscono, cambiano programma.
@@ -417,6 +418,7 @@ function onBridgeRemoved(b) {
 
 // Una strada demolita: i veicoli che dovevano passarci spariscono (ci riproveranno)
 function onRoadRemoved(x, y) {
+  if (typeof pedsOnRoadRemoved === 'function') pedsOnRoadRemoved(x, y);
   const k = nodeKey(x, y, 0);
   const gone = vehicles.filter(v => v.keys.has(k));
   vehicles = vehicles.filter(v => !gone.includes(v));
@@ -483,14 +485,14 @@ function vehiclePos(v) {
 function vehiclesByTile() {
   const m = new Map(), foot = new Map();
   m.foot = foot;
-  for (const v of vehicles) {
+  for (const v of (typeof peds !== 'undefined' && peds.length ? vehicles.concat(peds) : vehicles)) {   // anche i passanti
     const p = vehiclePos(v);
     v.pos = p;
     // ingombro del veicolo (con la scia per le navi): si disegna dopo l'ultimo tile che tocca
     // (quello più avanti in +x e +y), così nessun tile disegnato dopo (strada, terreno, acqua) lo copre;
     // i tile che stanno davanti a una parte del veicolo aspettano lui (m.foot, usato da drawFrame)
     const dd = v.pts ? vehicleDir(v) : 1, F = v.kind === 'ship' && v.pts ? shipHeading(v) : DIRS[dd];   // la nave anche in diagonale
-    const [front, back, side] = v.kind === 'ship' ? [0.62, 1.1, 0.3] : v.kind === 'bus' ? [0.4, 0.4, 0.14] : v.kind === 'van' ? [0.27, 0.27, 0.13] : [0.22, 0.22, 0.12];
+    const [front, back, side] = v.kind === 'ship' ? [0.62, 1.1, 0.3] : v.kind === 'bus' ? [0.4, 0.4, 0.14] : v.kind === 'ped' ? [0.06, 0.06, 0.06] : v.kind === 'van' ? [0.27, 0.27, 0.13] : [0.22, 0.22, 0.12];
     const xs = [p.mx + F.dx * front, p.mx - F.dx * back], ys = [p.my + F.dy * front, p.my - F.dy * back];
     const sx = Math.abs(F.dy) * side, sy = Math.abs(F.dx) * side;
     const cl = n => Math.min(game.size - 1, Math.max(0, n));
@@ -526,6 +528,7 @@ function vehicleDir(v) {
 // Il furgone ha il cassone bianco con la striscia del colore dell'attività.
 function drawVehicle(c, v) {
   if (v.kind === 'ship') { drawShip(c, v); return; }
+  if (v.kind === 'ped') { drawPed(c, v); return; }
   const { mx, my, h } = v.pos;
   const d = vehicleDir(v), f = DIRS[d], sd = [-f.dy, f.dx];   // avanti e di lato
   const van = v.kind === 'van', bus = v.kind === 'bus';

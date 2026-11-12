@@ -69,20 +69,51 @@ function busRoute(d) {
 // ---------- Disegno ----------
 // Fermata: palina con il cartello, pensilina con la panchina
 function drawBusStop(c, x, y, base, r) {
-  drawParts2(c, x, y, base, r, [
-    { box: [0.1, 0.1, 0.9, 0.5], h: 1, col: { l: '#b4b4ac', r: '#9a9a92', t: '#cfcfc6', plain: true } },
-    { group: [
-      { box: [0.15, 0.15, 0.2, 0.2], h: 12, col: { l: '#6b7077', r: '#55595f', t: '#8a8f96' } },
-      { box: [0.7, 0.15, 0.75, 0.2], h: 12, col: { l: '#6b7077', r: '#55595f', t: '#8a8f96' } },
-      { box: [0.15, 0.12, 0.75, 0.22], h: 9, z: 1, col: { l: '#a8d8ef', r: '#86b9d3', t: '#a8d8ef' } },   // vetro dietro
-      { box: [0.25, 0.25, 0.65, 0.35], h: 1.5, z: 3, col: { l: '#8a5a3a', r: '#6b4428', t: '#a06a44' } },  // panchina
-      { box: [0.1, 0.1, 0.8, 0.45], h: 1.2, z: 12, col: { l: '#2f55b0', r: '#24448e', t: '#3f6fd9' } },   // tettoia
-    ] },
-    { group: [
-      { box: [0.82, 0.62, 0.86, 0.66], h: 16, col: { l: '#8a8f96', r: '#6b7077', t: '#9aa0a8' } },     // palina
-      { box: [0.78, 0.6, 0.9, 0.68], h: 4, z: 13, col: { l: '#ffd34d', r: '#e0b02a', t: '#ffe27a' } },  // cartello giallo
-    ] },
-  ], true);
+  // Ordine fisso (prima i pezzi si mescolavano girando la fermata, segnalazione dell'utente):
+  // marciapiede sempre per primo; pensilina (pali, vetro, panchina ordinati tra loro, tettoia per
+  // ultima) e palina sono due blocchi separati, ordinati con sortParts.
+  const rb = bx => rotBox(bx.map(v => v * 2), r).map(v => v / 2);
+  const POST = { l: '#6b7077', r: '#55595f', t: '#8a8f96' };
+  const part = (p, b) => {
+    const top = box(c, x, y, base + (p.z || 0) / STEP, b[0], b[1], b[2], b[3], p.h, p.col);
+    if (p.glass && DETAIL) {   // riflesso sul vetro
+      const P = (u, v, h) => iso(x, y, u, v, base + h / STEP);
+      aline(c, P(b[0], b[3], 3), P(b[2], b[3], 8), '#ffffff', 0.5, 0.6);
+    }
+    return top;
+  };
+  box(c, x, y, base, ...rb([0.08, 0.08, 0.92, 0.5]), 1, { l: '#b4b4ac', r: '#9a9a92', t: '#cfcfc6', plain: true });
+  const shelter = [
+    { box: [0.14, 0.14, 0.19, 0.2], h: 11, z: 1, col: POST },
+    { box: [0.71, 0.14, 0.76, 0.2], h: 11, z: 1, col: POST },
+    { box: [0.19, 0.15, 0.71, 0.19], h: 9, z: 2, col: { l: '#a8d8ef', r: '#86b9d3', t: '#c4e6f5' }, glass: true },   // vetro dietro
+    { box: [0.14, 0.2, 0.18, 0.36], h: 8, z: 2, col: { l: '#a8d8ef', r: '#86b9d3', t: '#c4e6f5' }, glass: true },    // vetro di lato
+    { box: [0.26, 0.24, 0.64, 0.34], h: 1.5, z: 2.5, col: { l: '#8a5a3a', r: '#6b4428', t: '#a06a44' } },             // panchina
+  ];
+  const roof = { box: [0.1, 0.1, 0.8, 0.44], h: 1.2, z: 12, col: { l: '#2f55b0', r: '#24448e', t: '#3f6fd9' } };
+  const sign = [
+    { box: [0.82, 0.62, 0.86, 0.66], h: 15, z: 0, col: { l: '#8a8f96', r: '#6b7077', t: '#9aa0a8' } },
+    { box: [0.78, 0.61, 0.9, 0.67], h: 4, z: 12, col: { l: '#ffd34d', r: '#e0b02a', t: '#ffe27a' } },
+  ];
+  const blocks = [
+    { b: rb([0.1, 0.1, 0.8, 0.44]), i: 0, draw() {
+      const it = shelter.map((p, i) => { const b = rb(p.box); return { p, b, i, depth: b[2] + b[3] }; });
+      for (const { p, b } of sortParts(it)) part(p, b);
+      part(roof, rb(roof.box));
+    } },
+    { b: rb([0.78, 0.6, 0.9, 0.68]), i: 1, draw() { for (const p of sign) part(p, rb(p.box)); } },
+  ];
+  for (const k of blocks) k.depth = k.b[2] + k.b[3];
+  for (const k of sortParts(blocks)) k.draw();
+}
+// la fermata guarda la strada: rotazione con il lato aperto (+v) verso una strada accanto
+function busStopRotation(x, y, pref) {
+  for (const r of [pref, 0, 1, 2, 3]) {
+    const f = rotUV(1, 2.6, r).map(k => k / 2);   // punto davanti alla fermata (v = 1.3)
+    const nx = x + Math.floor(f[0]), ny = y + Math.floor(f[1]);
+    if (inMap(nx, ny) && game.map[ny][nx].path && game.map[ny][nx].path !== 'rail') return r;
+  }
+  return pref;
 }
 // Deposito: capannone con due grandi portoni e un bus parcheggiato fuori
 function drawBusDepot(c, ax, ay, base, r) {

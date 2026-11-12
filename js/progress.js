@@ -15,7 +15,7 @@ const UNLOCKS = [
   { id: 'tunnel', sector: 'Strade', tools: ['tunnel'], cost: 7000, needs: ['bridge'] },
   { id: 'rail', sector: 'Strade', tools: ['rail'], cost: 5000 },
   { id: 'bus', sector: 'Strade', tools: ['busStop', 'busDepot'], cost: 3000, desc: 'Fermate e deposito dei bus: la gente va a lavorare anche lontano da casa.' },
-  { id: 'waterPlant', sector: 'Energia', tools: ['waterPlant'], cost: 5000, desc: "Depuratore dell'acqua di mare: tanta acqua per le città grandi." },
+  { id: 'waterPlant', sector: 'Energia', tools: ['waterPlant'], cost: 15000, desc: "Depuratore dell'acqua di mare: tanta acqua per le città grandi." },
   // agroalimentare
   { id: 'crops', sector: 'Agroalimentare', name: 'Nuove colture', crops: ['corn', 'tomato', 'cabbage'], cost: 2000,
     desc: 'Mais, pomodori e cavoli per le fattorie.' },

@@ -225,6 +225,9 @@ function drawStain(c, x, y, P) {
 // (sortParts) e il serbatoio, che sta sopra a tutto, per ultimo: prima il basamento copriva i piedi
 // delle gambe e la pompa, e in alcune rotazioni i pezzi si sovrapponevano (segnalazione dell'utente).
 function drawWaterWell(c, x, y, base, r) {
+  // il pozzo non ha un'entrata: la casetta della pompa sta sempre sul davanti (a destra o a sinistra),
+  // mai dietro la torre dove gambe e crociere la tagliavano (rotazioni 3 e 4, segnalazione dell'utente)
+  r = r & 1;
   const R1 = (u, v) => rotUV(u * 2, v * 2, r).map(k => k / 2);
   const rb = bx => rotBox(bx.map(v => v * 2), r).map(v => v / 2);
   const P = (u, v, h) => iso(x, y, u, v, base + h / STEP);

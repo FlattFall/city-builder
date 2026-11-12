@@ -76,7 +76,7 @@ const BUILDINGS = {
   gasStation: { name: 'Distributore di carburante', w: 1, h: 1, cost: 1200, height: 14, group: 'energy' },
   // acqua (richiesta dell'utente): tubi sotto tutte le strade; pozzo sulle falde, depuratore sul mare, scarico sull'acqua
   waterWell:  { name: "Pozzo dell'acqua", w: 1, h: 1, cost: 700, height: 18, group: 'water', groundwater: true },
-  waterPlant: { name: "Depuratore dell'acqua di mare", w: 2, h: 2, cost: 3000, height: 22, group: 'water', coast: true },   // il retro sul mare
+  waterPlant: { name: "Depuratore dell'acqua di mare", w: 2, h: 2, cost: 12000, height: 22, group: 'water', coast: true },   // il retro sul mare
   sewage:     { name: 'Scarico delle acque sporche', w: 2, h: 2, cost: 800, height: 16, group: 'water', infra: true, coast: true },   // in riva al mare: il tubo scarica dal retro
   // bus (richiesta dell'utente): portano la gente a lavorare da una fermata all'altra
   busStop:    { name: 'Fermata del bus', w: 1, h: 1, cost: 150, height: 14, group: 'bus', infra: true },
@@ -84,7 +84,7 @@ const BUILDINGS = {
 };
 // Acqua: consumo per abitante e per attività; quanto dà una fonte con tutto il personale; quanto
 // porta via uno scarico. Senza acqua le case si riempiono solo a metà e le attività lavorano più piano.
-const WATER = { required: true, perResident: 1, perBusiness: 3, well: 100, plant: 400, sewage: 300, dryHouse: 2, drySpeed: 0.6 };
+const WATER = { required: true, perResident: 1, perBusiness: 3, well: 100, plant: 1500, sewage: 600, dryHouse: 2, drySpeed: 0.6 };
 // Bus: dalle case vicine a una fermata (entro `walk` tile) si va a lavorare nelle attività vicine a
 // un'altra fermata dello stesso deposito, a qualsiasi distanza; con il bus i lavoratori arrivano
 // riposati e puntuali: le attività servite lavorano `boost` più in fretta.
