@@ -1455,19 +1455,20 @@ function check(cond, msg) {
   });
   check(windSides.every(Boolean), 'centrale eolica: strada collegata su tutti e 4 i lati (' + windSides.join(',') + ')');
 
-  // 50. segnala un bug: pagina nel menu, apre GitHub con titolo e testo già scritti
-  await page.evaluate(() => { window.__opened = null; window.open = (u) => { window.__opened = u; return null; }; openMenu('main'); });
+  // 50. segnala un bug: la segnalazione parte direttamente verso l'email del gioco (FormSubmit, qui finto)
+  let bugPost = null;
+  await page.route('https://formsubmit.co/**', route => { bugPost = JSON.parse(route.request().postData() || '{}'); route.fulfill({ status: 200, contentType: 'application/json', body: '{"success":true}' }); });
+  await page.evaluate(() => openMenu('main'));
   await page.click('#m-bug');
   await page.fill('#bug-text', 'Il porto non riceve la merce\nprovato due volte');
   await page.fill('#bug-name', 'Tester');
   await page.click('#bug-send');
-  const bug = await page.evaluate(() => {
-    const u = window.__opened ? new URL(window.__opened) : null;
-    return { url: u && u.origin + u.pathname, title: u && u.searchParams.get('title'), body: u && u.searchParams.get('body'), msg: document.getElementById('menu-msg').textContent };
-  });
+  await page.waitForTimeout(300);
+  const bugMsg = await page.evaluate(() => ({ msg: document.getElementById('menu-msg').textContent, text: document.getElementById('bug-text').value }));
   await page.keyboard.press('Escape');
-  check(bug.url === 'https://github.com/FlattFall/city-builder/issues/new' && bug.title === '[Bug] Il porto non riceve la merce', 'segnalazione: apre GitHub con il titolo giusto');
-  check(bug.body && bug.body.includes('provato due volte') && bug.body.includes('Tester') && bug.body.includes('Versione:') && bug.msg.length > 0, 'segnalazione: testo, nome e informazioni del gioco allegati');
+  await page.unroute('https://formsubmit.co/**');
+  check(bugPost && bugPost._subject.includes('[Bug] Il porto non riceve la merce'), 'segnalazione: parte da sola verso l\'email con il titolo giusto');
+  check(bugPost && bugPost.message.includes('provato due volte') && bugPost.message.includes('Tester') && bugPost.message.includes('Versione:') && bugMsg.msg.length > 0 && bugMsg.text === '', 'segnalazione: testo, nome e informazioni del gioco allegati, messaggio di grazie');
 
   // 51. nomi con numero (il primo senza) e distribuzione per merce in percentuale
   const sp = await page.evaluate(() => {
