@@ -1348,6 +1348,55 @@ function drawStamp2(N) {
   return drawStampData2;
 }
 
+// Ordine del pittore (vedi drawFrame): fila per fila, ogni tile aspetta quello a sinistra e quello sopra,
+// gli edifici grandi il loro tile più avanti, e chi sta davanti a un veicolo il tile del veicolo.
+// Usato per lo schermo e per le immagini della vista da lontano (farcache).
+function paintTiles(N, y0, y1, rowA, rowB, visible, foot, drawNode) {
+  const stamp = drawStamp(N);
+  const onStack = drawStamp2(N);
+  const isDone = k => stamp.arr[k] === stamp.id;
+  // tile da aspettare al posto di (px, py), visto da (x, y)
+  const before = (px, py, x, y) => {
+    if (px < 0 || py < 0 || !visible(px, py)) return -1;
+    const b = game.map[py][px].building;
+    if (b && b.kind !== 'house') {
+      const d = BUILDINGS[b.kind];
+      if ((d.w > 1 || d.h > 1) && game.map[y][x].building !== b) {
+        const fx = b.ax + d.w - 1, fy = b.ay + d.h - 1;
+        return inMap(fx, fy) && visible(fx, fy) ? fy * N + fx : -1;
+      }
+    }
+    const pk = py * N + px, va = foot.get(pk);
+    // un veicolo che sporge in questo tile: chi gli sta davanti aspetta il tile dove si disegna il veicolo
+    if (va !== undefined && va !== y * N + x && foot.get(y * N + x) !== va) {
+      const ax = va % N, ay = (va - ax) / N;
+      if (visible(ax, ay)) return va;
+    }
+    return pk;
+  };
+  const stack = [];
+  const run = k0 => {
+    if (isDone(k0)) return;
+    stack.push(k0);
+    while (stack.length) {
+      const k = stack[stack.length - 1];
+      if (isDone(k)) { stack.pop(); continue; }
+      const x = k % N, y = (k - x) / N;
+      const a = before(x - 1, y, x, y), b = before(x, y - 1, x, y);
+      // (onStack: se un tile è già in attesa più giù nella pila non si aspetta di nuovo: niente giri infiniti)
+      if (a >= 0 && !isDone(a) && a !== k && onStack.arr[a] !== onStack.id) { onStack.arr[a] = onStack.id; stack.push(a); continue; }
+      if (b >= 0 && !isDone(b) && b !== k && onStack.arr[b] !== onStack.id) { onStack.arr[b] = onStack.id; stack.push(b); continue; }
+      stamp.arr[k] = stamp.id;
+      stack.pop();
+      drawNode(x, y);
+    }
+  };
+  for (let y = y0; y <= y1; y++) {
+    const xa = rowA(y), xb = rowB(y);
+    for (let x = xa; x <= xb; x++) if (visible(x, y)) run(y * N + x);
+  }
+}
+
 function drawFrame() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = '#1a1c2c';
@@ -1393,28 +1442,6 @@ function drawFrame() {
     if (y < r.y0 || y > r.y1 || x < rowA(y) || x > rowB(y)) return false;
     const gy = (x + y) * TH / 2;
     return !(gy - game.map[y][x].elev * STEP > bottomY || gy + TH < topY);
-  };
-  const stamp = drawStamp(N);
-  const onStack = drawStamp2(N);
-  const isDone = k => stamp.arr[k] === stamp.id;
-  // tile da aspettare al posto di (px, py), visto da (x, y)
-  const before = (px, py, x, y) => {
-    if (px < 0 || py < 0 || !visible(px, py)) return -1;
-    const b = game.map[py][px].building;
-    if (b && b.kind !== 'house') {
-      const d = BUILDINGS[b.kind];
-      if ((d.w > 1 || d.h > 1) && game.map[y][x].building !== b) {
-        const fx = b.ax + d.w - 1, fy = b.ay + d.h - 1;
-        return inMap(fx, fy) && visible(fx, fy) ? fy * N + fx : -1;
-      }
-    }
-    const pk = py * N + px, va = vmap.foot.get(pk);
-    // un veicolo che sporge in questo tile: chi gli sta davanti aspetta il tile dove si disegna il veicolo
-    if (va !== undefined && va !== y * N + x && vmap.foot.get(y * N + x) !== va) {
-      const ax = va % N, ay = (va - ax) / N;
-      if (visible(ax, ay)) return va;
-    }
-    return pk;
   };
   // zona dei campi della fattoria (modalità campi, o fattoria in mano): si colora tile per tile alla
   // quota di ogni tile, così segue il terreno (prima una linea sola alla quota della fattoria sembrava
@@ -1463,27 +1490,25 @@ function drawFrame() {
     const vb = vmap.get(nodeKey(x, y, 1));
     if (vb) for (const v of vb) drawVehicle(ctx, v);
   };
-  const stack = [];
-  const run = k0 => {
-    if (isDone(k0)) return;
-    stack.push(k0);
-    while (stack.length) {
-      const k = stack[stack.length - 1];
-      if (isDone(k)) { stack.pop(); continue; }
-      const x = k % N, y = (k - x) / N;
-      const a = before(x - 1, y, x, y), b = before(x, y - 1, x, y);
-      // (onStack: se un tile è già in attesa più giù nella pila non si aspetta di nuovo: niente giri infiniti)
-      if (a >= 0 && !isDone(a) && a !== k && onStack.arr[a] !== onStack.id) { onStack.arr[a] = onStack.id; stack.push(a); continue; }
-      if (b >= 0 && !isDone(b) && b !== k && onStack.arr[b] !== onStack.id) { onStack.arr[b] = onStack.id; stack.push(b); continue; }
-      stamp.arr[k] = stamp.id;
-      stack.pop();
-      drawNode(x, y);
+  if (z < 1 && FAR_CACHE && !window.FAR_OFF) {
+    // vista da lontano: il paesaggio fermo viene dalle immagini in memoria (farcache), sopra si
+    // disegnano solo le cose che cambiano (anteprima, contorni, veicoli, icone)
+    drawFar(z, r, rowA, rowB, visible);
+    for (let y = r.y0; y <= r.y1; y++) for (let x = rowA(y), xb = rowB(y); x <= xb; x++) {
+      if (!visible(x, y)) continue;
+      if (inArea(x, y) && !game.map[y][x].building) drawAreaTile(x, y);
+      if (oilView) drawOilSpot(ctx, x, y);
+      if (game.tool === 'waterWell') drawWaterSpot(ctx, x, y);
     }
-  };
-  for (let y = r.y0; y <= r.y1; y++) {
-    const xa = rowA(y), xb = rowB(y);
-    for (let x = xa; x <= xb; x++) if (visible(x, y)) run(y * N + x);
-  }
+    if (pv) { ctx.globalAlpha = 0.75; for (const p of pvList) if (inMap(p.x, p.y)) withPreview(pv, () => drawTile(ctx, p.x, p.y, false, true)); ctx.globalAlpha = 1; }
+    if (planKeys) for (const [k, i] of planKeys) { const x = k % N; drawBridgePlanTile(ctx, x, (k - x) / N, plan, i); }
+    if (ha) drawHover(ctx);
+    if (sel) drawSelection(ctx, sel);
+    const vs = [];
+    for (const list of vmap.values()) vs.push(...list);
+    vs.sort((a, b) => (a.pos.mx + a.pos.my) - (b.pos.mx + b.pos.my));
+    for (const v of vs) drawVehicle(ctx, v);
+  } else paintTiles(N, r.y0, r.y1, rowA, rowB, visible, vmap.foot, drawNode);
   drawPowerLines(ctx);
   drawSewagePipes(ctx);   // tubo dello scarico sopra il mare (dopo i tile d'acqua, così non ci finisce sotto)
   if (pipeViewOn()) drawPipeOverlay(ctx);   // mappa dei tubi sopra tutto (anche sotto le case)

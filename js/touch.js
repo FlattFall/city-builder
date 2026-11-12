@@ -90,19 +90,45 @@ let touchHintShown = false;
 function touchHint() {
   if (!isTouch || touchHintShown) return;
   touchHintShown = true;
-  toast(TR('Un dito: usa lo strumento. Due dita: muovi la mappa e zoom'));
+  toast(innerHeight > innerWidth ? TR('Gira il telefono in orizzontale per giocare meglio') : TR('Un dito: usa lo strumento. Due dita: muovi la mappa e zoom'));
 }
 
 // Sul telefono i tasti tra parentesi ("Manuale (M)") non servono e occupano spazio: si tolgono
 // (anche quando la lingua o i tasti cambiano e i pulsanti vengono riscritti)
 if (isTouch) {
+  // pulsanti in alto: un'icona al posto della scritta, così stanno su una riga anche in orizzontale
+  const ICON = { 'manual-btn': '📖', 'under-btn': '💧', 'stats-btn': '📊', 'progress-btn': '⭐', 'menu-btn': '☰' };
   const strip = () => {
     for (const b of document.querySelectorAll('#topbar .top-btns button, #rotate-btn')) {
       const t = b.textContent, s = t.replace(/\s*\([^()]*\)\s*$/, '');
-      if (s !== t) b.textContent = s;
+      const icon = ICON[b.id];
+      if (icon) { if (t !== icon) { b.title = s; b.textContent = icon; } }
+      else if (s !== t) b.textContent = s;
     }
   };
   new MutationObserver(strip).observe(document.getElementById('topbar'), { subtree: true, childList: true, characterData: true });
   new MutationObserver(strip).observe(document.getElementById('rotate-btn'), { subtree: true, childList: true, characterData: true });
   strip();
 }
+
+// Schermo intero (richiesta dell'utente): pulsante ⛶ nella barra in alto. Sul telefono gira anche in
+// orizzontale dove il browser lo permette (Android). Su iPhone Safari lo schermo intero non esiste:
+// il pulsante non si vede (lì si può aggiungere il gioco alla schermata Home).
+function fullscreenOn() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+function toggleFullscreen() {
+  const el = document.documentElement;
+  if (fullscreenOn()) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+  const req = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (!req) return;
+  const p = req.call(el, { navigationUI: 'hide' });
+  if (isTouch && p && p.then) p.then(() => { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {}); }).catch(() => {});
+}
+(() => {
+  const btn = document.getElementById('fs-btn');
+  if (!btn) return;
+  btn.hidden = !(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+  btn.addEventListener('click', () => { toggleFullscreen(); btn.blur(); });
+  const upd = () => { btn.textContent = fullscreenOn() ? '🗗' : '⛶'; btn.title = fullscreenOn() ? TR('Esci dallo schermo intero') : TR('Schermo intero'); setTimeout(resize, 50); };
+  document.addEventListener('fullscreenchange', upd);
+  document.addEventListener('webkitfullscreenchange', upd);
+})();

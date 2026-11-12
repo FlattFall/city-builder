@@ -395,3 +395,36 @@ body.touch #rotate-btn { font-size: 15px; padding: 6px 14px; }
   .menu-box { padding: 14px; max-height: calc(100vh - 12px); overflow-y: auto; box-sizing: border-box; }
   .menu-page > button { margin: 6px 0; padding: 8px; font-size: 15px; }
 }
+
+/* Telefono in orizzontale (richiesta dell'utente: quasi tutti giocano così): tutto su una riga in alto,
+   barra degli strumenti bassa, pannello a destra come sul computer, la mappa resta grande */
+@media (max-height: 520px) and (orientation: landscape) {
+  #topbar { flex-wrap: nowrap; gap: 8px; padding: 2px 6px; padding-left: max(6px, env(safe-area-inset-left)); padding-right: max(6px, env(safe-area-inset-right)); }
+  #topbar .top-btns { width: auto; flex-wrap: nowrap; margin-left: auto; }
+  #topbar .top-btns button { flex: none; padding: 3px 5px; }
+  #topbar .speed-btns button { min-width: 26px; padding: 2px 3px; }
+  #toolbar { left: 50%; right: auto; transform: translateX(-50%); border-radius: 6px 6px 0 0; padding: 3px 4px; padding-bottom: max(3px, env(safe-area-inset-bottom)); }
+  #toolbar .tool { width: 58px; max-width: none; }
+  #toolbar img { max-width: 36px; }
+  #submenu { bottom: 50px; max-height: calc(100vh - 92px); left: 50% !important; right: auto; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 16px); border-radius: 6px; }
+  #subdesc { max-height: 22vh; }
+  #toolname { bottom: 50px; }
+  #rotate-btn { bottom: 54px; right: max(8px, env(safe-area-inset-right)); }
+  #toast { bottom: 64px; }
+  #panel { top: 30px; left: auto; right: max(6px, env(safe-area-inset-right)); width: 260px; max-height: calc(100vh - 90px); }
+  #subpanel { top: 30px; left: auto; right: calc(max(6px, env(safe-area-inset-right)) + 272px); width: 230px; max-height: calc(100vh - 90px); }
+  #fieldbar { top: 30px; }
+  .ov-box.wide { height: calc(100vh - 12px); }
+  .man-wrap { flex-direction: row; }
+  #manual-nav { width: 150px; flex-direction: column; overflow-y: auto; overflow-x: hidden; border-right: 2px solid #3a3e5e; border-bottom: none; }
+  #manual-nav button { white-space: normal; font-size: 11px; }
+}
+#fs-btn { font-size: 15px; line-height: 1; }
+body.touch #topbar .top-btns button { font-size: 14px; line-height: 1; padding: 3px 7px; flex: none; }
+body.touch #topbar .top-btns { width: auto; margin-left: auto; }
+@media (max-height: 520px) and (orientation: landscape) {
+  #topbar { gap: 6px; }
+  body.touch #topbar .top-btns { gap: 2px; }
+  body.touch #topbar .top-btns button { font-size: 13px; padding: 2px 4px; }
+  #topbar .speed-btns { gap: 2px; margin-left: 0; }
+}

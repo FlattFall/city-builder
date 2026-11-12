@@ -90,6 +90,7 @@ DICT.es = {
   "Il ponte non fa in tempo a salire sopra quello che c'è sotto: allungalo di qualche tile": 'El puente no llega a subir por encima de lo que hay debajo: alárgalo unas casillas',
   'La collina continua fino al bordo della mappa': 'La colina sigue hasta el borde del mapa', "C'è già un ponte o un tunnel in mezzo": 'Ya hay un puente o un túnel en medio',
   "Qui davanti non c'è una collina": 'Aquí delante no hay ninguna colina', "All'uscita: {m}": 'En la salida: {m}', "Dall'altra parte il terreno è troppo più basso": 'Al otro lado el terreno es demasiado bajo',
+  'Gira il telefono in orizzontale per giocare meglio': 'Gira el móvil en horizontal para jugar mejor', 'Schermo intero': 'Pantalla completa', 'Esci dallo schermo intero': 'Salir de pantalla completa',
   'Ponte annullato': 'Puente cancelado', 'Un dito: usa lo strumento. Due dita: muovi la mappa e zoom': 'Un dedo: usa la herramienta. Dos dedos: mueve el mapa y zoom',
   'Mettilo ai piedi di una collina o di una montagna': 'Ponlo al pie de una colina o una montaña', 'Tunnel costruito': 'Túnel construido',
   "Ora clicca sull'altra sponda (tasto destro per annullare)": 'Ahora haz clic en la otra orilla (botón derecho para cancelar)',
