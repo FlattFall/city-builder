@@ -154,6 +154,26 @@ function drawPipeOverlay(c) {
     const x = k % N, y = (k - x) / N;
     if (hasPipe(game.map[y][x])) drawPipeView(c, x, y);
   }
+  for (const br of game.bridges.values()) drawBridgePipe(c, br);
+}
+// Tubo lungo un ponte (sotto l'impalcato, da una testa all'altra) o dentro un tunnel (tratteggiato):
+// richiesta dell'utente, l'acqua passa anche sui ponti
+function drawBridgePipe(c, br) {
+  const [x1, y1] = bridgeTile(br, br.n);
+  if (!inMap(br.x0, br.y0) || !inMap(x1, y1) || !hasPipe(game.map[br.y0][br.x0]) || !hasPipe(game.map[y1][x1])) return;
+  const { dx, dy } = DIRS[br.d], pts = [surface(br.x0, br.y0)(0.5, 0.5)];
+  if (isTunnel(br)) pts.push(surface(x1, y1)(0.5, 0.5));
+  else {
+    for (let s = 1; s <= 2 * br.n - 1; s++) {   // ogni mezzo tile, alla quota dell'impalcato
+      const mx = br.x0 + 0.5 + dx * s / 2, my = br.y0 + 0.5 + dy * s / 2;
+      pts.push(iso(0, 0, mx, my, deckHeight(br, mx, my)));
+    }
+    pts.push(surface(x1, y1)(0.5, 0.5));
+  }
+  c.strokeStyle = 'rgba(79,170,255,0.85)'; c.lineWidth = 2.5; c.lineCap = 'round';
+  if (isTunnel(br)) c.setLineDash([4, 3]);
+  c.beginPath(); c.moveTo(...pts[0]); for (const p of pts.slice(1)) c.lineTo(...p); c.stroke();
+  c.setLineDash([]); c.lineCap = 'butt';
 }
 function drawPipeView(c, x, y) {
   const t = game.map[y][x];
@@ -199,19 +219,66 @@ function drawStain(c, x, y, P) {
     animSeen = true;
   }
 }
-// Pozzo dell'acqua: torretta con il serbatoio azzurro su un basamento, pompa e tubo
+// Pozzo dell'acqua: basamento di cemento, torre con 4 gambe e crociere, serbatoio azzurro con il
+// tetto a cono e la ringhiera, tubo che scende al centro e va alla casetta della pompa.
+// Il basamento si disegna sempre per primo; gambe, crociere, tubi e pompa si ordinano tra loro
+// (sortParts) e il serbatoio, che sta sopra a tutto, per ultimo: prima il basamento copriva i piedi
+// delle gambe e la pompa, e in alcune rotazioni i pezzi si sovrapponevano (segnalazione dell'utente).
 function drawWaterWell(c, x, y, base, r) {
-  drawParts2(c, x, y, base, r, [
-    { box: [0.12, 0.12, 0.88, 0.88], h: 2, col: { l: '#a9a9a2', r: '#8f8f88', t: '#bdbdb5', plain: true } },
-    { group: [
-      { box: [0.2, 0.2, 0.26, 0.26], h: 14, z: 2, col: { l: '#7a8088', r: '#5f656c', t: '#9aa0a8' } },
-      { box: [0.54, 0.2, 0.6, 0.26], h: 14, z: 2, col: { l: '#7a8088', r: '#5f656c', t: '#9aa0a8' } },
-      { box: [0.2, 0.54, 0.26, 0.6], h: 14, z: 2, col: { l: '#7a8088', r: '#5f656c', t: '#9aa0a8' } },
-      { box: [0.54, 0.54, 0.6, 0.6], h: 14, z: 2, col: { l: '#7a8088', r: '#5f656c', t: '#9aa0a8' } },
-      { box: [0.16, 0.16, 0.64, 0.64], h: 8, z: 15, cyl: true, col: { l: '#4f9fd8', r: '#3a7fb5', t: '#7cc0ec' } },
-    ] },
-    { box: [0.66, 0.62, 0.86, 0.84], h: 6, z: 2, col: { l: '#3f7a4a', r: '#2f5f38', t: '#5fa36a' } },   // pompa
-  ], true);
+  const R1 = (u, v) => rotUV(u * 2, v * 2, r).map(k => k / 2);
+  const rb = bx => rotBox(bx.map(v => v * 2), r).map(v => v / 2);
+  const P = (u, v, h) => iso(x, y, u, v, base + h / STEP);
+  const LEG = { l: '#7a8088', r: '#5f656c', t: '#9aa0a8' }, PIPE = { l: '#8a9096', r: '#6c7278', t: '#a8aeb4' };
+  box(c, x, y, base, 0.1, 0.1, 0.9, 0.9, 2, { l: '#a9a9a2', r: '#8f8f88', t: '#bdbdb5', plain: true });
+  const brace = (b, z0, z1) => {   // croce di ferro tra due gambe (b = riquadro sottile ruotato)
+    const along = b[2] - b[0] > b[3] - b[1], m = along ? (b[1] + b[3]) / 2 : (b[0] + b[2]) / 2;
+    const A = along ? [b[0], m] : [m, b[1]], B = along ? [b[2], m] : [m, b[3]];
+    c.strokeStyle = '#5a6067'; c.lineWidth = 0.7;
+    c.beginPath(); c.moveTo(...P(A[0], A[1], z0)); c.lineTo(...P(B[0], B[1], z1)); c.moveTo(...P(A[0], A[1], z1)); c.lineTo(...P(B[0], B[1], z0));
+    c.moveTo(...P(A[0], A[1], z1)); c.lineTo(...P(B[0], B[1], z1)); c.stroke();
+  };
+  const parts = [
+    // 4 gambe
+    { box: [0.18, 0.18, 0.25, 0.25], h: 14, z: 2, col: LEG },
+    { box: [0.55, 0.18, 0.62, 0.25], h: 14, z: 2, col: LEG },
+    { box: [0.18, 0.55, 0.25, 0.62], h: 14, z: 2, col: LEG },
+    { box: [0.55, 0.55, 0.62, 0.62], h: 14, z: 2, col: LEG },
+    // crociere sui 4 lati (riquadri sottili tra le gambe)
+    { box: [0.25, 0.2, 0.55, 0.23], draw: b => brace(b, 3, 14) },
+    { box: [0.25, 0.57, 0.55, 0.6], draw: b => brace(b, 3, 14) },
+    { box: [0.2, 0.25, 0.23, 0.55], draw: b => brace(b, 3, 14) },
+    { box: [0.57, 0.25, 0.6, 0.55], draw: b => brace(b, 3, 14) },
+    // tubo che scende dal serbatoio e va alla pompa
+    { box: [0.37, 0.37, 0.43, 0.43], h: 14, z: 2, col: PIPE },
+    { box: [0.43, 0.38, 0.66, 0.42], h: 1.6, z: 2.4, col: PIPE },
+    // casetta della pompa con il tetto a due falde
+    { box: [0.66, 0.28, 0.86, 0.6], h: 5, z: 2, col: { l: '#e3dccb', r: '#c2b9a4', t: '#7d8590' },
+      roof: { rh: 2.5, back: '#3f6f48', roof: '#4f8a5a', gable: '#c2b9a4' } },
+    // tombino di cemento della falda davanti alla torre
+    { box: [0.2, 0.68, 0.4, 0.86], h: 1, z: 2, col: { l: '#8f8f88', r: '#7a7a72', t: '#6b7077' } },
+  ];
+  const items = parts.map((p, i) => { const b = rb(p.box); return { p, b, i, depth: b[2] + b[3] }; });
+  for (const { p, b } of sortParts(items)) {
+    if (p.draw) { p.draw(b); continue; }
+    const top = box(c, x, y, base + p.z / STEP, b[0], b[1], b[2], b[3], p.h, p.col);
+    if (p.roof) gableRoof(c, x, y, top, b[0] - 0.02, b[1] - 0.02, b[2] + 0.02, b[3] + 0.02, p.roof.rh,
+      Object.assign({ gableL: p.col.l }, p.roof), (b[2] - b[0]) > (b[3] - b[1]));
+  }
+  // serbatoio sopra le gambe: cilindro con la fascia, tetto a cono e ringhiera
+  const [cu, cv] = R1(0.4, 0.4), rad = 0.26;
+  const top = cyl(c, x, y, base + 15 / STEP, cu, cv, rad, 8, { l: '#4f9fd8', r: '#3a7fb5', t: '#7cc0ec', band: [0.5], bandColor: '#2f6d9c' });
+  const [tx, ty] = iso(x, y, cu, cv, top), apex = iso(x, y, cu, cv, top + 4 / STEP);
+  const rx = rad * TW * 0.7071, ry = rad * TH * 0.7071;
+  c.fillStyle = '#5aa8de'; c.beginPath(); c.moveTo(tx - rx, ty); c.lineTo(...apex); c.lineTo(tx, ty + ry); c.ellipse(tx, ty, rx, ry, 0, Math.PI / 2, Math.PI); c.closePath(); c.fill();
+  c.fillStyle = '#3a7fb5'; c.beginPath(); c.moveTo(tx + rx, ty); c.lineTo(...apex); c.lineTo(tx, ty + ry); c.ellipse(tx, ty, rx, ry, 0, Math.PI / 2, 0, true); c.closePath(); c.fill();
+  if (DETAIL) {
+    c.strokeStyle = 'rgba(0,0,0,0.35)'; c.lineWidth = 0.4;
+    c.beginPath(); c.moveTo(tx - rx, ty); c.lineTo(...apex); c.lineTo(tx + rx, ty); c.stroke();
+    c.strokeStyle = '#d6dbe0'; c.lineWidth = 0.6;   // ringhiera intorno al tetto
+    c.beginPath(); c.ellipse(tx, ty - 1.6, rx * 1.06, ry * 1.06, 0, 0, Math.PI); c.stroke();
+    for (let k = 1; k < 6; k++) { const a = Math.PI * k / 6; c.beginPath(); c.moveTo(tx + Math.cos(a) * rx * 1.06, ty + Math.sin(a) * ry * 1.06); c.lineTo(tx + Math.cos(a) * rx * 1.06, ty - 1.6 + Math.sin(a) * ry * 1.06); c.stroke(); }
+  }
+  c.fillStyle = '#9aa0a8'; c.beginPath(); c.arc(apex[0], apex[1], 0.8, 0, Math.PI * 2); c.fill();
 }
 // Depuratore: vasche azzurre, capannone e cisterna (il retro sul mare)
 function drawWaterPlant(c, ax, ay, base, r) {

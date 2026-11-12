@@ -84,7 +84,7 @@ const BUILDINGS = {
 };
 // Acqua: consumo per abitante e per attività; quanto dà una fonte con tutto il personale; quanto
 // porta via uno scarico. Senza acqua le case si riempiono solo a metà e le attività lavorano più piano.
-const WATER = { required: true, perResident: 1, perBusiness: 3, well: 30, plant: 120, sewage: 150, dryHouse: 2, drySpeed: 0.6 };
+const WATER = { required: true, perResident: 1, perBusiness: 3, well: 100, plant: 400, sewage: 300, dryHouse: 2, drySpeed: 0.6 };
 // Bus: dalle case vicine a una fermata (entro `walk` tile) si va a lavorare nelle attività vicine a
 // un'altra fermata dello stesso deposito, a qualsiasi distanza; con il bus i lavoratori arrivano
 // riposati e puntuali: le attività servite lavorano `boost` più in fretta.
