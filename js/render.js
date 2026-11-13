@@ -1067,6 +1067,19 @@ function tint(type, elev, i) {
 }
 
 // onlyTop = disegna solo la superficie e l'oggetto sopra (usato per l'anteprima)
+const mixCache = new Map();
+function mixHex(a, b, f) {   // colore tra a e b (f = 0..1), con memoria
+  f = Math.round(f * 20) / 20;
+  const k = a + b + f;
+  let v = mixCache.get(k);
+  if (v) return v;
+  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+  const ch = sh => Math.round(((pa >> sh) & 255) * (1 - f) + ((pb >> sh) & 255) * f);
+  v = '#' + ((1 << 24) | (ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).slice(1);
+  if (mixCache.size > 5000) mixCache.clear();
+  mixCache.set(k, v);
+  return v;
+}
 function drawTile(c, x, y, detail, onlyTop) {
   const t = game.map[y][x];
   const h = cornerHeights(x, y);
@@ -1090,6 +1103,12 @@ function drawTile(c, x, y, detail, onlyTop) {
     waterSeen = true;
     const w = Math.sin(animT * 0.8 + x * 0.55 + y * 0.85) + Math.sin(animT * 0.5 - x * 0.3 + y * 0.2) * 0.5;
     top = shadeC(top, Math.round(w * 2) * 0.012);
+  }
+  // acqua sporca vicino agli scarichi: il colore del tile stesso diventa marrone (prima era un velo
+  // sopra ogni tile e tra un tile e l'altro si vedevano le righe)
+  if (t.type === T.WATER && game.water && game.water.stain) {
+    const a = game.water.stain.get(y * game.size + x);
+    if (a) top = mixHex(top, '#7a582c', a);
   }
   poly(c, [P(0, 0), P(1, 0), P(1, 1), P(0, 1)], top);
   if (detail && t.type === T.WATER) {
@@ -1137,7 +1156,7 @@ function drawTile(c, x, y, detail, onlyTop) {
   if (detail && FINE && !onlyTop && !t.building) terrainDetail(c, x, y, t, P, col);
 
   if (t.building) { drawBuildingOn(c, x, y, t.building); return; }
-  if (t.type === T.FOREST && !onlyTop) drawTree(c, sx, sy, x, y);
+  if (t.type === T.FOREST && !onlyTop) drawForestTile(c, sx, sy, x, y);   // con i tagli dell'azienda forestale (forest.js)
 }
 
 // ---------- Ponti ----------
@@ -1449,15 +1468,18 @@ function drawFrame() {
   const fArea = (() => {
     const f = game.fieldMode ? game.buildings.get(game.fieldMode) : (game.tool === 'farm' && game.hover ? { ax: game.hover.x, ay: game.hover.y } : null);
     if (f) { const R = FARM.fieldRadius; return { x0: f.ax - R, y0: f.ay - R, x1: f.ax + 1 + R, y1: f.ay + 1 + R }; }
+    // azienda forestale: la zona dove prende il legno (in mano o selezionata), in verde (richiesta dell'utente)
+    const fo = game.tool === 'forestry' && game.hover ? { ax: game.hover.x, ay: game.hover.y } : sel && sel.kind === 'forestry' ? sel : null;
+    if (fo) { const R = FORESTRY.forestry.radius; return { x0: fo.ax - R, y0: fo.ay - R, x1: fo.ax + 1 + R, y1: fo.ay + 1 + R, forest: true }; }
     return null;
   })();
   const inArea = (x, y) => fArea && x >= fArea.x0 && x <= fArea.x1 && y >= fArea.y0 && y <= fArea.y1;
   const drawAreaTile = (x, y) => {
     const h = cornerHeights(x, y), P = k => iso(x, y, CORNERS[k][0], CORNERS[k][1], h[k]);
     const pts = [0, 1, 2, 3].map(P);
-    ctx.fillStyle = fArea.elec ? 'rgba(111, 227, 255, 0.13)' : 'rgba(255, 217, 102, 0.16)';
+    ctx.fillStyle = fArea.forest ? 'rgba(120, 230, 110, 0.15)' : fArea.elec ? 'rgba(111, 227, 255, 0.13)' : 'rgba(255, 217, 102, 0.16)';
     ctx.beginPath(); ctx.moveTo(...pts[0]); for (const p of pts.slice(1)) ctx.lineTo(...p); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = fArea.elec ? '#6fe3ff' : '#ffd966'; ctx.lineWidth = 1.4;
+    ctx.strokeStyle = fArea.forest ? '#8dff7a' : fArea.elec ? '#6fe3ff' : '#ffd966'; ctx.lineWidth = 1.4;
     for (let d = 0; d < 4; d++) {
       if (inArea(x + DIRS[d].dx, y + DIRS[d].dy)) continue;   // bordo solo verso fuori
       const [a, b] = EDGES[d];
@@ -1514,6 +1536,7 @@ function drawFrame() {
   if (pipeViewOn()) drawPipeOverlay(ctx);   // mappa dei tubi sopra tutto (anche sotto le case)
   if ((game.tool === 'pylon' || game.tool === 'pole') && game.hover) drawPylonPreview(ctx, game.hover, game.tool === 'pole');
   if (game.tool === 'substation' && game.hover) drawSubstationPreview(ctx, game.hover);
+  if (game.tool === 'forestry' && game.hover) drawForestPreview(ctx, game.hover);   // quanti alberi nella zona
   if (ELEC_TOOLS.includes(game.tool)) drawPowerIcons(ctx);
   drawWorkerIcons(ctx);
   for (const v of vehicles) if (v.crash > 0 && v.pos) drawCrash(ctx, v);   // incidenti: sopra a tutto, si devono vedere

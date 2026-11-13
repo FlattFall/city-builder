@@ -35,7 +35,7 @@ function farRange(wx0, wy0, wx1, wy1) {
 // Firma di un tile: cambia quando cambia il suo aspetto da lontano
 const FAR_PATH = { road: 1, oneway: 2, highway: 3, dirt: 4, rail: 5 };
 function strCode(s) { let h = 0; if (s) for (let i = 0; i < s.length; i++) h = Math.imul(h, 31) + s.charCodeAt(i) | 0; return h; }
-function tileSig(t) {
+function tileSig(t, x, y) {
   let h = t.type + t.elev * 8 + (FAR_PATH[t.path] || 0) * 4096 + ((t.dir || 0) + 1) * 65536;
   if (t.field) {
     const f = t.farm && game.buildings.get(t.farm);
@@ -48,6 +48,7 @@ function tileSig(t) {
     const br = game.bridges.get(t.bridge.id);
     h = Math.imul(h ^ (t.bridge.id * 7919 + t.bridge.i), 37) + (br ? strCode(br.path) + (br.e[t.bridge.i] | 0) * 13 : 0) | 0;
   }
+  if (t.type === T.FOREST && game.treeCuts && game.treeCuts.size) h = Math.imul(h, 41) + treeCutSig(x, y) | 0;
   return h | 0;
 }
 
@@ -71,7 +72,7 @@ function farCheck(z, cx0, cy0, cx1, cy1) {
   for (let y = R.y0; y <= R.y1; y++) {
     const row = game.map[y];
     for (let x = R.rowA(y), xb = R.rowB(y); x <= xb; x++) {
-      const k = y * N + x, g = tileSig(row[x]);
+      const k = y * N + x, g = tileSig(row[x], x, y);
       if (S[k] !== g || !ok[k]) {
         if (ok[k] && !fresh) farDirty(x, y, z);
         S[k] = g; ok[k] = 1;

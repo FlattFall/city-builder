@@ -7,7 +7,7 @@
 const TUT_KEY = 'citybuilder.tutorial';
 const countKind = (k, f) => [...game.buildings.values()].filter(b => b.kind === k && (!f || f(b))).length;
 const TUT_STEPS = [
-  { title: 'Benvenuto a Supplyville!', icon: 'house',
+  { title: 'Benvenuto a Supplyville!', icon: 'house', anim: 'intro',
     text: 'In pochi passi costruisci una città che funziona: le prime <b>case</b>, l\'<b>acqua</b>, la <b>corrente</b> e la prima <b>fattoria</b>.<br><br>Puoi leggere il tutorial passo per passo mentre giochi, oppure chiuderlo e giocare subito.' },
   { title: 'Le prime case', icon: 'house', tool: 'house',
     text: 'Le famiglie arrivano in auto dalla <b>strada principale</b> (l\'autostrada che attraversa la mappa). Costruisci qualche <b>casa</b> (gruppo 3, Città) accanto alla strada principale o a strade collegate a lei.',
@@ -28,7 +28,7 @@ const TUT_STEPS = [
     text: 'Costruisci un <b>supermercato</b> vicino alle case. Poi apri il pannello della fattoria e scegli il supermercato come <b>destinazione</b>: i furgoni portano la verdura, gli abitanti la comprano e tu incassi le <b>tasse</b>.',
     goal: 'La fattoria manda la merce al supermercato',
     done: () => [...game.buildings.values()].some(f => f.kind === 'farm' && (f.dests || []).some(id => { const s = game.buildings.get(id); return s && s.kind === 'supermarket'; })) },
-  { title: 'E adesso?', icon: 'warehouse',
+  { title: 'E adesso?', icon: 'warehouse', anim: 'end',
     text: 'Ogni azienda vuole <b>lavoratori</b>: servono case vicine. Le <b>icone</b> sopra gli edifici dicono cosa manca (strada, lavoratori, acqua, corrente). Con i soldi sblocca nuovi settori in <b>Progressi</b>, e nel <b>Manuale</b> trovi spiegato ogni settore.<br><br>Buon divertimento!' },
 ];
 
@@ -36,8 +36,20 @@ let tutStep = 0, tutTimer = null;
 function tutorialEnabled() { try { return localStorage.getItem(TUT_KEY) !== 'off'; } catch (e) { return true; } }
 function setTutorialEnabled(on) { try { localStorage.setItem(TUT_KEY, on ? 'on' : 'off'); } catch (e) { /* niente */ } }
 function tutorialIsOpen() { const el = document.getElementById('tutorial'); return !!el && !el.hidden; }
+let tutStopAnim = null;
+function stopTutAnim() { if (tutStopAnim) tutStopAnim(); tutStopAnim = null; tutHighlight(null); }
+// evidenzia nella barra il gruppo dello strumento del passo (e la voce nel sottomenu, se aperto)
+function tutHighlight(tool) {
+  document.querySelectorAll('.tut-pulse').forEach(e => e.classList.remove('tut-pulse'));
+  if (!tool || typeof groupOf !== 'function') return;
+  const g = groupOf(tool), gb = g && document.getElementById('group-' + g.id);
+  if (gb && game.tool !== tool) gb.classList.add('tut-pulse');
+  const sb = document.querySelector('#submenu [data-tool="' + tool + '"]');
+  if (sb && game.tool !== tool) sb.classList.add('tut-pulse');
+}
 function closeTutorial() {
   const el = document.getElementById('tutorial');
+  stopTutAnim();
   if (el) el.hidden = true;
   document.body.classList.remove('tut-open');
   clearInterval(tutTimer); tutTimer = null;
@@ -60,6 +72,7 @@ function openTutorial(step = 0) {
 }
 function refreshTutorialStatus() {
   const s = TUT_STEPS[tutStep], st = document.getElementById('tut-status');
+  if (s) tutHighlight(s.tool);
   if (!s || !s.done || !st) return;
   const ok = !!s.done();
   st.className = 'tut-status' + (ok ? ' ok' : '');
@@ -80,7 +93,10 @@ function renderTutorial() {
   }
   el.innerHTML = `<div class="tut-head"><img src="${ICONS[s.icon] || ''}" alt=""><div><small>${tutStep ? TR('Tutorial {a}/{b}', { a: tutStep, b: TUT_STEPS.length - 1 }) : TR('Tutorial')}</small>
     <b>${TR(s.title)}</b></div><button id="tut-close" class="tut-x" title="${TR('Chiudi')}">✕</button></div>
-    <div class="tut-text">${TR(s.text)}</div>${s.goal ? '<div id="tut-status" class="tut-status"></div>' : ''}<div class="tut-foot">${foot}</div>`;
+    <canvas id="tut-anim" class="tut-anim"></canvas><div class="tut-text">${TR(s.text)}</div>${s.goal ? '<div id="tut-status" class="tut-status"></div>' : ''}<div class="tut-foot">${foot}</div>`;
+  stopTutAnim();
+  const cv = document.getElementById('tut-anim');
+  if (cv && typeof startTutAnim === 'function') tutStopAnim = startTutAnim(cv, s.anim || s.tool || 'intro');
   const on = (id, f) => { const b = document.getElementById(id); if (b) b.addEventListener('click', e => { e.stopPropagation(); f(); }); };
   on('tut-close', closeTutorial);
   on('tut-start', () => { tutStep = 1; renderTutorial(); });

@@ -482,3 +482,33 @@ body.tut-open #help { display: none; }
 body.touch #topbar .tlabel { display: none; }
 body.touch #topbar .top-btns button { padding: 3px 5px; }
 body.touch #topbar img.ticon { width: 20px; height: 20px; }
+
+/* Pannello degli edifici più leggibile (richiesta dell'utente): icona nel titolo, sezioni e destinazioni per tipo */
+#panel .phead-icon { width: 40px; height: 30px; image-rendering: pixelated; flex: none; background: #1a1c2c; border: 1px solid #44486b; border-radius: 4px; }
+#panel .phead { padding-bottom: 6px; border-bottom: 2px solid #3a3e5e; }
+#panel .plabel { margin: 12px 0 6px; padding: 3px 6px; color: #ffd966; background: #1f2338; border-left: 3px solid #ffd966; border-radius: 2px; font-size: 11px; }
+#panel .pgroup { background: #1f2338; border: 1px solid #3a3e5e; border-radius: 4px; }
+#panel .pgroup-head { display: flex; align-items: center; gap: 6px; padding: 4px 6px; cursor: pointer; list-style: none; user-select: none; }
+#panel .pgroup-head::-webkit-details-marker { display: none; }
+#panel .pgroup-head::before { content: '▸'; color: #94b0c2; font-size: 11px; width: 8px; }
+#panel .pgroup[open] > .pgroup-head::before { content: '▾'; }
+#panel .pgroup-head img { width: 28px; height: 21px; image-rendering: pixelated; flex: none; }
+#panel .pgroup-name { flex: 1; font-size: 12px; color: #f4f4f4; }
+#panel .pgroup-count { font-size: 11px; color: #94b0c2; background: #2c2f48; border-radius: 8px; padding: 1px 6px; }
+#panel .pgroup-count.on { color: #1a1c2c; background: #a7f070; }
+#panel .pgroup-all { padding: 1px 6px; font-size: 11px; }
+#panel .pgroup-list { display: flex; flex-direction: column; gap: 3px; padding: 0 6px 6px; }
+#panel .pdest { display: flex; align-items: center; gap: 6px; text-align: left; }
+#panel .pdest .pcheck { width: 12px; color: #a7f070; flex: none; }
+#panel .pdest-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#panel .pdest-dist { font-size: 11px; color: #94b0c2; flex: none; }
+#panel .pdest.bad .pdest-dist { color: #ff9b6b; }
+#panel .plist { gap: 6px; }
+
+/* tutorial animato (tutorial-anim.js) e pulsante della barra che pulsa */
+#tutorial .tut-anim { display: block; width: 100%; aspect-ratio: 320 / 150; background: #1a1c2c; border: 2px solid #44486b; border-radius: 4px; margin-bottom: 8px; }
+.tut-pulse { animation: tutglow 0.8s infinite alternate; position: relative; }
+@keyframes tutglow { from { box-shadow: 0 0 0 2px #ffd966; } to { box-shadow: 0 0 10px 4px #ffd966; } }
+@media (max-height: 520px) and (orientation: landscape) {
+  #tutorial .tut-anim { width: 52%; float: left; margin: 0 8px 4px 0; }
+}

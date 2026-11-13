@@ -460,7 +460,7 @@ function check(cond, msg) {
   check(fm.fieldMode, 'dopo la fattoria si scelgono i campi');
   check(fm.fields === 12 && fm.far, `campi assegnati alla fattoria: ${fm.fields}, lontano rifiutato`);
   await page.click('#panel .pchoice:has-text("Patate")');
-  await page.click('#panel .pchoice:text("Magazzino alimenti (")');
+  await page.click('#panel .pdest:has-text("Magazzino alimenti")');
   const del = await page.evaluate(() => {
     const farm = [...game.buildings.values()].find(b => b.kind === 'farm');
     const wh = [...game.buildings.values()].find(b => b.kind === 'warehouse');
@@ -1189,7 +1189,7 @@ function check(cond, msg) {
         const b = game.map[c + 1][x].building;
         if (k === 'farm') b.crop = a;
         if (k === 'livestock') setAnimal(b, a);
-        if (k === 'forestry') for (let xx = x - 3; xx <= x + 5; xx++) game.map[c + 3][xx].type = T.FOREST;
+        if (k === 'forestry') for (let yy = c + 3; yy <= c + 6; yy++) for (let xx = x - 3; xx <= x + 5; xx++) { const t = game.map[yy][xx]; if (!t.building && !t.path) t.type = T.FOREST; }   // bosco pieno: la produzione segue gli alberi
         x += BUILDINGS[k].w + 1;
       }
       game.rotation = 0;

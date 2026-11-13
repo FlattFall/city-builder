@@ -209,9 +209,7 @@ function drawWaterSpot(c, x, y) {
 // acqua marrone vicino agli scarichi
 function drawStain(c, x, y, P) {
   const a = game.water && game.water.stain && game.water.stain.get(y * game.size + x);
-  if (!a) return;
-  c.fillStyle = 'rgba(122,88,44,' + a.toFixed(2) + ')';
-  c.beginPath(); c.moveTo(...P(0, 0)); c.lineTo(...P(1, 0)); c.lineTo(...P(1, 1)); c.lineTo(...P(0, 1)); c.closePath(); c.fill();
+  if (!a) return;   // il colore marrone è già nel tile (drawTile, mixHex): qui solo la schiuma sporca
   if (DETAIL && a > 0.25) {   // schiuma sporca che si muove
     const t = animT * 0.4 + x * 0.37 + y * 0.61;
     c.fillStyle = 'rgba(160,130,80,' + (a * 0.6).toFixed(2) + ')';
@@ -299,6 +297,10 @@ function drawWaterPlant(c, ax, ay, base, r) {
 function drawSewage(c, ax, ay, base, r, flow = 1) {
   const conc = { l: '#a9a9a2', r: '#8f8f88', t: '#bdbdb5' };
   groundRect(c, ax, ay, base, [0.2, 1.4, 0.8, 2.0], r, '#7b7f86');
+  // retro verso il fondo dello schermo: il tubo sta DIETRO all'edificio e va disegnato prima dei pezzi
+  // (prima si disegnava dopo e finiva sopra la casetta o la vasca: segnalazione dell'utente);
+  // retro verso lo schermo: si disegna dopo i tile d'acqua davanti (drawSewagePipes)
+  if (!sewageBackFront(r)) drawSewagePipe(c, { ax, ay, rot: r, flow }, base);
   drawParts2(c, ax, ay, base, r, [
     { box: [0.15, 0.2, 1.05, 1.1], h: 6, cyl: true, col: { l: '#8f8f88', r: '#7a7a72', t: '#6b5536' },   // vasca con l'acqua sporca
       after(b, top) { if (!DETAIL) return; const m = iso(ax, ay, (b[0] + b[2]) / 2, (b[1] + b[3]) / 2, top); c.strokeStyle = 'rgba(160,130,80,0.8)'; c.lineWidth = 0.8;
@@ -308,9 +310,6 @@ function drawSewage(c, ax, ay, base, r, flow = 1) {
       doors: [{ face: '+v', a: 1.35, b: 1.7, z1: 8, color: '#4a4f5a' }] },
     { box: [0.85, 1.25, 1.15, 1.55], h: 10, col: { l: '#6b7077', r: '#55595f', t: '#8a8f96' } },   // pozzetto dove arrivano i tubi
   ]);
-  // retro verso il fondo dello schermo: il tubo sta dietro all'edificio e si disegna qui;
-  // retro verso lo schermo: si disegna dopo i tile d'acqua davanti (drawSewagePipes)
-  if (!sewageBackFront(r)) drawSewagePipe(c, { ax, ay, rot: r, flow }, base);
 }
 function sewageBackFront(r) { const a = rotUV(1, -0.5, r), b = rotUV(1, 1, r); return (a[0] - b[0]) + (a[1] - b[1]) > 0; }
 

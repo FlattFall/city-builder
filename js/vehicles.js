@@ -370,6 +370,7 @@ function simUpdate(dt) {
   if (moveInTimer <= 0) { moveInTimer = MOVE_IN_EVERY; spawnResident(); }
   economyUpdate(dt);
   if (typeof pedsUpdate === 'function') pedsUpdate(dt);   // passanti (people.js)
+  game.forestT = (game.forestT || 0) + dt;   // orologio dei tagli degli alberi (forest.js)
   if (vehicles.length || (typeof peds !== 'undefined' && peds.length)) requestDraw();
 }
 

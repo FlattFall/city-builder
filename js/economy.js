@@ -390,13 +390,14 @@ function updateLivestock(b, dt) {
     staff *= b.oil;
     b.noInput = !b.oil;
   }
-  if (L.trees) {   // azienda forestale: più bosco vicino = più legno (fino a L.trees tile)
+  if (L.trees) {   // azienda forestale: più bosco nella zona = più legno (100% con L.trees tile, fino a +50%)
     if (!(b.treeTimer > 0)) { b.trees = treesNear(b, L.radius); b.treeTimer = 5; }
     b.treeTimer -= dt;
-    staff *= Math.min(1, b.trees / L.trees);
+    staff *= forestRatio(b, L);
     b.noInput = !b.trees;
   }
   b.full = sumOf(b.store) >= cap;
+  if (L.trees) forestTick(b, L, dt, staff > 0 && !b.full);   // boscaioli che tagliano gli alberi (forest.js)
   if (staff > 0 && !b.full) {
     b.growth = (b.growth || 0) + dt / L.every * staff;
     if (b.growth >= 1) {

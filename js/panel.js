@@ -83,6 +83,7 @@ function onBuildingRemoved(b) {
 }
 
 // Destinazioni possibili per la merce di un edificio, con raggiungibilità su strada
+const destGroupOpen = new Map();   // gruppi delle destinazioni aperti/chiusi (edificio:tipo)
 function destChoices(b) {
   const from = accessTiles(b);
   return [...game.buildings.values()].filter(w => w !== b && destKindsOf(b).includes(w.kind))
@@ -93,21 +94,48 @@ function destChoices(b) {
 // ogni merce va alla prima destinazione accesa che la accetta
 function destSection(box, b) {
   box.appendChild(el('div', 'plabel', (b.kind === 'farm' ? TR('Dove portare il raccolto (anche più di una)') : isWarehouse(b) ? TR('Uscita: dove mandare le scorte (anche più di una)') : TR('Dove mandare la merce (anche più di una)'))));
+  // destinazioni divise per tipo (tutti i supermercati, tutti i magazzini...), richiesta dell'utente:
+  // ogni gruppo ha l'icona, quante sono accese, "Tutti"/"Nessuno" e si apre/chiude (aperto se ha poche voci
+  // o qualcuna accesa; la scelta resta finché il pannello è aperto)
   const list = el('div', 'plist');
   const choices = destChoices(b);
-  for (const { w, ok, sea } of choices) {
-    const on = b.dests.includes(w.id);
-    // niente numeri: il nome e la distanza (così due edifici uguali si distinguono)
-    const dist = Math.round(Math.hypot(w.ax - b.ax, w.ay - b.ay));
-    const name = buildingName(w) + ' (' + TR('{n} tile', { n: dist }) + ')' + (sea ? ' 🚢' : '');
-    const btn = el('button', 'pchoice' + (on ? ' active' : ''), (on ? '✔ ' : '') + name + (ok ? '' : sea ? TR(" - nessuna via d'acqua") : TR(' - nessuna strada')));
-    if (!ok) btn.classList.add('bad');
-    btn.addEventListener('click', () => {
-      b.dests = on ? b.dests.filter(id => id !== w.id) : b.dests.concat(w.id);
-      cleanSplit(b);
-      b.retry = 0; b.status = ''; game.dirty = true; renderPanel();
-    });
-    list.appendChild(btn);
+  const byKind = new Map();
+  for (const ch of choices) { if (!byKind.has(ch.w.kind)) byKind.set(ch.w.kind, []); byKind.get(ch.w.kind).push(ch); }
+  const setDests = ids => { b.dests = ids; cleanSplit(b); b.retry = 0; b.status = ''; game.dirty = true; renderPanel(); };
+  for (const [kind, group] of byKind) {
+    group.sort((p, q) => Math.hypot(p.w.ax - b.ax, p.w.ay - b.ay) - Math.hypot(q.w.ax - b.ax, q.w.ay - b.ay));
+    const nOn = group.filter(ch => b.dests.includes(ch.w.id)).length;
+    const det = el('details', 'pgroup');
+    const key = b.id + ':' + kind;
+    det.open = destGroupOpen.has(key) ? destGroupOpen.get(key) : (group.length <= 3 || nOn > 0);
+    det.addEventListener('toggle', () => destGroupOpen.set(key, det.open));
+    const sum = el('summary', 'pgroup-head');
+    const ic = document.createElement('img'); ic.src = ICONS[kind] || ''; ic.alt = '';
+    sum.append(ic, el('span', 'pgroup-name', BUILDINGS[kind].name), el('span', 'pgroup-count' + (nOn ? ' on' : ''), nOn + '/' + group.length));
+    if (group.length > 1) {
+      const all = el('button', 'pgroup-all', nOn === group.length ? TR('Nessuno') : TR('Tutti'));
+      all.addEventListener('click', e => {
+        e.preventDefault(); e.stopPropagation();
+        const ids = group.map(ch => ch.w.id);
+        setDests(nOn === group.length ? b.dests.filter(id => !ids.includes(id)) : [...new Set(b.dests.concat(group.filter(ch => ch.ok).map(ch => ch.w.id)))]);
+      });
+      sum.appendChild(all);
+    }
+    det.appendChild(sum);
+    const inner = el('div', 'pgroup-list');
+    for (const { w, ok, sea } of group) {
+      const on = b.dests.includes(w.id);
+      // niente numeri: il nome e la distanza (così due edifici uguali si distinguono)
+      const dist = Math.round(Math.hypot(w.ax - b.ax, w.ay - b.ay));
+      const btn = el('button', 'pchoice pdest' + (on ? ' active' : ''));
+      btn.append(el('span', 'pcheck', on ? '✔' : ''), el('span', 'pdest-name', buildingName(w) + (sea ? ' ' + TR('(via mare)') : '')),
+        el('span', 'pdest-dist', ok ? TR('{n} tile', { n: dist }) : sea ? TR("nessuna via d'acqua") : TR('nessuna strada')));
+      if (!ok) btn.classList.add('bad');
+      btn.addEventListener('click', () => setDests(on ? b.dests.filter(id => id !== w.id) : b.dests.concat(w.id)));
+      inner.appendChild(btn);
+    }
+    det.appendChild(inner);
+    list.appendChild(det);
   }
   box.appendChild(list);
   if (!choices.length) box.appendChild(el('div', 'pnote', TR('Costruisci {list}.', { list: destKindsOf(b).map(k => BUILDINGS[k].name.toLowerCase()).join(', ') })));
@@ -272,6 +300,9 @@ function renderPanel() {
   panelLive = [];
   panelShape = panelShapeOf(b);
   const head = el('div', 'phead');
+  const hicon = document.createElement('img'); hicon.className = 'phead-icon'; hicon.alt = '';
+  hicon.src = (b.kind === 'livestock' && ICONS[b.animal]) || ICONS[b.kind] || '';
+  head.appendChild(hicon);
   const title = el('b', 'pname', buildingName(b));
   title.title = TR('Clic per cambiare il nome');
   const pen = el('button', 'prename', '✎');
@@ -397,7 +428,7 @@ function renderPanel() {
       if (BUILDINGS[b.kind].water) box.appendChild(el('div', 'pnote', TR('Il personale vive a bordo. Scegli un porto come destinazione: una nave porta il petrolio.')));
     }
     if (L.trees) {
-      box.appendChild(liveText('div', 'prow', () => TR('Bosco vicino: {n} tile (a pieno ritmo con {m}, entro {r} tile)', { n: b.trees || 0, m: L.trees, r: L.radius })));
+      box.appendChild(liveText('div', 'prow', () => TR('Alberi nella zona: {n} - produzione {p}% (100% con {m} alberi, fino a 150%)', { n: b.trees || 0, p: Math.round(forestRatio(b, L) * 100), m: L.trees })));
       box.appendChild(liveText('div', 'pwarn', () => !b.trees ? TR('Nessun bosco vicino: mettila accanto a una foresta.') : ''));
     }
     const prod = el('div', 'prow', TR('Produce:') + ' ');

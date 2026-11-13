@@ -251,7 +251,7 @@ const LIVESTOCK = {
 };
 // Azienda forestale: taglia nei boschi vicini (gli alberi ricrescono, il bosco resta).
 // Lavora a pieno ritmo con almeno "trees" tile di bosco entro "radius" tile.
-const FORESTRY = { forestry: { every: 40, out: { logs: 6, firewood: 3 }, trees: 12, radius: 5 } };
+const FORESTRY = { forestry: { every: 40, out: { logs: 6, firewood: 3 }, trees: 40, radius: 5 } };   // 100% con 40 tile di bosco nella zona, fino a 150% con di più
 // Petrolio: pozzi a terra e piattaforme in mare, in proporzione al giacimento sotto (oilAt)
 const OIL = { oilWell: { every: 30, out: { crude: 6 }, oil: true }, oilPlatform: { every: 30, out: { crude: 16 }, oil: true } };
 const NATURE = Object.assign({}, FORESTRY, OIL);   // chi produce dalla natura (boschi; gli animali con natureOf)
