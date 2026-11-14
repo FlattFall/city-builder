@@ -43,6 +43,7 @@ initStats();
 initManual();
 initBugReport();
 initSettings();   // tasti e volume (settings.js)
+initMusic();      // musica (music.js)
 updateHud();
 updateInfo();
 refreshSpeed();

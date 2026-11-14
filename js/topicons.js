@@ -62,6 +62,16 @@ function topIcon(draw) {
     for (const [x, y, dx, dy] of pts) L(x, y, dx, dy, OUT, 1);
     for (const [x, y, dx, dy] of pts) L(x, y, dx, dy, '#f4f4f4', 0);
   });
+  // musica: due note legate (spenta: grigia con una sbarra rossa)
+  const note = off => topIcon((c, R) => {
+    const col = off ? '#8a8fa3' : '#ffd966', dk = off ? '#5d6275' : '#e0a820';
+    R(10, 4, 17, 6, OUT); R(10, 4, 4, 19, OUT); R(23, 4, 4, 17, OUT);            // gambi e trave (contorno)
+    R(11, 5, 15, 4, col); R(11, 5, 2, 17, col); R(24, 5, 2, 15, col); R(11, 8, 15, 1, dk);
+    R(4, 19, 10, 9, OUT); R(17, 17, 10, 9, OUT);                                 // teste
+    R(5, 20, 8, 7, col); R(18, 18, 8, 7, col); R(5, 25, 8, 2, dk); R(18, 23, 8, 2, dk);
+    if (off) { c.strokeStyle = OUT; c.lineWidth = 6; c.beginPath(); c.moveTo(5, 5); c.lineTo(27, 27); c.stroke(); c.strokeStyle = '#d94141'; c.lineWidth = 3; c.beginPath(); c.moveTo(5, 5); c.lineTo(27, 27); c.stroke(); }
+  });
+  TOP_ICONS.music = note(false); TOP_ICONS.musicOff = note(true);
   TOP_ICONS.fullscreen = corners(false);
   TOP_ICONS.exitFullscreen = corners(true);
   // velocità: pausa e frecce di gioco
@@ -86,11 +96,12 @@ function initTopIcons() {
       const sp = document.createElement('span'); sp.className = 'tlabel'; sp.textContent = label;
       if (b.hasAttribute('data-i18n')) { b.removeAttribute('data-i18n'); sp.setAttribute('data-i18n', ''); }
       b.append(img, sp);
-      if (!label || id === 'fs-btn') sp.remove();   // schermo intero: solo l'icona
+      if (!label || id === 'fs-btn' || id === 'music-btn') sp.remove();   // schermo intero: solo l'icona
     }
     img.src = TOP_ICONS[icon];
   };
   put('manual-btn', 'manual'); put('under-btn', 'under'); put('stats-btn', 'stats'); put('progress-btn', 'progress'); put('menu-btn', 'menu');
+  put('music-btn', typeof musicIsOn === 'function' && !musicIsOn() ? 'musicOff' : 'music');
   put('fs-btn', 'fullscreen');
   for (const b of document.querySelectorAll('#speed-btns button')) {
     b.textContent = '';

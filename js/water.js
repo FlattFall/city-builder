@@ -111,7 +111,8 @@ function waterStatus(b) {
 }
 
 // uscita del tubo dello scarico: in mare, a metà del retro (coordinate della mappa)
-function sewageOutlet(b) { const p = rotUV(1, -0.6, b.rot || 0); return [b.ax + p[0], b.ay + p[1]]; }
+const SEWAGE_PIPE_U = 1.12;   // dove esce il tubo sul retro
+function sewageOutlet(b) { const p = rotUV(SEWAGE_PIPE_U, -0.55, b.rot || 0); return [b.ax + p[0], b.ay + p[1]]; }
 // un edificio ha un tubo (strada o tubo messo a mano) su un lato?
 function pipeNextTo(b) {
   const d = BUILDINGS[b.kind];
@@ -302,10 +303,11 @@ function drawSewage(c, ax, ay, base, r, flow = 1) {
   // retro verso lo schermo: si disegna dopo i tile d'acqua davanti (drawSewagePipes)
   if (!sewageBackFront(r)) drawSewagePipe(c, { ax, ay, rot: r, flow }, base);
   drawParts2(c, ax, ay, base, r, [
-    { box: [0.15, 0.2, 1.05, 1.1], h: 6, cyl: true, col: { l: '#8f8f88', r: '#7a7a72', t: '#6b5536' },   // vasca con l'acqua sporca
+    { box: [0.08, 0.3, 0.93, 1.15], h: 6, cyl: true, col: { l: '#8f8f88', r: '#7a7a72', t: '#6b5536' },   // vasca con l'acqua sporca
       after(b, top) { if (!DETAIL) return; const m = iso(ax, ay, (b[0] + b[2]) / 2, (b[1] + b[3]) / 2, top); c.strokeStyle = 'rgba(160,130,80,0.8)'; c.lineWidth = 0.8;
         const a = animT * 0.8; c.beginPath(); c.moveTo(m[0] - Math.cos(a) * 9, m[1] - Math.sin(a) * 4.5); c.lineTo(m[0] + Math.cos(a) * 9, m[1] + Math.sin(a) * 4.5); c.stroke(); animSeen = true; } },
-    { box: [1.2, 0.25, 1.85, 1.0], h: 12, col: { l: '#d8cfb8', r: '#b5ac95', t: '#7d8590' },
+    { box: [0.96, 0.04, 1.28, 0.3], h: 9, col: { l: '#7d8288', r: '#62666c', t: '#989da3', plain: true } },   // camera di cemento da cui esce il tubo
+    { box: [1.2, 0.38, 1.85, 1.08], h: 12, col: { l: '#d8cfb8', r: '#b5ac95', t: '#7d8590' },
       roof: { rh: 4, back: '#4a4f5a', roof: '#5b616c', gable: '#b5ac95' },
       doors: [{ face: '+v', a: 1.35, b: 1.7, z1: 8, color: '#4a4f5a' }] },
     { box: [0.85, 1.25, 1.15, 1.55], h: 10, col: { l: '#6b7077', r: '#55595f', t: '#8a8f96' } },   // pozzetto dove arrivano i tubi
@@ -323,24 +325,24 @@ function drawSewagePipe(c, b, base) {
   {
     const r = b.rot || 0, ax = b.ax, ay = b.ay;
     const P = (u, v, h) => { const p = rotUV(u, v, r); return iso(ax, ay, p[0], p[1], h); };
-    const z = base + 4 / STEP, w = 0.13, end = -0.45;   // quota del tubo, mezza larghezza, dove scende
-    const conc = '#a9a9a2', dark = '#86867f', light = '#c4c4bc';
-    // tratto orizzontale dal muro del retro fino alla curva (scatola tra v = end e v = 0)
-    const quad = (pts, col) => { c.fillStyle = col; c.beginPath(); c.moveTo(...pts[0]); for (const p of pts.slice(1)) c.lineTo(...p); c.closePath(); c.fill(); };
-    const top = [P(1 - w, end, z + w * 1.2), P(1 + w, end, z + w * 1.2), P(1 + w, 0.05, z + w * 1.2), P(1 - w, 0.05, z + w * 1.2)];
-    const side1 = [P(1 - w, end, z - w), P(1 - w, 0.05, z - w), P(1 - w, 0.05, z + w * 1.2), P(1 - w, end, z + w * 1.2)];
-    const side2 = [P(1 + w, end, z - w), P(1 + w, 0.05, z - w), P(1 + w, 0.05, z + w * 1.2), P(1 + w, end, z + w * 1.2)];
-    quad(side1, dark); quad(side2, dark); quad(top, light);
-    // curva e tratto verticale fino all'acqua (quota 0)
-    const down = [P(1 - w, end - w, 0), P(1 + w, end - w, 0), P(1 + w, end - w, z + w * 1.2), P(1 - w, end - w, z + w * 1.2)];
-    const down2 = [P(1 - w, end - w, 0), P(1 - w, end + w, 0), P(1 - w, end + w, z + w * 1.2), P(1 - w, end - w, z + w * 1.2)];
-    const down3 = [P(1 + w, end - w, 0), P(1 + w, end + w, 0), P(1 + w, end + w, z + w * 1.2), P(1 + w, end - w, z + w * 1.2)];
-    quad(down2, dark); quad(down3, dark); quad(down, conc);
-    quad([P(1 - w, end - w, z + w * 1.2), P(1 + w, end - w, z + w * 1.2), P(1 + w, end + w, z + w * 1.2), P(1 - w, end + w, z + w * 1.2)], light);   // tappo della curva
+    // Due scatole vere (box) nelle coordinate girate: così le facce giuste sono sempre quelle visibili
+    // (prima le facce erano disegnate in ordine fisso e in due rotazioni il tubo sembrava rotto e staccato
+    // dall'edificio: segnalazione dell'utente). Il tubo esce dalla camera di cemento sul retro.
+    const U = SEWAGE_PIPE_U, w = 0.09, end = -0.4;
+    const col = { l: '#b4b4ac', r: '#8d8d86', t: '#cfcfc7', plain: true };
+    const ring = { l: '#8f8f88', r: '#6f6f69', t: '#a9a9a2', plain: true };
+    const bx = (u0, v0, u1, v1, z0, h, k) => { const q = rotBox([u0, v0, u1, v1], r); box(c, ax, ay, z0, q[0], q[1], q[2], q[3], h, k); };
+    const zTop = base * STEP + 7.5;   // pixel sopra il mare
+    const horiz = () => { bx(U - w, end + w, U + w, 0.04, base + 2.5 / STEP, 5, col); };
+    const vert = () => {
+      bx(U - w - 0.03, end - w - 0.03, U + w + 0.03, end + w + 0.03, 0, 2, ring);   // collare dove entra in acqua
+      bx(U - w, end - w, U + w, end + w, 0, zTop, col);
+    };
+    if (sewageBackFront(r)) { horiz(); vert(); } else { vert(); horiz(); }
     // getto marrone dove il tubo entra nel mare, con cerchi che si allargano
     if (!(b.flow > 0) || !DETAIL) return;
     animSeen = true;
-    const [wx, wy] = P(1, end, 0);
+    const [wx, wy] = P(U, end, 0);
     for (let i = 0; i < 3; i++) {
       const t = (animT * 0.7 + i / 3) % 1;
       c.strokeStyle = 'rgba(150,115,65,' + (0.8 * (1 - t)).toFixed(2) + ')'; c.lineWidth = 1;

@@ -82,6 +82,7 @@ function refreshTutorialStatus() {
 }
 function renderTutorial() {
   const el = document.getElementById('tutorial'), s = TUT_STEPS[tutStep], last = tutStep === TUT_STEPS.length - 1;
+  const kind = s.anim || s.tool || 'intro', caps = (typeof TA_SCENES !== 'undefined' && TA_SCENES[kind] && TA_SCENES[kind].caps) || [];
   const btn = (id, label, cls = '') => `<button id="${id}" class="${cls}">${label}</button>`;
   let foot;
   if (tutStep === 0) {
@@ -93,10 +94,13 @@ function renderTutorial() {
   }
   el.innerHTML = `<div class="tut-head"><img src="${ICONS[s.icon] || ''}" alt=""><div><small>${tutStep ? TR('Tutorial {a}/{b}', { a: tutStep, b: TUT_STEPS.length - 1 }) : TR('Tutorial')}</small>
     <b>${TR(s.title)}</b></div><button id="tut-close" class="tut-x" title="${TR('Chiudi')}">✕</button></div>
-    <canvas id="tut-anim" class="tut-anim"></canvas><div class="tut-text">${TR(s.text)}</div>${s.goal ? '<div id="tut-status" class="tut-status"></div>' : ''}<div class="tut-foot">${foot}</div>`;
+    <div class="tut-vis"><canvas id="tut-anim" class="tut-anim"></canvas>${caps.length ? '<ol class="tut-caps">' + caps.map((k, i) => `<li data-i="${i}"><i>${i + 1}</i><span>${TR(k)}</span></li>`).join('') + '</ol>' : ''}</div><div class="tut-text">${TR(s.text)}</div>${s.goal ? '<div id="tut-status" class="tut-status"></div>' : ''}<div class="tut-foot">${foot}</div>`;
+  el.classList.toggle('has-caps', caps.length > 0);
   stopTutAnim();
   const cv = document.getElementById('tut-anim');
-  if (cv && typeof startTutAnim === 'function') tutStopAnim = startTutAnim(cv, s.anim || s.tool || 'intro');
+  if (cv && typeof startTutAnim === 'function') tutStopAnim = startTutAnim(cv, kind, ph => {
+    el.querySelectorAll('.tut-caps li').forEach(li => { const i = +li.dataset.i; li.className = i === ph ? 'on' : i < ph ? 'done' : ''; });
+  });
   const on = (id, f) => { const b = document.getElementById(id); if (b) b.addEventListener('click', e => { e.stopPropagation(); f(); }); };
   on('tut-close', closeTutorial);
   on('tut-start', () => { tutStep = 1; renderTutorial(); });

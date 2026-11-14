@@ -478,7 +478,7 @@ body.tut-open #help { display: none; }
 #topbar .speed-btns img.ticon { width: 16px; height: 16px; }
 #topbar .top-btns button { background: #2c2f48; color: #f4f4f4; border: 2px solid #5a5f8a; border-radius: 3px; }
 #topbar .top-btns button:hover { border-color: #ffd966; }
-#fs-btn { padding: 2px 5px; }
+#fs-btn, #music-btn { padding: 2px 5px; }
 body.touch #topbar .tlabel { display: none; }
 body.touch #topbar .top-btns button { padding: 3px 5px; }
 body.touch #topbar img.ticon { width: 20px; height: 20px; }
@@ -505,10 +505,46 @@ body.touch #topbar img.ticon { width: 20px; height: 20px; }
 #panel .pdest.bad .pdest-dist { color: #ff9b6b; }
 #panel .plist { gap: 6px; }
 
-/* tutorial animato (tutorial-anim.js) e pulsante della barra che pulsa */
-#tutorial .tut-anim { display: block; width: 100%; aspect-ratio: 320 / 150; background: #1a1c2c; border: 2px solid #44486b; border-radius: 4px; margin-bottom: 8px; }
+/* tutorial animato (tutorial-anim.js): scena, tre righe numerate (quella in corso accesa) e pulsante della barra che pulsa */
+#tutorial .tut-vis { margin-bottom: 8px; }
+#tutorial .tut-anim { display: block; width: 100%; aspect-ratio: 330 / 230; background: #1a1c2c; border: 2px solid #44486b; border-radius: 4px; }
+#tutorial .tut-caps { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+#tutorial .tut-caps li { display: flex; align-items: center; gap: 7px; padding: 3px 6px; border-radius: 4px; color: #7f8aa3; font-size: 12px; line-height: 1.25; border: 1px solid transparent; transition: background 0.25s, color 0.25s; }
+#tutorial .tut-caps li i { flex: none; width: 18px; height: 18px; border-radius: 50%; background: #3a3f63; color: #c9d2e0; font-style: normal; font-weight: bold; font-size: 11px; display: flex; align-items: center; justify-content: center; }
+#tutorial .tut-caps li b { color: inherit; }
+#tutorial .tut-caps li.on { background: #3a3f63; color: #ffffff; border-color: #ffd966; }
+#tutorial .tut-caps li.on i { background: #ffd966; color: #1a1c2c; }
+#tutorial .tut-caps li.on b { color: #ffd966; }
+#tutorial .tut-caps li.done { color: #a7c79a; }
+#tutorial .tut-caps li.done i { background: #3f7a2a; color: #ffffff; }
 .tut-pulse { animation: tutglow 0.8s infinite alternate; position: relative; }
 @keyframes tutglow { from { box-shadow: 0 0 0 2px #ffd966; } to { box-shadow: 0 0 10px 4px #ffd966; } }
 @media (max-height: 520px) and (orientation: landscape) {
-  #tutorial .tut-anim { width: 52%; float: left; margin: 0 8px 4px 0; }
+  /* telefono in orizzontale: scena a sinistra, le tre righe a destra; il testo lungo solo dove non ci sono le righe */
+  #tutorial { width: min(560px, 66vw); }
+  #tutorial .tut-vis { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
+  #tutorial .tut-anim { width: 50%; flex: none; }
+  #tutorial .tut-caps { margin: 0; flex: 1; gap: 4px; }
+  #tutorial .tut-caps li { font-size: 11px; padding: 3px 5px; gap: 5px; }
+  #tutorial .tut-caps li i { width: 15px; height: 15px; font-size: 10px; }
+  #tutorial.has-caps .tut-text { display: none; }
+  #tutorial:not(.has-caps) .tut-anim { width: 46%; }
+  #tutorial:not(.has-caps) .tut-vis { float: left; margin-right: 8px; width: 46%; display: block; }
+  #tutorial:not(.has-caps) .tut-vis .tut-anim { width: 100%; }
+}
+#music-btn.off { opacity: 0.75; }
+/* telefono in orizzontale: con il pulsante della musica la barra in alto deve starci tutta */
+@media (max-height: 520px) and (orientation: landscape) and (max-width: 950px) {
+  #topbar { gap: 5px; font-size: 10px; white-space: nowrap; }
+  #topbar .speed-btns button { min-width: 22px; padding: 2px 2px; }
+  body.touch #topbar .top-btns button { padding: 2px 3px; }
+}
+@media (max-height: 520px) and (orientation: landscape) and (max-width: 950px) {
+  #topbar > span:nth-child(4), #topbar > span:nth-child(5) { display: none; }   /* Case e Industrie: sul telefono non c'è posto */
+}
+@media (max-height: 520px) and (orientation: landscape) and (max-width: 640px) {
+  #topbar > span:nth-child(3) { display: none; }
+  #topbar { gap: 3px; font-size: 9px; }
+  #topbar .speed-btns button { min-width: 19px; }
+  #topbar img.ticon { width: 15px; height: 15px; }
 }

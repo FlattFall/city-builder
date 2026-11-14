@@ -5,7 +5,7 @@
 // con FormSubmit (https://formsubmit.co, gratis, nessun account): alla prima segnalazione FormSubmit manda
 // all'email un messaggio di attivazione; dopo averla attivata le segnalazioni arrivano tutte lì.
 // (Dopo l'attivazione FormSubmit dà anche un codice da mettere al posto dell'indirizzo, per non mostrarlo.)
-const GAME_VERSION = '2026-11-13';
+const GAME_VERSION = '2026-11-14';
 let BUG_FORM_URL = 'https://formsubmit.co/ajax/supplyville.game@gmail.com';
 const recentErrors = [];   // ultimi errori della pagina (si allegano alla segnalazione)
 addEventListener('error', e => { recentErrors.push(String(e.message || e.error || e).slice(0, 200)); if (recentErrors.length > 8) recentErrors.shift(); });
