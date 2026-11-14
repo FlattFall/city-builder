@@ -66,7 +66,7 @@ function renderSettings() {
       const name = document.createElement('span'); name.textContent = TR(label);
       const r = document.createElement('input'); r.type = 'range'; r.min = 0; r.max = 100; r.value = settings.volume[k]; r.id = 'vol-' + k;
       const val = document.createElement('b'); val.textContent = settings.volume[k] + '%';
-      r.addEventListener('input', () => { settings.volume[k] = +r.value; val.textContent = r.value + '%'; if (k === 'music') { if (+r.value > 0) settings.musicOn = true; if (typeof musicVolumeChanged === 'function') musicVolumeChanged(); } saveSettings(); });
+      r.addEventListener('input', () => { settings.volume[k] = +r.value; val.textContent = r.value + '%'; if (k === 'music' && +r.value > 0) settings.musicOn = true; if (typeof musicVolumeChanged === 'function') musicVolumeChanged(); saveSettings(); });
       row.append(name, r, val);
       vol.appendChild(row);
     }

@@ -7,7 +7,7 @@ const MAP_SIZES = [       // grandezze tra cui scegliere quando si crea una mapp
   { size: 512, name: 'Grande', desc: 'Tanto spazio per grandi città', preview: 28 },
   { size: 1024, name: 'Enorme', desc: 'Gigantesca: serve un computer potente', preview: 38 },
 ];
-const ZOOMS = [0.5, 1, 2, 3, 4];
+const ZOOMS = [0.5, 1, 2, 3, 4, 6];   // l'ultimo (6) aggiunto su richiesta dell'utente: uno zoom ancora più vicino
 
 // ---------- Terreno ----------
 const T = { WATER: 0, SAND: 1, GRASS: 2, FOREST: 3, ROCK: 4, SNOW: 5 };

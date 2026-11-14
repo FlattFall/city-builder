@@ -42,6 +42,52 @@ const SONGS = [
         'A5 - - F5 D5 - F5 A5', 'Bb5 - - D6 Bb5 - F5 -', 'G5 - E5 - G5 - Bb5 -', 'A5 - - - F5 - - .'] },
       E: { chords: ['F', 'F'], lead: ['F5 - - - - - - -', '. . . . . . . .'] } },
     order: [['A', 0, 0, 4], ['A', 1, 0], ['A', 1, 1], ['B', 1, 1], ['A', 1, 1], ['B', 1, 0], ['E', 1, 0]] },
+  // --- altri cinque brani (richiesta dell'utente: così non si ripete sempre lo stesso) ---
+  { name: 'Mattina al mercato', bpm: 112, style: { arp: 'up', drum: 'bounce' }, sections: {
+      A: { chords: ['G', 'D', 'Em', 'C', 'G', 'D', 'C', 'D'], lead: [
+        'D5 G5 B5 G5 D5 - B4 -', 'A4 D5 F#5 D5 A5 - F#5 -', 'G5 - B5 - E5 - G5 -', 'E5 - G5 E5 C5 - - .',
+        'D5 G5 B5 G5 D6 - B5 -', 'A5 - F#5 - D5 - F#5 A5', 'G5 - E5 - C5 - E5 -', 'F#5 - A5 - D5 - - .'] },
+      B: { chords: ['Em', 'C', 'G', 'D', 'Em', 'C', 'D', 'G'], lead: [
+        'B5 - - G5 E5 - G5 -', 'C6 - - G5 E5 - G5 -', 'B5 - D6 - B5 - G5 -', 'A5 - - - F#5 - D5 -',
+        'B5 - - G5 E5 - G5 B5', 'C6 - - E6 C6 - G5 -', 'A5 - F#5 - A5 - D6 -', 'B5 - - - G5 - - .'] },
+      E: { chords: ['G', 'G'], lead: ['G5 - - - - - - -', '. . . . . . . .'] } },
+    order: [['A', 0, 0, 4], ['A', 1, 1], ['B', 1, 1], ['A', 1, 1], ['B', 1, 0], ['A', 1, 1], ['E', 1, 0]] },
+  { name: 'Notte sul porto', bpm: 76, style: { arp: 'slow', bass: 'long', lead: 'tri', drum: 'none' }, sections: {
+      A: { chords: ['Am', 'F', 'C', 'G', 'Am', 'F', 'G', 'Am'], lead: [
+        'A4 - C5 - E5 - - -', 'F5 - E5 - C5 - A4 -', 'G4 - C5 - E5 - G5 -', 'D5 - - - B4 - G4 -',
+        'A4 - C5 - E5 - A5 -', 'A5 - G5 - F5 - C5 -', 'D5 - G5 - B5 - A5 G5', 'A5 - - - E5 - - .'] },
+      B: { chords: ['F', 'G', 'Em', 'Am', 'F', 'G', 'C', 'E'], lead: [
+        'C5 - F5 - A5 - - G5', 'B5 - - A5 G5 - D5 -', 'G5 - - E5 B4 - E5 -', 'C5 - - - A4 - - .',
+        'C5 - F5 - A5 - C6 -', 'B5 - - A5 G5 - B5 -', 'C6 - G5 - E5 - G5 -', 'G#5 - - - E5 - B4 .'] },
+      E: { chords: ['Am', 'Am'], lead: ['A4 - - - - - - -', '. . . . . . . .'] } },
+    order: [['A', 0, 0, 4], ['A', 1, 0], ['B', 1, 0], ['A', 1, 0], ['B', 1, 0], ['A', 1, 0], ['E', 1, 0]] },
+  { name: 'Fabbriche al lavoro', bpm: 118, style: { arp: 'broken', bass: 'pulse', drum: 'bounce', lead: 'soft' }, sections: {
+      A: { chords: ['Dm', 'Bb', 'C', 'Dm', 'Dm', 'Bb', 'C', 'A'], lead: [
+        'D5 - F5 A5 - F5 D5 -', 'D5 - F5 Bb5 - F5 D5 -', 'E5 - G5 C6 - G5 E5 -', 'F5 - A5 - D5 - - .',
+        'D5 - F5 A5 - F5 D5 -', 'D5 - F5 Bb5 - A5 G5 F5', 'E5 - G5 - E5 - C5 -', 'C#5 - E5 - A5 - - .'] },
+      B: { chords: ['F', 'C', 'Gm', 'Dm', 'Bb', 'C', 'Dm', 'Dm'], lead: [
+        'A5 - - C6 A5 - F5 -', 'G5 - - C6 G5 - E5 -', 'Bb5 - - D6 Bb5 - G5 -', 'A5 - - - F5 - D5 -',
+        'D5 - F5 - Bb5 - A5 -', 'G5 - E5 - C6 - Bb5 -', 'A5 - - - F5 - A5 -', 'D6 - - - - - - .'] },
+      E: { chords: ['Dm', 'Dm'], lead: ['D5 - - - - - - -', '. . . . . . . .'] } },
+    order: [['A', 0, 1, 4], ['A', 1, 1], ['B', 1, 1], ['A', 1, 1], ['B', 1, 1], ['E', 1, 0]] },
+  { name: 'Domenica in città', bpm: 92, style: { arp: 'up', bass: 'root', drum: 'soft' }, sections: {
+      A: { chords: ['D', 'A', 'Bm', 'G', 'D', 'A', 'G', 'A'], lead: [
+        'F#5 - A5 - D6 - A5 -', 'E5 - A5 - C#6 - A5 -', 'D5 - F#5 - B5 - A5 F#5', 'G5 - - - D5 - B4 -',
+        'F#5 - A5 - D6 - F#6 -', 'E6 - C#6 - A5 - E5 -', 'D5 - G5 - B5 - G5 -', 'A5 - - - E5 - - .'] },
+      B: { chords: ['Bm', 'G', 'D', 'A', 'G', 'A', 'D', 'D'], lead: [
+        'F#5 - - D5 B4 - D5 F#5', 'G5 - - D5 B4 - D5 G5', 'A5 - - F#5 D5 - F#5 A5', 'C#6 - - - A5 - E5 -',
+        'B5 - G5 - D5 - G5 -', 'C#6 - A5 - E5 - A5 -', 'D6 - - - A5 - F#5 -', 'D5 - - - - - - .'] },
+      E: { chords: ['D', 'D'], lead: ['D5 - - - - - - -', '. . . . . . . .'] } },
+    order: [['A', 0, 0, 4], ['A', 1, 0], ['A', 1, 1], ['B', 1, 1], ['A', 1, 1], ['B', 1, 0], ['E', 1, 0]] },
+  { name: 'Lungo il fiume', bpm: 86, style: { arp: 'updown', bass: 'long', lead: 'tri', drum: 'soft' }, sections: {
+      A: { chords: ['Bb', 'F', 'Gm', 'Eb', 'Bb', 'F', 'Eb', 'F'], lead: [
+        'F5 - D5 - Bb4 - D5 F5', 'A5 - F5 - C5 - F5 -', 'Bb5 - G5 - D5 - G5 Bb5', 'G5 - - - Eb5 - - .',
+        'F5 - D5 - Bb4 - D5 F5', 'A5 - C6 - A5 - F5 -', 'G5 - Bb5 - G5 - Eb5 -', 'F5 - A5 - C6 - - .'] },
+      B: { chords: ['Gm', 'Eb', 'Bb', 'F', 'Eb', 'F', 'Bb', 'Bb'], lead: [
+        'D6 - - Bb5 G5 - Bb5 -', 'Bb5 - - G5 Eb5 - G5 -', 'F5 - Bb5 - D6 - Bb5 -', 'C6 - - - A5 - F5 -',
+        'G5 - Bb5 - Eb6 - D6 -', 'C6 - A5 - F5 - A5 -', 'Bb5 - - - F5 - D5 -', 'Bb4 - - - - - - .'] },
+      E: { chords: ['Bb', 'Bb'], lead: ['Bb4 - - - - - - -', '. . . . . . . .'] } },
+    order: [['A', 0, 0, 4], ['A', 1, 0], ['B', 1, 1], ['A', 1, 1], ['B', 1, 1], ['A', 1, 0], ['E', 1, 0]] },
 ];
 for (const s of SONGS) for (const k in s.sections) s.sections[k].lead = s.sections[k].lead.map(b => b.split(' '));
 
@@ -98,10 +144,19 @@ function musicKick(t, vol) {
   g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
   osc.connect(g); g.connect(MUSIC.bus); osc.start(t); osc.stop(t + 0.25);
 }
+// Il prossimo brano: a caso tra quelli non sentiti di recente (si ricordano gli ultimi 3)
+function musicNextSong() {
+  MUSIC.recent = (MUSIC.recent || [0]).slice(-3);
+  const free = SONGS.map((s, i) => i).filter(i => !MUSIC.recent.includes(i));
+  const n = free[Math.floor(Math.random() * free.length)];
+  MUSIC.recent.push(n);
+  return n;
+}
 // Prepara le note un po' in anticipo (passo = semicroma)
 function musicSchedule() {
   const ctx = MUSIC.ctx;
   if (!ctx || ctx.state !== 'running') return;
+  if (!musicIsOn()) { MUSIC.next = 0; return; }   // musica spenta (ma l'audio serve ai suoni d'ambiente)
   if (MUSIC.next < ctx.currentTime - 0.5) MUSIC.next = ctx.currentTime + 0.1;   // dopo una pausa della scheda: riparte da adesso
   while (MUSIC.next < ctx.currentTime + 0.3) {
     const song = SONGS[MUSIC.song], st = 60 / song.bpm / 4;
@@ -114,22 +169,27 @@ function musicSchedule() {
     MUSIC.next += st;
     if (++MUSIC.step >= 16) { MUSIC.step = 0;
       if (++MUSIC.bar >= bars) { MUSIC.bar = 0;
-        if (++MUSIC.sec >= song.order.length) { MUSIC.sec = 0; MUSIC.song = (MUSIC.song + 1) % SONGS.length; MUSIC.pauseUntil = MUSIC.next + 5; } } }
+        if (++MUSIC.sec >= song.order.length) { MUSIC.sec = 0; MUSIC.song = musicNextSong(); MUSIC.pauseUntil = MUSIC.next + 5; } } }
   }
 }
+const ARP_PAT = { updown: [0, 1, 2, 3, 2, 1, 2, 1], up: [0, 1, 2, 3, 0, 1, 2, 3], broken: [0, 2, 1, 2, 0, 2, 1, 3], slow: [0, -1, 1, -1, 2, -1, 1, -1] };
 function musicStep(song, S, bar, step, t, st, lead, drums, ending) {
-  const ch = chordNotes(S.chords[bar]), beat = st * 4;
+  const ch = chordNotes(S.chords[bar]), beat = st * 4, sty = song.style || {};
   if (step === 0) {   // tappeto: l'accordo tenuto per tutta la battuta (due onde a dente di sega un po' stonate fra loro)
     for (const m of ch) for (const det of [-7, 7]) musicTone('sawtooth', midiHz(m), t, beat * 4 - 0.05, 0.022, { attack: 0.25, release: 0.4, sustain: 1, cut: 900, detune: det });
   }
   if (ending) { if (step === 0 && bar === 0) musicTone('triangle', midiHz(ch[0] - 12), t, beat * 6, 0.2, { release: 0.6, sustain: 0.9 }); }
   else {
-    // basso: fondamentale sul primo e terzo tempo, quinta di passaggio
-    if (step === 0 || step === 8) musicTone('triangle', midiHz(ch[0] - 12), t, beat * 1.4, 0.2, { sustain: 0.85 });
+    // basso: 'root' fondamentale sul primo e terzo tempo con la quinta di passaggio, 'pulse' crome che spingono, 'long' una nota per battuta
+    const bass = sty.bass || 'root';
+    if (bass === 'long') { if (step === 0) musicTone('triangle', midiHz(ch[0] - 12), t, beat * 3.6, 0.2, { sustain: 0.9, release: 0.3 }); }
+    else if (bass === 'pulse') { if (step % 2 === 0) musicTone('triangle', midiHz(ch[0] - 12 + (step % 8 === 6 ? 7 : step % 4 === 2 ? 12 : 0)), t, st * 1.5, step % 4 === 0 ? 0.2 : 0.13, { sustain: 0.7 }); }
+    else if (step === 0 || step === 8) musicTone('triangle', midiHz(ch[0] - 12), t, beat * 1.4, 0.2, { sustain: 0.85 });
     else if (step === 6 || step === 14) musicTone('triangle', midiHz(ch[2] - 12), t, beat * 0.45, 0.14, { sustain: 0.8 });
-    // arpeggio in crome: su e giù sulle note dell'accordo
-    if (step % 2 === 0) { const pat = [0, 1, 2, 3, 2, 1, 2, 1][step / 2], m = pat === 3 ? ch[0] + 12 : ch[pat];
-      musicTone('square', midiHz(m + 12), t, st * 1.5, 0.028, { cut: 1500, sustain: 0.35, release: 0.12, echo: true }); }
+    // arpeggio in crome sulle note dell'accordo
+    if (step % 2 === 0) { const pat = (ARP_PAT[sty.arp] || ARP_PAT.updown)[step / 2];
+      if (pat >= 0) { const m = pat === 3 ? ch[0] + 12 : ch[pat];
+        musicTone('square', midiHz(m + 12), t, st * (sty.arp === 'slow' ? 3 : 1.5), 0.028, { cut: 1500, sustain: 0.35, release: sty.arp === 'slow' ? 0.3 : 0.12, echo: true }); } }
   }
   // melodia
   if (lead && step % 2 === 0) {
@@ -138,28 +198,41 @@ function musicStep(song, S, bar, step, t, st, lead, drums, ending) {
       let len = 1; while (i + len < 8 && L[i + len] === '-') len++;
       if (i + len === 8 && bar + 1 < S.lead.length) { const N = S.lead[bar + 1]; let k = 0; while (k < 8 && N[k] === '-') { len++; k++; } }   // nota legata oltre la battuta
       const hz = midiHz(noteMidi(n)), dur = len * st * 2 - 0.03;
-      musicTone('square', hz, t, dur, 0.075, { cut: 2100, sustain: 0.6, release: 0.12, vib: true, echo: true });
-      musicTone('triangle', hz, t, dur, 0.06, { sustain: 0.8, release: 0.12 });   // corpo più morbido sotto la quadra
+      if (sty.lead === 'tri') {   // flauto morbido: triangolare + un filo di sinusoide un'ottava sopra
+        musicTone('triangle', hz, t, dur, 0.13, { sustain: 0.8, release: 0.2, attack: 0.02, vib: true, echo: true });
+        musicTone('sine', hz * 2, t, dur, 0.02, { sustain: 0.6, release: 0.2, attack: 0.02 });
+      } else {
+        musicTone('square', hz, t, dur, sty.lead === 'soft' ? 0.06 : 0.075, { cut: sty.lead === 'soft' ? 1500 : 2100, sustain: 0.6, release: 0.12, vib: true, echo: true });
+        musicTone('triangle', hz, t, dur, 0.06, { sustain: 0.8, release: 0.12 });   // corpo più morbido sotto la quadra
+      }
     }
   }
-  if (drums) {
-    if (step === 0 || step === 8 || step === 11) musicKick(t, step === 11 ? 0.2 : 0.32);
-    if (step === 4 || step === 12) musicNoise(t, 0.12, 0.09, 'bandpass', 1800);
-    if (step % 2 === 0) musicNoise(t, 0.035, step % 4 === 2 ? 0.035 : 0.02, 'highpass', 7000);
+  if (drums && sty.drum !== 'none') {
+    if (sty.drum === 'bounce') {
+      if (step === 0 || step === 6 || step === 8) musicKick(t, step === 6 ? 0.2 : 0.32);
+      if (step === 4 || step === 12) musicNoise(t, 0.12, 0.09, 'bandpass', 1800);
+      musicNoise(t, 0.03, step % 4 === 2 ? 0.035 : step % 2 ? 0.01 : 0.02, 'highpass', 7000);
+    } else {
+      if (step === 0 || step === 8 || step === 11) musicKick(t, step === 11 ? 0.2 : 0.32);
+      if (step === 4 || step === 12) musicNoise(t, 0.12, 0.09, 'bandpass', 1800);
+      if (step % 2 === 0) musicNoise(t, 0.035, step % 4 === 2 ? 0.035 : 0.02, 'highpass', 7000);
+    }
   }
 }
 function musicVolumeChanged() {
   if (MUSIC.master) MUSIC.master.gain.setTargetAtTime(musicVolume(), MUSIC.ctx.currentTime, 0.05);
-  if (MUSIC.ctx) { if (!musicIsOn()) setTimeout(() => { if (!musicIsOn()) MUSIC.ctx.suspend(); }, 300); else if (!document.hidden) MUSIC.ctx.resume(); }
-  else if (musicIsOn() && MUSIC.gesture) musicStart();
+  if (MUSIC.ctx) { if (!audioWanted()) setTimeout(() => { if (!audioWanted()) MUSIC.ctx.suspend(); }, 300); else if (!document.hidden) MUSIC.ctx.resume(); }
+  else if (audioWanted() && MUSIC.gesture) musicStart();
   refreshMusicBtn();
 }
+// l'audio serve se la musica è accesa o se ci sono gli effetti (suoni d'ambiente, ambience.js)
+function audioWanted() { return musicIsOn() || (settings.volume.sfx || 0) > 0; }
 function musicIsOn() { return settings.musicOn !== false && (settings.volume.music || 0) > 0; }
 function toggleMusic() {
   if (settings.musicOn !== false && !(settings.volume.music > 0)) settings.volume.music = 70;   // era a zero: si riaccende
   else settings.musicOn = settings.musicOn === false;
   saveSettings(); musicStart(); musicVolumeChanged();
-  const r = document.getElementById('vol-music'); if (r) { r.value = settings.volume.music; r.dispatchEvent(new Event('input')); }
+  const r = document.getElementById('vol-music'); if (r) { r.value = settings.volume.music; if (r.nextSibling) r.nextSibling.textContent = settings.volume.music + '%'; }
 }
 function refreshMusicBtn() {
   const b = document.getElementById('music-btn'); if (!b) return;
@@ -172,10 +245,10 @@ function initMusic() {
   if (b) b.addEventListener('click', e => { e.stopPropagation(); b.blur(); toggleMusic(); });
   refreshMusicBtn();
   // l'audio può partire solo dopo un gesto del giocatore
-  const kick = () => { MUSIC.gesture = true; if (musicIsOn()) musicStart(); if (MUSIC.ctx) for (const ev of ['pointerdown', 'keydown', 'touchend']) window.removeEventListener(ev, kick, true); };
+  const kick = () => { MUSIC.gesture = true; if (audioWanted()) musicStart(); if (MUSIC.ctx) for (const ev of ['pointerdown', 'keydown', 'touchend']) window.removeEventListener(ev, kick, true); };
   for (const ev of ['pointerdown', 'keydown', 'touchend']) window.addEventListener(ev, kick, true);
   document.addEventListener('visibilitychange', () => {   // scheda nascosta: la musica si ferma
     if (!MUSIC.ctx) return;
-    if (document.hidden) MUSIC.ctx.suspend(); else if (musicIsOn()) MUSIC.ctx.resume();
+    if (document.hidden) MUSIC.ctx.suspend(); else if (audioWanted()) MUSIC.ctx.resume();
   });
 }
