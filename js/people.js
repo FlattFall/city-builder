@@ -53,7 +53,8 @@ function rebuildPedOrigins() {
 }
 
 // Percorso a piedi: BFS sulle strade (con le rampe: roadLinked) fino a un edificio vicino a caso
-function planWalk(o) {
+// weight(edificio) = quanto è probabile come meta (di base pedTarget); minDist = tile minimi di cammino
+function planWalk(o, weight = pedTarget, minDist = 2) {
   const N = game.size, start = o.doors[Math.floor(Math.random() * o.doors.length)];
   const k0 = start.y * N + start.x, par = new Map([[k0, -1]]), dist = new Map([[k0, 0]]);
   const queue = [k0], goals = [];
@@ -63,8 +64,8 @@ function planWalk(o) {
       const nx = x + DIRS[d].dx, ny = y + DIRS[d].dy;
       if (!inMap(nx, ny)) continue;
       const nb = game.map[ny][nx].building;
-      if (nb && nb !== o.b && dd >= 2) {
-        const w = pedTarget(nb);
+      if (nb && nb !== o.b && dd >= minDist) {
+        const w = weight(nb);
         if (w) goals.push({ k, nb, bx: nx, by: ny, w });
       }
       const nk = ny * N + nx;
@@ -80,7 +81,7 @@ function planWalk(o) {
   const tiles = [];
   for (let k = goal.k; k !== -1; k = par.get(k)) { const x = k % N; tiles.push([x, (k - x) / N]); }
   tiles.reverse();
-  return { tiles, from: [start.bx, start.by], to: [goal.bx, goal.by] };
+  return { tiles, from: [start.bx, start.by], to: [goal.bx, goal.by], dest: goal.nb };
 }
 // punti sul marciapiede di destra (come routePoints ma più in fuori), con l'uscita dalla porta
 // dell'edificio di partenza e l'entrata in quello di arrivo
@@ -108,16 +109,21 @@ function pedPoints(walk) {
   P(to[0] + 0.5 - E.dx * 0.25, to[1] + 0.5 - E.dy * 0.25);                         // dentro la porta
   return pts;
 }
+function newPed(pts) {
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+  return { kind: 'ped', pts, seg: 0, s: 0, speed: PEDS.speed * (0.85 + Math.random() * 0.3),
+    shirt: pick(PED_SHIRTS), pants: pick(PED_PANTS), skin: pick(PED_SKIN), hair: pick(PED_HAIR),
+    step: Math.random() * 6, bag: Math.random() < 0.25 };
+}
 function spawnPed() {
   if (!pedOrigins || !pedOrigins.length) return;
   const o = pedOrigins[Math.floor(Math.random() * pedOrigins.length)];
   if (!game.buildings.has(o.b.id)) return;
   const walk = planWalk(o);
   if (!walk) return;
-  const pick = a => a[Math.floor(Math.random() * a.length)];
-  peds.push({ kind: 'ped', pts: pedPoints(walk), seg: 0, s: 0, speed: PEDS.speed * (0.85 + Math.random() * 0.3),
-    shirt: pick(PED_SHIRTS), pants: pick(PED_PANTS), skin: pick(PED_SKIN), hair: pick(PED_HAIR),
-    step: Math.random() * 6, bag: Math.random() < 0.25 });
+  const p = newPed(pedPoints(walk));
+  if (walk.dest.kind === 'busStop') p.stop = walk.dest.id;   // va a prendere il bus
+  peds.push(p);
 }
 function pedsUpdate(dt) {
   if ((pedOriginsTimer -= dt) <= 0) { pedOriginsTimer = 3; rebuildPedOrigins(); }
@@ -126,8 +132,23 @@ function pedsUpdate(dt) {
   if (!peds.length) return;
   const keep = [];
   for (const p of peds) {
+    if (p.waiting != null) {   // aspetta il bus sotto la pensilina (bus.js lo fa salire); se la fermata sparisce o il bus non passa più, se ne va
+      const s = game.buildings.get(p.waiting);
+      if (s && s.depot && (p.waitT -= dt) > 0) keep.push(p);
+      continue;
+    }
+    if (p.board && !vehicles.includes(p.board)) continue;   // il bus non c'è più
     p.step += dt * p.speed * 14;
-    if (!moveVehicle(p, dt)) keep.push(p);
+    if (!moveVehicle(p, dt)) { keep.push(p); continue; }
+    // arrivato a una fermata servita: aspetta lì (al massimo BUS.maxWait persone), fermo, girato verso la strada
+    const s = p.stop != null && !p.board ? game.buildings.get(p.stop) : null;
+    if (s && s.depot && peds.filter(q => q.waiting === s.id).length < BUS.maxWait) {
+      const e = p.pts[p.pts.length - 1], k = (Math.random() - 0.5) * 0.3;
+      const along = Math.abs(e[0] - (s.ax + 0.5)) > Math.abs(e[1] - (s.ay + 0.5));   // la porta è su un lato in x: ci si mette in fila lungo y
+      const q = [e[0] + (along ? 0 : k), e[1] + (along ? k : 0), e[2], 1, 0];
+      p.pts = [q, q]; p.seg = 0; p.s = 0; p.waiting = s.id; p.waitT = 180; p.step = 0;
+      keep.push(p);
+    }
   }
   peds = keep;
 }

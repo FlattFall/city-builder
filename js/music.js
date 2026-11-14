@@ -91,7 +91,7 @@ const SONGS = [
 ];
 for (const s of SONGS) for (const k in s.sections) s.sections[k].lead = s.sections[k].lead.map(b => b.split(' '));
 
-function musicVolume() { return settings.musicOn === false ? 0 : Math.pow((settings.volume.music || 0) / 100, 1.5) * 0.9; }
+function musicVolume() { return settings.musicOn === false ? 0 : Math.pow((settings.volume.music || 0) / 100, 1.5) * 0.75; }
 function musicStart() {
   if (MUSIC.ctx) { if (MUSIC.ctx.state === 'suspended' && !document.hidden) MUSIC.ctx.resume(); return; }
   const AC = window.AudioContext || window.webkitAudioContext;

@@ -13,22 +13,33 @@ function ambInit() {
   AMB.out = ctx.createGain(); AMB.out.gain.value = 0;
   const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 3;
   AMB.out.connect(comp); comp.connect(ctx.destination);
-  AMB.fx = ctx.createGain(); AMB.fx.gain.value = 3; AMB.fx.connect(AMB.out);   // suoni singoli (versi, auto, colpi)
+  AMB.fx = ctx.createGain(); AMB.fx.gain.value = AMB_LV.fx; AMB.fx.connect(AMB.out);   // suoni singoli (versi, auto, colpi)
+  // Rumore di base lungo 4 secondi (con 1 secondo si sentiva ripetersi): bianco per i fruscii, "marrone"
+  // (più scuro e morbido) per il rombo e le onde. Prima era tutto rumore bianco filtrato e sembrava
+  // un vento forte e continuo (segnalazione dell'utente).
+  const N = ctx.sampleRate * 4, white = ctx.createBuffer(1, N, ctx.sampleRate), brown = ctx.createBuffer(1, N, ctx.sampleRate);
+  const wd = white.getChannelData(0), bd = brown.getChannelData(0);
+  let last = 0, peak = 0;
+  for (let i = 0; i < N; i++) { const r = Math.random() * 2 - 1; wd[i] = r; last = (last + 0.02 * r) / 1.02; bd[i] = last; if (Math.abs(last) > peak) peak = Math.abs(last); }
+  for (let i = 0; i < N; i++) bd[i] /= peak;
+  const fade = Math.floor(ctx.sampleRate * 0.05);   // giunta morbida tra fine e inizio
+  for (let i = 0; i < fade; i++) { const k = i / fade; bd[N - fade + i] = bd[N - fade + i] * (1 - k) + bd[i] * k; }
+  AMB.white = white; AMB.brown = brown;
   // strati continui: rumore filtrato con un volume proprio (che segue quello che si vede)
-  const loop = (type, freq, q, lfoHz, lfoDepth) => {
-    const src = ctx.createBufferSource(); src.buffer = MUSIC.noise; src.loop = true; src.playbackRate.value = 0.6 + Math.random() * 0.3;
+  const loop = (buf, type, freq, q, lfoHz, lfoDepth) => {
+    const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true; src.playbackRate.value = 0.8 + Math.random() * 0.3;
     const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
-    const sw = ctx.createGain(); sw.gain.value = 1 - lfoDepth;   // respiro lento (onde, folate di vento)
+    const sw = ctx.createGain(); sw.gain.value = 1 - lfoDepth;   // respiro lento (onde, folate leggere)
     if (lfoHz) { const l = ctx.createOscillator(), lg = ctx.createGain(); l.frequency.value = lfoHz; lg.gain.value = lfoDepth; l.connect(lg); lg.connect(sw.gain); l.start(); }
     const g = ctx.createGain(); g.gain.value = 0;
-    src.connect(f); f.connect(sw); sw.connect(g); g.connect(AMB.out); src.start();
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 55;   // via i bassi che non si sentono ma mangiano volume
+    src.connect(hp); hp.connect(f); f.connect(sw); sw.connect(g); g.connect(AMB.out); src.start(0, Math.random() * 3);
     return g;
   };
-  AMB.layers.traffic = loop('lowpass', 170, 0.5, 0.09, 0.3);     // rombo lontano della città
-  AMB.layers.murmur = loop('bandpass', 650, 0.9, 0.31, 0.35);     // voci della gente
-  AMB.layers.sea = loop('lowpass', 700, 0.4, 0.13, 0.6);          // onde
-  AMB.layers.sea2 = loop('bandpass', 2600, 0.6, 0.11, 0.8);       // risacca
-  AMB.layers.leaves = loop('bandpass', 3200, 0.5, 0.17, 0.6);     // vento tra le foglie / nei campi
+  AMB.layers.traffic = loop(brown, 'lowpass', 160, 0.5, 0.07, 0.2);    // rombo lontano e basso della città
+  AMB.layers.sea = loop(brown, 'lowpass', 900, 0.4, 0.13, 0.6);        // onde
+  AMB.layers.sea2 = loop(white, 'bandpass', 2800, 0.6, 0.11, 0.85);    // risacca
+  AMB.layers.leaves = loop(white, 'bandpass', 2200, 0.35, 0.08, 0.5);  // fruscio leggero di foglie e campi
   // ronzio delle fabbriche
   const hg = ctx.createGain(); hg.gain.value = 0; hg.connect(AMB.out);
   for (const [hz, v] of [[50, 1], [100, 0.5], [151, 0.2]]) { const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'; o.frequency.value = hz; g.gain.value = v; o.connect(g); g.connect(hg); o.start(); }
@@ -97,6 +108,7 @@ function ambUpdate(dt) {
     if (chance(0.3 * w.traffic)) ambCar();
     if (chance(0.025 * w.city * w.traffic)) ambHorn();
     if (chance(0.05 * w.city)) ambDoor();
+    if (chance(0.45 * w.city)) ambVoice();
     if (chance(0.12 * (w.animals.cowFarm || 0))) ambMoo();
     if (chance(0.25 * (w.animals.chickenFarm || 0))) ambCluck();
     if (chance(0.14 * (w.animals.sheepFarm || 0))) ambBleat();
@@ -106,10 +118,13 @@ function ambUpdate(dt) {
   }
 }
 
+// Volumi (richiesta dell'utente: livellare musica e ambiente): gli strati continui stanno bassi, sotto la musica;
+// sono i suoni singoli (versi, auto, voci) a farsi sentire. Misurati con amb-render.js.
+const AMB_LV = { traffic: 0.11, sea: 0.11, sea2: 0.05, leaves: 0.028, hum: 0.006, fx: 2.2 };
 // volume di ogni strato continuo (il rumore filtrato in basso è debole: per questo i numeri sono alti)
 function ambLevels(w, paused) {
-  return { traffic: paused ? 0 : 3 * Math.max(w.traffic, w.city * 0.5), murmur: paused ? 0 : 0.7 * w.city,
-    sea: 0.8 * w.sea, sea2: 0.3 * w.sea, leaves: 0.3 * Math.max(w.forest, w.farm * 0.6), hum: paused ? 0 : 0.022 * w.industry };
+  return { traffic: paused ? 0 : AMB_LV.traffic * Math.max(w.traffic, w.city * 0.5),
+    sea: AMB_LV.sea * w.sea, sea2: AMB_LV.sea2 * w.sea, leaves: AMB_LV.leaves * Math.max(w.forest, w.farm * 0.6), hum: paused ? 0 : AMB_LV.hum * w.industry };
 }
 // ---- suoni singoli ----
 function ambDest(pan) {   // uscita con la posizione a destra/sinistra
@@ -134,7 +149,7 @@ function ambOsc(type, f0, t, dur, vol, o = {}) {
 }
 function ambNoise(t, dur, vol, type, freq, q, dest, sweep) {
   const ctx = MUSIC.ctx, src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
-  src.buffer = MUSIC.noise; src.loop = true; f.type = type; f.frequency.setValueAtTime(freq, t); f.Q.value = q || 1;
+  src.buffer = AMB.white; src.loop = true; f.type = type; f.frequency.setValueAtTime(freq, t); f.Q.value = q || 1;
   if (sweep) { f.frequency.linearRampToValueAtTime(sweep, t + dur / 2); f.frequency.linearRampToValueAtTime(freq, t + dur); }
   g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + (sweep ? dur / 2 : 0.005)); g.gain.linearRampToValueAtTime(0, t + dur);
   src.connect(f); f.connect(g); g.connect(dest || ambDest()); src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.05);
@@ -161,6 +176,12 @@ function ambHorn() { const t = ambNow(), dest = ambDest(); for (const f of [392,
 function ambDoor() {   // porta/campanello di un negozio: due note leggere
   const t = ambNow(), dest = ambDest();
   ambOsc('sine', 1318, t, 0.25, 0.018, { dest, hold: 0.1 }); ambOsc('sine', 1046, t + 0.16, 0.4, 0.018, { dest, hold: 0.1 });
+}
+function ambVoice() {   // voci della gente: qualche sillaba in stile retro (al posto del brusio continuo, che sembrava vento)
+  const t = ambNow(), dest = ambDest(), n = 2 + Math.floor(Math.random() * 4), f0 = 130 + Math.random() * 130;
+  let at = 0;
+  for (let i = 0; i < n; i++) { const d = 0.07 + Math.random() * 0.08, f = f0 * (0.9 + Math.random() * 0.3);
+    ambOsc('sawtooth', f, t + at, d, 0.035, { glide: [[d, f * (0.92 + Math.random() * 0.16)]], band: 650 + Math.random() * 700, q: 3, dest, attack: 0.015 }); at += d + 0.02 + Math.random() * 0.05; }
 }
 function ambMoo() {   // mucca
   const t = ambNow(), f = 95 + Math.random() * 20, dur = 1 + Math.random() * 0.5;

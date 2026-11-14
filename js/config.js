@@ -88,7 +88,8 @@ const WATER = { required: true, perResident: 1, perBusiness: 3, well: 100, plant
 // Bus: dalle case vicine a una fermata (entro `walk` tile) si va a lavorare nelle attività vicine a
 // un'altra fermata dello stesso deposito, a qualsiasi distanza; con il bus i lavoratori arrivano
 // riposati e puntuali: le attività servite lavorano `boost` più in fretta.
-const BUS = { walk: 6, boost: 0.15, every: 25, perDepot: 2, speed: 1.3 };
+const BUS = { walk: 6, boost: 0.15, every: 25, perDepot: 2, speed: 1.3,
+  stopTime: 2.2, maxWait: 5, maxOff: 5 };   // sosta alla fermata (s), quanti aspettano al massimo, quanti scendono al massimo
 
 // ---------- Abitanti ----------
 const HOUSE_CAPACITY = 4;      // abitanti per casa

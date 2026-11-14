@@ -346,6 +346,7 @@ function simUpdate(dt) {
     // fermava di nuovo, e due veicoli uno contro l'altro sembravano bloccati per sempre)
     // Un veicolo non passa mai attraverso quello davanti: aspetta. Solo se si bloccano a vicenda
     // (incrocio, rotonda piena) dopo 3 s uno dei due passa per primo, e gli altri aspettano lui.
+    if (v.kind === 'bus' && busHold(v, dt)) { v.waited = 0; continue; }   // fermo alla fermata: sale e scende la gente (bus.js)
     if (v.force > 0) v.force -= dt;
     else {
       const o = blockedAhead(v);
