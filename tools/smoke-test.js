@@ -1993,6 +1993,8 @@ function check(cond, msg) {
     r.police = useTool('police', x + 27, y - 2).ok;
     const p = [...game.buildings.values()].find(b => b.kind === 'police');
     const c0 = cityState().caught; let car = false;
+    // un furto sicuro vicino alla stazione (quelli a caso con la polizia sono rari: il test a volte non ne vedeva)
+    p.workers = 4; const near = game.map[y - 1][x + 14].building; commitTheft(near, policeFor(near) || p);
     for (let i = 0; i < 1200; i++) { p.workers = 4; simUpdate(0.1); if (vehicles.some(v => v.kind === 'police')) car = true; }
     r.caught = cityState().caught > c0 && car;
     CRIME.every = cev; CRIME.perResident = cpr; CRIME.minPop = 1e9;
