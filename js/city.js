@@ -227,35 +227,41 @@ function drawTownHall(c, ax, ay, base, r) {
   groundRect(c, ax, ay, base, [0.05, 0.05, 1.95, 1.95], r, '#c9c4b6');
   const stone = { l: '#efe6cf', r: '#d4c8a8', t: '#c9bfa5' }, white = { l: '#f8f6f0', r: '#dcd8cc', t: '#ffffff', plain: true };
   const glass = '#7fb0cf';
+  const win = (face, list, z0, z1) => list.map(a => ({ face, a, b: a + 0.14, z0, z1, color: glass }));
   const cols = [0.52, 0.8, 1.12, 1.4].map(u => ({ box: [u, 1.36, u + 0.08, 1.44], h: 13, z: 2, col: white }));
+  // orologio: un quadrante su ogni faccia della torre che guarda lo schermo, disegnato nel piano della faccia
+  const clocks = (bx, top) => {   // bx già girato: le facce visibili sono +u e +v
+    if (!DETAIL) return;
+    const cu = (bx[0] + bx[2]) / 2, cv = (bx[1] + bx[3]) / 2, zc = top - 5 / STEP, R = 0.09, RZ = 2.6 / STEP;
+    // un quadrante solo (con due sembravano due occhi): sul lato del portico se si vede, se no di fianco
+    const vis = n => (n[0] === 0 && n[1] === 1) || (n[0] === 1 && n[1] === 0);
+    const face = [rotVec(0, 1, r), rotVec(1, 0, r), rotVec(-1, 0, r)].find(vis);
+    for (const [nu, nv] of [face]) {
+      const fu = nu ? bx[2] + 0.002 : cu, fv = nv ? bx[3] + 0.002 : cv, tu = nv ? 1 : 0, tv = nu ? 1 : 0;
+      const P = (a, z) => iso(ax, ay, fu + tu * a, fv + tv * a, zc + z);
+      const ring = []; for (let k = 0; k < 18; k++) { const t = k / 18 * Math.PI * 2; ring.push(P(Math.cos(t) * R, Math.sin(t) * RZ)); }
+      poly(c, ring, '#ffffff'); c.strokeStyle = '#3a3a40'; c.lineWidth = 0.6;
+      c.beginPath(); ring.forEach((q, i) => i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])); c.closePath(); c.stroke();
+      const t = animT * 0.2, o = P(0, 0), m = P(Math.cos(t) * R * 0.75, Math.sin(t) * RZ * 0.75), h = P(0, RZ * 0.55);
+      c.beginPath(); c.moveTo(o[0], o[1]); c.lineTo(m[0], m[1]); c.moveTo(o[0], o[1]); c.lineTo(h[0], h[1]); c.stroke();
+    }
+  };
   drawParts2(c, ax, ay, base, r, [
     { box: [0.15, 0.2, 1.85, 1.28], h: 18, col: stone, doors: [
       { face: '+v', a: 0.88, b: 1.12, z1: 10, color: '#5a3d2b' },
-      ...[0.3, 0.55, 1.35, 1.6].map(a => ({ face: '+v', a, b: a + 0.14, z0: 5, z1: 10, color: glass })),
-      ...[0.3, 0.55, 0.88, 1.35, 1.6].map(a => ({ face: '+v', a, b: a + 0.14, z0: 12, z1: 16, color: glass })),
-      ...[0.4, 0.8, 1.2].map(a => ({ face: '+u', a, b: a + 0.16, z0: 6, z1: 15, color: glass })),
+      ...win('+v', [0.25, 1.61], 4, 10), ...win('+v', [0.25, 0.55, 0.88, 1.31, 1.61], 12, 16),
+      ...win('-v', [0.25, 0.55, 0.88, 1.21, 1.51], 4, 10), ...win('-v', [0.25, 0.55, 0.88, 1.21, 1.51], 12, 16),
+      ...win('+u', [0.35, 0.67, 0.99], 4, 10), ...win('+u', [0.35, 0.67, 0.99], 12, 16),
+      ...win('-u', [0.35, 0.67, 0.99], 4, 10), ...win('-u', [0.35, 0.67, 0.99], 12, 16),
     ] },
     { group: [
       { box: [0.42, 1.28, 1.58, 1.58], h: 2, col: { l: '#d8d2c2', r: '#bdb6a6', t: '#e6e1d4', plain: true } },   // scalini
       ...cols,
       { box: [0.44, 1.28, 1.56, 1.5], h: 3, z: 15, col: stone, roof: { rh: 4, back: '#b9ad8e', roof: '#c9bfa5', gable: '#e6dcc0' } },   // frontone sopra le colonne
     ] },
-    { box: [0.78, 0.5, 1.22, 0.94], h: 16, z: 18, col: stone, roof: { rh: 7, back: '#4f6b8a', roof: '#5f7fa3', gable: '#d4c8a8' },
-      after(bx, top) {   // orologio sulla faccia che guarda lo schermo
-        if (!DETAIL) return;
-        const n = rotVec(0, 1, r), front = n[0] + n[1] > 0;
-        const fv = rotVec(1, 0, r), sideFront = fv[0] + fv[1] > 0;
-        if (!front && !sideFront) return;
-        const mid = [(bx[0] + bx[2]) / 2, (bx[1] + bx[3]) / 2];
-        const useV = front ? n : fv;
-        const fu = useV[0] > 0 ? bx[2] : useV[0] < 0 ? bx[0] : mid[0], fvv = useV[1] > 0 ? bx[3] : useV[1] < 0 ? bx[1] : mid[1];
-        const p = iso(ax, ay, fu, fvv, top - 5 / STEP);
-        c.fillStyle = '#ffffff'; c.strokeStyle = '#3a3a40'; c.lineWidth = 0.6;
-        c.beginPath(); c.ellipse(p[0], p[1], 2.4, 2.4, 0, 0, Math.PI * 2); c.fill(); c.stroke();
-        const a = animT * 0.2;
-        c.beginPath(); c.moveTo(p[0], p[1]); c.lineTo(p[0] + Math.cos(a) * 1.8, p[1] + Math.sin(a) * 1.8); c.moveTo(p[0], p[1]); c.lineTo(p[0], p[1] - 1.3); c.stroke();
-      } },
-    { box: [1.62, 0.32, 1.66, 0.36], h: 14, z: 18, col: { l: '#9aa0a8', r: '#7d838b', t: '#b4bac2', plain: true },
+    { box: [0.78, 0.5, 1.22, 0.94], h: 16, z: 18, col: stone, roof: { rh: 7, back: '#4f6b8a', roof: '#5f7fa3', gable: '#d4c8a8' }, after: clocks },
+    // asta della bandiera sulla punta del tetto della torre (sul tetto grande in una rotazione finiva davanti alla torre)
+    { box: [0.98, 0.7, 1.02, 0.74], h: 9, z: 37, col: { l: '#9aa0a8', r: '#7d838b', t: '#b4bac2', plain: true },
       after(bx, top) {   // bandiera che sventola
         const p = iso(ax, ay, bx[2], bx[3], top);
         const w = Math.sin(animT * 3) * 0.6; animSeen = true;
@@ -264,34 +270,43 @@ function drawTownHall(c, ax, ay, base, r) {
       } },
   ]);
 }
-// Stazione di polizia: edificio bianco con la fascia blu, il distintivo, le luci sul tetto e un'auto parcheggiata
+// Stazione di polizia: edificio bianco con la fascia blu su tutti i lati, il distintivo, le luci sul
+// tetto e la volante parcheggiata davanti (la stessa auto che gira per le strade, drawVehicle)
 function drawPolice(c, ax, ay, base, r) {
   groundRect(c, ax, ay, base, [0.1, 1.28, 1.9, 1.95], r, '#55585f');
   const blue = { l: '#2f55b0', r: '#24448e', t: '#3f6fd9', plain: true };
-  const car = { l: '#f4f4f4', r: '#cfd1d4', t: '#ffffff', plain: true };
+  const glass = '#9fc4e0', band = '#2f55b0';
+  const win = (face, list) => list.map(a => ({ face, a, b: a + 0.18, z0: 4, z1: 9, color: glass }));
   const blink = Math.floor(animT * 3) % 2;
   if (DETAIL) animSeen = true;
+  const red = blink ? { l: '#ff4d4d', r: '#d93636', t: '#ff8080', plain: true } : { l: '#5a2020', r: '#4a1a1a', t: '#6a2a2a', plain: true };
+  const blu = blink ? { l: '#2a3d70', r: '#22325c', t: '#2a3d70', plain: true } : { l: '#4d7dff', r: '#365ed9', t: '#80a4ff', plain: true };
+  const fwd = rotVec(1, 0, r);
   drawParts2(c, ax, ay, base, r, [
     { box: [0.15, 0.15, 1.85, 1.2], h: 16, col: { l: '#e9eef3', r: '#c7cfd8', t: '#8a919c' }, doors: [
+      { face: '+v', a: 0.15, b: 1.85, z0: 11, z1: 13, color: band }, { face: '-v', a: 0.15, b: 1.85, z0: 11, z1: 13, color: band },
+      { face: '+u', a: 0.15, b: 1.2, z0: 11, z1: 13, color: band }, { face: '-u', a: 0.15, b: 1.2, z0: 11, z1: 13, color: band },
       { face: '+v', a: 0.35, b: 0.7, z1: 9, color: '#2b3f6b' },
-      { face: '+v', a: 0.15, b: 1.85, z0: 11, z1: 13, color: '#2f55b0' },
-      ...[0.85, 1.15, 1.45].map(a => ({ face: '+v', a, b: a + 0.18, z0: 4, z1: 9, color: '#9fc4e0' })),
-      ...[0.35, 0.75].map(a => ({ face: '+u', a, b: a + 0.2, z0: 4, z1: 9, color: '#9fc4e0' })),
+      ...win('+v', [0.85, 1.15, 1.45]), ...win('-v', [0.35, 0.65, 0.95, 1.25, 1.55]),
+      ...win('+u', [0.3, 0.75]), ...win('-u', [0.3, 0.75]),
     ] },
-    { box: [0.7, 0.95, 1.3, 1.08], h: 4, z: 16, col: blue, after(bx, top) {   // insegna con il distintivo
-      const n = rotVec(0, 1, r); if (n[0] + n[1] <= 0 || !DETAIL) return;
-      const p = iso(ax, ay, (bx[0] + bx[2]) / 2, (bx[1] + bx[3]) / 2, top - 2 / STEP);
+    { box: [0.7, 0.95, 1.3, 1.08], h: 4, z: 16, col: blue, after(bx, top) {   // insegna con il distintivo, sulla faccia che si vede
+      if (!DETAIL) return;
+      const n = rotVec(0, 1, r), seen = (n[0] === 0 && n[1] === 1) || (n[0] === 1 && n[1] === 0);
+      if (!seen) return;
+      const fu = n[0] > 0 ? bx[2] : (bx[0] + bx[2]) / 2, fv = n[1] > 0 ? bx[3] : (bx[1] + bx[3]) / 2;
+      const p = iso(ax, ay, fu, fv, top - 2 / STEP);
       c.fillStyle = '#ffd966'; c.beginPath();
-      for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? 0.8 : 1.8; c.lineTo(p[0] + Math.cos(a) * rr, p[1] + 1.5 + Math.sin(a) * rr); }
+      for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? 0.8 : 1.8; c.lineTo(p[0] + Math.cos(a) * rr, p[1] + Math.sin(a) * rr); }
       c.closePath(); c.fill();
     } },
-    { box: [0.5, 0.45, 0.6, 0.55], h: 2, z: 16, col: blink ? { l: '#ff4d4d', r: '#d93636', t: '#ff8080', plain: true } : { l: '#5a2020', r: '#4a1a1a', t: '#6a2a2a', plain: true } },
-    { box: [0.62, 0.45, 0.72, 0.55], h: 2, z: 16, col: blink ? { l: '#2a3d70', r: '#22325c', t: '#2a3d70', plain: true } : { l: '#4d7dff', r: '#365ed9', t: '#80a4ff', plain: true } },
-    { group: [   // auto della polizia parcheggiata
-      { box: [1.2, 1.42, 1.78, 1.68], h: 3.6, z: 1, col: car },
-      { box: [1.32, 1.45, 1.6, 1.65], h: 2.6, z: 4.6, col: { l: '#8fc8e2', r: '#6fa6c2', t: '#ffffff', plain: true } },
-      { box: [1.42, 1.5, 1.5, 1.6], h: 1, z: 7.2, col: blink ? { l: '#ff4d4d', r: '#d93636', t: '#ff8080', plain: true } : { l: '#4d7dff', r: '#365ed9', t: '#80a4ff', plain: true } },
-    ] },
+    { box: [0.4, 0.4, 0.52, 0.52], h: 2, z: 16, col: red },
+    { box: [0.56, 0.4, 0.68, 0.52], h: 2, z: 16, col: blu },
+    { box: [1.4, 0.35, 1.44, 0.39], h: 10, z: 16, col: { l: '#9aa0a8', r: '#7d838b', t: '#b4bac2', plain: true } },   // antenna
+    { box: [1.22, 1.5, 1.78, 1.74], h: 7, draw(b) {   // volante parcheggiata davanti (vera auto della polizia)
+      const mx = ax + (b[0] + b[2]) / 2, my = ay + (b[1] + b[3]) / 2;
+      drawVehicle(c, { kind: 'police', color: '#f4f4f4', calm: true, pos: { mx, my, h: base }, pts: [[mx, my], [mx + fwd[0], my + fwd[1]]], seg: 0 });
+    } },
   ]);
 }
 // luci della sirena sull'auto della polizia (drawVehicle): rossa e blu che si alternano

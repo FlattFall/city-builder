@@ -545,10 +545,13 @@ function groundRect(c, ax, ay, base, bx, r, color) {
 }
 // porta/insegna su una faccia (+v o +u) della parte; si vede solo se dopo la rotazione guarda verso di noi
 function drawDoor(c, ax, ay, base, r, bx, d) {
-  const n = rotVec(d.face === '+u' ? 1 : 0, d.face === '+u' ? 0 : 1, r);
+  // facce: +u, -u, +v, -v (si vede solo se, girata, guarda verso lo schermo)
+  const onU = d.face[1] === 'u', sg = d.face[0] === '-' ? -1 : 1;
+  const n = rotVec(onU ? sg : 0, onU ? 0 : sg, r);
   if (!((n[0] === 0 && n[1] === 1) || (n[0] === 1 && n[1] === 0))) return;
-  const pa = d.face === '+u' ? [bx[2], d.a] : [d.a, bx[3]];
-  const pb = d.face === '+u' ? [bx[2], d.b] : [d.b, bx[3]];
+  const fu = sg > 0 ? bx[2] : bx[0], fv = sg > 0 ? bx[3] : bx[1];
+  const pa = onU ? [fu, d.a] : [d.a, fv];
+  const pb = onU ? [fu, d.b] : [d.b, fv];
   const A = rotUV(pa[0], pa[1], r), B = rotUV(pb[0], pb[1], r);
   const z0 = base + (d.z0 || 0) / STEP, z1 = base + d.z1 / STEP;
   const q = [iso(ax, ay, A[0], A[1], z0), iso(ax, ay, B[0], B[1], z0), iso(ax, ay, B[0], B[1], z1), iso(ax, ay, A[0], A[1], z1)];
@@ -576,13 +579,24 @@ function partBefore(A, B) {
   if (aBehind && !bBehind) return true;
   if (bBehind && !aBehind) return false;
   if (aBehind && bBehind) return A.i < B.i;       // non si coprono sullo schermo: ordine qualsiasi
+  // a terra si sovrappongono: un pezzo appoggiato sopra l'altro (torre, insegna, luci sul tetto)
+  // si disegna sempre dopo, se no il corpo dell'edificio lo copre in due rotazioni
+  if (A.p && B.p && A.p.h != null && B.p.h != null) {
+    const az = A.p.z || 0, bz = B.p.z || 0;
+    if (bz >= az + A.p.h - e) return true;
+    if (az >= bz + B.p.h - e) return false;
+  }
   return A.depth < B.depth || (A.depth === B.depth && A.i < B.i);
 }
 function sortParts(items) {
+  // Due pezzi che non si coprono (uno è dietro sull'asse u, l'altro sull'asse v) non creano un
+  // vincolo: prima davano un ordine per indice che poteva chiudere un giro (corpo -> antenna ->
+  // volante -> corpo) e allora il primo pezzo finiva disegnato a caso (la volante sopra il muro).
+  const e = 1e-6, free = (a, b) => (a.b[2] <= b.b[0] + e || a.b[3] <= b.b[1] + e) && (b.b[2] <= a.b[0] + e || b.b[3] <= a.b[1] + e);
   const left = items.slice(), out = [];
   while (left.length) {
-    let k = left.findIndex(a => !left.some(b => b !== a && partBefore(b, a)));
-    if (k < 0) k = 0;                              // (non dovrebbe succedere) si va avanti comunque
+    let k = left.findIndex(a => !left.some(b => b !== a && !free(a, b) && partBefore(b, a)));
+    if (k < 0) { k = 0; for (let j = 1; j < left.length; j++) if (left[j].depth < left[k].depth) k = j; }   // giro: il più lontano
     out.push(left.splice(k, 1)[0]);
   }
   return out;
