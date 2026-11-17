@@ -90,68 +90,195 @@ function destChoices(b) {
     .map(w => bySea(b, w) ? { w, ok: !!waterRoute(shipStarts(b), dockTiles(w)), sea: true } : { w, ok: !!findRoute(from, accessTiles(w)) });
 }
 
-// Destinazioni: se ne possono accendere più di una (clic per accendere/spegnere);
-// ogni merce va alla prima destinazione accesa che la accetta
-function destSection(box, b) {
-  box.appendChild(el('div', 'plabel', (b.kind === 'farm' ? TR('Dove portare il raccolto (anche più di una)') : isWarehouse(b) ? TR('Uscita: dove mandare le scorte (anche più di una)') : TR('Dove mandare la merce (anche più di una)'))));
-  // destinazioni divise per tipo (tutti i supermercati, tutti i magazzini...), richiesta dell'utente:
-  // ogni gruppo ha l'icona, quante sono accese, "Tutti"/"Nessuno" e si apre/chiude (aperto se ha poche voci
-  // o qualcuna accesa; la scelta resta finché il pannello è aperto)
-  const list = el('div', 'plist');
+// ---------- Pannello semplice (richiesta dell'utente: prima era troppo pieno di informazioni) ----------
+// In alto una riga di stato (va tutto bene, o il problema più importante con "Come fare?"), poi tre numeri
+// (lavoratori, livello, furgoni) e due schede: Produzione (cosa entra -> cosa esce) e Spedizioni
+// (solo le destinazioni scelte, le altre con "+ Aggiungi destinazione"). Le spiegazioni lunghe stanno nel Manuale.
+const panelTab = {};          // scheda aperta per tipo di edificio: 'prod' o 'ship'
+let destPickOpen = false;     // elenco "+ Aggiungi destinazione" aperto
+const STATUS_TITLE = { noWorkers: 'Senza lavoratori', fewWorkers: 'Pochi lavoratori', noRoad: 'Nessuna strada', full: 'Deposito pieno',
+  noInput: 'Mancano materie prime', empty: 'Scaffali vuoti', noWater: 'Senza acqua', noPower: 'Senza corrente' };
+const statusIconUrl = {};
+function statusIcon(st) {
+  if (!statusIconUrl[st]) { const c = document.createElement('canvas'); c.width = c.height = 32; const x = c.getContext('2d'); x.scale(2, 2); drawStatusIcon(x, st, 8, 8); statusIconUrl[st] = c.toDataURL(); }
+  return statusIconUrl[st];
+}
+function hasShipping(b) { return !!b.dests && destKindsOf(b).length > 0; }
+// la spiegazione del problema (quella che prima stava sempre scritta nel pannello)
+function statusHelp(b, st) {
+  if (st === 'noWorkers' || st === 'fewWorkers') return TR('Servono abitanti che vivano entro {n} tile per lavorare qui.', { n: jobRadiusOf(b.kind) });
+  if (st === 'noRoad') return b.kind !== 'house' ? TR("L'entrata non è collegata a una strada.") : !accessTiles(b).length ? TR('Nessuna strada accanto alla casa.') : TR('Non è collegata alla strada principale.');
+  if (st === 'full') return b.kind === 'farm' ? TR('Inventario pieno: la crescita è ferma.') : isProcessor(b) ? TR('Deposito prodotti pieno: scegli dove mandarli.') : TR('Deposito pieno: scegli dove mandare la merce.');
+  if (st === 'noInput') {
+    if (b.kind === 'busStop') return TR('🚌 Nessun deposito dei bus raggiunge questa fermata per strada.');
+    if (POWER[b.kind] && POWER[b.kind].fuel) return TR('Senza carbone è spenta: mandalo qui dalla carbonaia o mettilo in un magazzino merci.');
+    const L = natureOf(b);
+    if (L && L.trees) return TR('Nessun bosco vicino: mettila accanto a una foresta.');
+    return TR('Mancano materie prime: mandale qui da una fattoria o mettile in un magazzino.');
+  }
+  if (st === 'empty') return TR('Scaffali vuoti: mandagli merce o mettila in un magazzino.');
+  if (st === 'noWater') {
+    if (b.kind === 'sewage') return TR("Non collegato: trascina un tubo dell'acqua fino a una strada.");
+    if (b.kind === 'waterWell' || b.kind === 'waterPlant') return TR('Non collegata: serve una strada accanto.');
+    const n = waterNetOf(b);
+    const why = b.wnet == null ? TR('collegala a una strada (i tubi sono sotto le strade)')
+      : !n || !n.supply ? TR("serve un pozzo dell'acqua o un depuratore collegato alle stesse strade")
+      : !n.sewer ? TR('serve uno scarico delle acque sporche collegato alle stesse strade')
+      : TR("l'acqua non basta per tutti: costruisci altre fonti o scarichi");
+    return TR('💧 Senza acqua: {why}.', { why }) + ' ' + (b.kind === 'house' ? TR('La casa si riempie solo fino a {n} abitanti.', { n: WATER.dryHouse }) : TR('Lavora più piano ({n}%).', { n: Math.round(WATER.drySpeed * 100) }));
+  }
+  if (st === 'noPower') {
+    if (b.kind === 'substation') return b.hv == null ? TR('Manca il traliccio: mettine uno entro {n} tile.', { n: ELEC.linkRange }) : TR('Non collegata alla bassa tensione: mettila accanto a una strada o a un palo della luce entro {n} tile.', { n: ELEC.poleReach });
+    if (POWER[b.kind]) return TR('Non collegata: serve una strada accanto o un palo della luce entro {n} tile.', { n: ELEC.poleReach });
+    return b.lv == null ? TR('⚡ Senza corrente: collegala a una strada (i cavi sono sotto le strade) o a un palo della luce.') : TR('⚡ Senza corrente: la sua rete non ha centrali né collegamento fuori mappa.');
+  }
+  return '';
+}
+function statusSection(box, b) {
+  const row = el('div', 'pstatus'), img = el('img', 'pstatus-ic'), txt = el('span', 'pstatus-txt'), fix = el('button', 'pfix', TR('Come fare?'));
+  const help = el('div', 'pnote phelp');
+  let open = false;
+  const upd = () => {
+    const st = buildingStatus(b);
+    row.className = 'pstatus ' + (st ? 'warn' : 'ok');
+    img.hidden = !st; if (st) img.src = statusIcon(st);
+    const t = st ? TR(STATUS_TITLE[st]) : b.kind === 'house' || BUILDINGS[b.kind].infra ? '✓ ' + TR('Tutto a posto') : '✓ ' + TR('Al lavoro: tutto a posto');
+    if (txt.textContent !== t) txt.textContent = t;
+    fix.hidden = !st;
+    const h = st ? statusHelp(b, st) : '';
+    if (help.textContent !== h) help.textContent = h;
+    help.hidden = !st || !open;
+  };
+  fix.addEventListener('click', () => { open = !open; upd(); });
+  row.append(img, txt, fix);
+  upd(); panelLive.push(upd);
+  box.append(row, help);
+}
+// tre numeri: lavoratori, livello (con Migliora), furgoni (con +)
+function chipsSection(box, b) {
+  const items = [];
+  const chip = (label, valFn, btn) => { const c = el('div', 'pchip'); c.append(el('span', null, label), liveText('b', null, valFn)); if (btn) c.appendChild(btn); items.push(c); return c; };
+  if (JOBS[b.kind]) chip(TR('Lavoratori'), () => (b.workers || 0) + '/' + JOBS[b.kind]);
+  if (canUpgrade(b)) {
+    const lv = b.level || 0;
+    let up = null;
+    if (lv < UPGRADE.max) {
+      up = el('button', 'pbuy pupgrade', TR('Migliora'));
+      up.appendChild(el('small', 'pcost', money(upgradeCost(b))));
+      up.title = TR('Poi lavora a velocità x{n}', { n: UPGRADE.speed[lv + 1].toLocaleString(LOCALE()) }) + (b.kind === 'livestock' ? ' - ' + TR('più animali') : '');
+      up.addEventListener('click', () => { const r = buyUpgrade(b); if (r.msg) toast(r.msg); renderPanel(); });
+    }
+    chip(TR('Livello'), () => '★'.repeat(lv) + '☆'.repeat(UPGRADE.max - lv), up).classList.add('pstars');
+  }
+  if (hasShipping(b)) {
+    const ship = BUILDINGS[b.kind].water;
+    let buy = null;
+    if (vanCount(b) < VANS_MAX) {
+      buy = el('button', 'pbuy', '+ ' + TR('Compra'));
+      buy.appendChild(el('small', 'pcost', money(VAN_PRICE)));
+      buy.title = TR(ship ? '+ Compra una nave ({m})' : '+ Compra un furgone ({m})', { m: money(VAN_PRICE) });
+      buy.addEventListener('click', () => { const r = buyVan(b); if (r.msg) toast(r.msg); b.retry = 0; renderPanel(); });
+    }
+    chip(TR(ship ? 'Navi' : 'Furgoni'), () => vanCount(b) + '/' + VANS_MAX, buy);
+  }
+  if (!items.length) return;
+  const row = el('div', 'pchips');
+  row.style.gridTemplateColumns = 'repeat(' + items.length + ', 1fr)';
+  row.append(...items);
+  box.appendChild(row);
+}
+// cosa entra -> cosa esce
+function flowBox(left, right) {
+  const f = el('div', 'pflow');
+  const a = el('div', 'pflow-col'), c = el('div', 'pflow-col');
+  a.appendChild(left); c.appendChild(right);
+  f.append(a, el('span', 'parrow', '→'), c);
+  return f;
+}
+// barra con due scritte sotto (a sinistra e a destra), che si aggiornano
+function barWithLabels(valueFn, max, leftFn, rightFn) {
+  const w = el('div');
+  w.appendChild(bar(valueFn, max));
+  const l = el('div', 'pbarlbl');
+  l.append(liveText('span', null, leftFn), liveText('span', null, rightFn || (() => '')));
+  w.appendChild(l);
+  return w;
+}
+// pulsante con solo l'icona (il nome compare passando sopra; resta nascosto nel testo per chi non vede)
+function iconChoice(g, name, cls) {
+  const btn = el('button', 'pchoice picon' + (cls ? ' ' + cls : ''));
+  btn.title = name;
+  btn.append(goodImg(g), el('span', 'psr', name));
+  return btn;
+}
+
+// Spedizioni: le destinazioni scelte (con distanza e ✕), "+ Aggiungi destinazione" con le altre divise per tipo,
+// i furgoni (verde = in viaggio) e, se due destinazioni prendono la stessa merce, le percentuali
+function shipSection(box, b) {
   const choices = destChoices(b);
-  const byKind = new Map();
-  for (const ch of choices) { if (!byKind.has(ch.w.kind)) byKind.set(ch.w.kind, []); byKind.get(ch.w.kind).push(ch); }
   const setDests = ids => { b.dests = ids; cleanSplit(b); b.retry = 0; b.status = ''; game.dirty = true; renderPanel(); };
-  for (const [kind, group] of byKind) {
-    group.sort((p, q) => Math.hypot(p.w.ax - b.ax, p.w.ay - b.ay) - Math.hypot(q.w.ax - b.ax, q.w.ay - b.ay));
-    const nOn = group.filter(ch => b.dests.includes(ch.w.id)).length;
-    const det = el('details', 'pgroup');
-    const key = b.id + ':' + kind;
-    det.open = destGroupOpen.has(key) ? destGroupOpen.get(key) : (group.length <= 3 || nOn > 0);
-    det.addEventListener('toggle', () => destGroupOpen.set(key, det.open));
-    const sum = el('summary', 'pgroup-head');
-    const ic = document.createElement('img'); ic.src = ICONS[kind] || ''; ic.alt = '';
-    sum.append(ic, el('span', 'pgroup-name', BUILDINGS[kind].name), el('span', 'pgroup-count' + (nOn ? ' on' : ''), nOn + '/' + group.length));
-    if (group.length > 1) {
-      const all = el('button', 'pgroup-all', nOn === group.length ? TR('Nessuno') : TR('Tutti'));
-      all.addEventListener('click', e => {
-        e.preventDefault(); e.stopPropagation();
-        const ids = group.map(ch => ch.w.id);
-        setDests(nOn === group.length ? b.dests.filter(id => !ids.includes(id)) : [...new Set(b.dests.concat(group.filter(ch => ch.ok).map(ch => ch.w.id)))]);
-      });
-      sum.appendChild(all);
-    }
-    det.appendChild(sum);
-    const inner = el('div', 'pgroup-list');
-    for (const { w, ok, sea } of group) {
-      const on = b.dests.includes(w.id);
-      // niente numeri: il nome e la distanza (così due edifici uguali si distinguono)
-      const dist = Math.round(Math.hypot(w.ax - b.ax, w.ay - b.ay));
-      const btn = el('button', 'pchoice pdest' + (on ? ' active' : ''));
-      btn.append(el('span', 'pcheck', on ? '✔' : ''), el('span', 'pdest-name', buildingName(w) + (sea ? ' ' + TR('(via mare)') : '')),
-        el('span', 'pdest-dist', ok ? TR('{n} tile', { n: dist }) : sea ? TR("nessuna via d'acqua") : TR('nessuna strada')));
-      if (!ok) btn.classList.add('bad');
-      btn.addEventListener('click', () => setDests(on ? b.dests.filter(id => id !== w.id) : b.dests.concat(w.id)));
-      inner.appendChild(btn);
-    }
-    det.appendChild(inner);
-    list.appendChild(det);
+  const distOf = w => Math.round(Math.hypot(w.ax - b.ax, w.ay - b.ay));
+  const whereText = ({ w, ok, sea }) => ok ? TR('{n} tile', { n: distOf(w) }) : sea ? TR("nessuna via d'acqua") : TR('nessuna strada');
+  const chosen = b.dests.map(id => choices.find(ch => ch.w.id === id)).filter(Boolean);
+  const goods = goodsOut(b), one = goods.length === 1 && b.split && b.split[goods[0]];
+  if (!chosen.length) box.appendChild(el('div', 'pnote', TR('Nessuna destinazione: la merce resta qui.')));
+  for (const ch of chosen) {
+    const row = el('div', 'pdest-row' + (ch.ok ? '' : ' bad'));
+    const ic = el('img'); ic.src = ICONS[ch.w.kind] || ''; ic.alt = '';
+    row.append(ic, el('span', 'pdest-name', buildingName(ch.w) + (ch.sea ? ' 🚢' : '')), el('small', null, whereText(ch)));
+    if (one) row.appendChild(el('b', 'pdest-pct', (one[ch.w.id] || 0) + '%'));
+    const x = el('button', 'pdest-x', '✕'); x.title = TR('Togli');
+    x.addEventListener('click', () => setDests(b.dests.filter(id => id !== ch.w.id)));
+    row.appendChild(x);
+    box.appendChild(row);
   }
-  box.appendChild(list);
-  if (!choices.length) box.appendChild(el('div', 'pnote', TR('Costruisci {list}.', { list: destKindsOf(b).map(k => BUILDINGS[k].name.toLowerCase()).join(', ') })));
-  if (b.dests.length) box.appendChild(liveText('div', 'pnote', () => b.status || (b.van ? TR('Furgone in viaggio') : TR('Il furgone parte con almeno {n} unità', { n: VAN_MIN_LOAD }))));
-  box.appendChild(liveText('div', 'pnote', () => { const n = vehicles.filter(v => v.from === b.id).length; return n ? TR('In giro adesso: {n} (sulla mappa collegati con una linea azzurra)', { n }) : ''; }));
-  // furgoni: si parte con 2, se ne comprano altri fino a 4
-  const ship = BUILDINGS[b.kind].water;
-  const vr = el('div', 'prow pvans');
-  vr.appendChild(el('span', null, TR(ship ? 'Navi: {a} / {b}' : 'Furgoni: {a} / {b}', { a: vanCount(b), b: VANS_MAX })));
-  if (vanCount(b) < VANS_MAX) {
-    const buy = el('button', 'pchoice pbuy', TR(ship ? '+ Compra una nave ({m})' : '+ Compra un furgone ({m})', { m: money(VAN_PRICE) }));
-    buy.addEventListener('click', () => { const r = buyVan(b); if (r.msg) toast(r.msg); b.retry = 0; renderPanel(); });
-    vr.appendChild(buy);
-  }
+  const others = choices.filter(ch => !b.dests.includes(ch.w.id));
+  if (others.length) {
+    const open = destPickOpen || !chosen.length;
+    const add = el('button', 'padd' + (open ? ' open' : ''), TR('+ Aggiungi destinazione'));
+    add.addEventListener('click', () => { destPickOpen = !open; renderPanel(); });
+    box.appendChild(add);
+    if (open) {
+      const pick = el('div', 'ppick');
+      const byKind = new Map();
+      for (const ch of others) { if (!byKind.has(ch.w.kind)) byKind.set(ch.w.kind, []); byKind.get(ch.w.kind).push(ch); }
+      for (const [kind, group] of byKind) {
+        group.sort((p, q) => distOf(p.w) - distOf(q.w));
+        const head = el('div', 'ppick-head'); const ic = el('img'); ic.src = ICONS[kind] || ''; ic.alt = '';
+        head.append(ic, el('span', null, BUILDINGS[kind].name));
+        if (group.length > 1) {
+          const all = el('button', 'pgroup-all', TR('Tutti'));
+          all.addEventListener('click', () => setDests([...new Set(b.dests.concat(group.filter(ch => ch.ok).map(ch => ch.w.id)))]));
+          head.appendChild(all);
+        }
+        pick.appendChild(head);
+        for (const ch of group) {
+          const it = el('button', 'pchoice pdest' + (ch.ok ? '' : ' bad'));
+          it.append(el('span', 'pdest-name', buildingName(ch.w) + (ch.sea ? ' 🚢' : '')), el('span', 'pdest-dist', whereText(ch)));
+          it.addEventListener('click', () => { destPickOpen = false; setDests(b.dests.concat(ch.w.id)); });
+          pick.appendChild(it);
+        }
+      }
+      box.appendChild(pick);
+    }
+  } else if (!choices.length) box.appendChild(el('div', 'pnote', TR('Costruisci {list}.', { list: destKindsOf(b).map(k => BUILDINGS[k].name.toLowerCase()).join(', ') })));
+  // furgoni: un rettangolino per ognuno (verde = in viaggio), i posti liberi tratteggiati
+  const vr = el('div', 'pvanrow');
+  vr.appendChild(el('span', null, TR(BUILDINGS[b.kind].water ? 'Navi' : 'Furgoni') + ':'));
+  const boxes = [];
+  for (let i = 0; i < VANS_MAX; i++) { const v = el('i', 'pvan'); boxes.push(v); vr.appendChild(v); }
+  const info = el('small');
+  vr.appendChild(info);
+  const upd = () => {
+    const out = vehicles.filter(v => v.from === b.id).length, n = vanCount(b);
+    boxes.forEach((v, i) => { v.className = 'pvan' + (i >= n ? ' empty' : i < out ? ' out' : ''); });
+    const t = b.status || (out ? TR('{n} in viaggio', { n: out }) : b.dests.length ? TR('Il furgone parte con almeno {n} unità', { n: VAN_MIN_LOAD }) : '');
+    if (info.textContent !== t) info.textContent = t;
+  };
+  upd(); panelLive.push(upd);
   box.appendChild(vr);
-  splitSection(box, b);
+  // percentuali: solo quando due destinazioni accese prendono la stessa merce
+  if (goods.some(g => b.dests.filter(id => { const w = game.buildings.get(id); return w && takesGood(w, g); }).length >= 2)) splitSection(box, b);
 }
 
 // Merci che escono da un edificio (per la distribuzione)
@@ -296,6 +423,7 @@ function renderPanel() {
   const b = game.selected && game.buildings.get(game.selected);
   const box = document.getElementById('panel');
   if (!b) { closePanel(); return; }
+  const scroll = box.scrollTop;
   box.textContent = '';
   panelLive = [];
   panelShape = panelShapeOf(b);
@@ -330,57 +458,50 @@ function renderPanel() {
   head.appendChild(x);
   box.appendChild(head);
 
+  statusSection(box, b);
+  chipsSection(box, b);
+
+  // schede: Produzione (o Scorte) e Spedizioni, solo per chi manda merce da qualche parte
+  let prod = box;
+  if (hasShipping(b)) {
+    const tab = panelTab[b.kind] || 'prod';
+    const tabs = el('div', 'ptabs');
+    prod = el('div', 'ptab' + (tab === 'prod' ? ' on' : ''));
+    const ship = el('div', 'ptab' + (tab === 'ship' ? ' on' : ''));
+    for (const [id, label] of [['prod', isWarehouse(b) ? TR('Scorte') : TR('Produzione')], ['ship', TR('Spedizioni')]]) {
+      const t = el('button', 'ptabbtn' + (tab === id ? ' on' : ''), label);
+      t.dataset.tab = id;
+      if (id === 'ship') { const n = b.dests.length; t.appendChild(el('small', 'ptab-n', String(n))); }
+      t.addEventListener('click', () => { panelTab[b.kind] = id; renderPanel(); });
+      tabs.appendChild(t);
+    }
+    box.append(tabs, prod, ship);
+    shipSection(ship, b);
+  }
+
   if (b.kind === 'house') {
-    box.appendChild(liveText('div', 'prow', () => TR('Abitanti: {a} / {b}', { a: b.residents, b: houseCap(b) })));
-    box.appendChild(bar(() => b.residents, HOUSE_CAPACITY));
-    if (b.incoming) box.appendChild(liveText('div', 'pnote', () => TR('In arrivo: {n}', { n: b.incoming })));
-    if (!accessTiles(b).length) box.appendChild(el('div', 'pwarn', TR('Nessuna strada accanto alla casa.')));
-    else if (b.unreachable) box.appendChild(el('div', 'pwarn', TR('Non è collegata alla strada principale.')));
-    else if (b.residents >= HOUSE_CAPACITY) box.appendChild(el('div', 'pnote', TR('Casa piena.')));
+    box.appendChild(barWithLabels(() => b.residents, HOUSE_CAPACITY, () => TR('Abitanti: {a} / {b}', { a: b.residents, b: houseCap(b) }), () => b.incoming ? TR('In arrivo: {n}', { n: b.incoming }) : ''));
     box.appendChild(liveText('div', 'pnote', () => TR('Lavorano: {a} - disoccupati: {b}', { a: b.employed || 0, b: Math.max(0, b.residents - (b.employed || 0)) })));
   }
 
-  if (JOBS[b.kind]) {
-    box.appendChild(liveText('div', 'prow', () => TR('Lavoratori: {a} / {b}', { a: b.workers || 0, b: JOBS[b.kind] })));
-    box.appendChild(bar(() => b.workers || 0, JOBS[b.kind]));
-    box.appendChild(liveText('div', 'pwarn', () => (b.workers || 0) >= JOBS[b.kind] ? '' :
-      TR('Servono abitanti che vivano entro {n} tile per lavorare qui.', { n: jobRadiusOf(b.kind) })));
-    if (!accessTiles(b).length) box.appendChild(el('div', 'pwarn', TR("L'entrata non è collegata a una strada.")));
-  }
-  if (canUpgrade(b)) {   // miglioramenti: fino a 3, ognuno fa lavorare più in fretta
-    const lv = b.level || 0, row = el('div', 'prow pvans');
-    row.appendChild(el('span', null, TR('Miglioramenti:') + ' ' + '★'.repeat(lv) + '☆'.repeat(UPGRADE.max - lv) +
-      ' ' + TR('(velocità x{n})', { n: UPGRADE.speed[lv].toLocaleString(LOCALE()) })));
-    if (lv < UPGRADE.max) {
-      const up = el('button', 'pchoice pbuy pupgrade', TR('Migliora ({m})', { m: money(upgradeCost(b)) }));
-      up.title = TR('Poi lavora a velocità x{n}', { n: UPGRADE.speed[lv + 1].toLocaleString(LOCALE()) }) + (b.kind === 'livestock' ? ' - ' + TR('più animali') : '');
-      up.addEventListener('click', () => { const r = buyUpgrade(b); if (r.msg) toast(r.msg); renderPanel(); });
-      row.appendChild(up);
-    }
-    box.appendChild(row);
-  }
-
   if (isWarehouse(b)) {
-    box.appendChild(liveText('div', 'prow', () => TR('Scorte: {a} / {b}', { a: sumOf(b.store), b: CAPS[b.kind].store })));
-    box.appendChild(bar(() => sumOf(b.store), CAPS[b.kind].store));
-    box.appendChild(goodsList(() => b.store, TR('Vuoto.')));
-    // cosa accetta: in una finestra a parte che si apre e si chiude (richiesta dell'utente: occupava troppo spazio)
+    prod.appendChild(goodsList(() => b.store, TR('Vuoto.')));
+    prod.appendChild(barWithLabels(() => sumOf(b.store), CAPS[b.kind].store, () => TR('Scorte: {a} / {b}', { a: sumOf(b.store), b: CAPS[b.kind].store })));
     const takes = Object.keys(GOODS).filter(g => warehouseTakes(b.kind, g));
-    box.appendChild(subButton('accept', TR('Cosa accetta ({a} di {b})', { a: takes.filter(g => b.accept[g] !== false).length, b: takes.length })));
-    if (b.kind === 'port' && !dockTiles(b).length) box.appendChild(el('div', 'pwarn', TR("Dietro il porto non c'è acqua: le navi non possono attraccare.")));
-    box.appendChild(el('div', 'pnote', b.kind === 'port' ? TR('Magazzino marittimo: tutte le merci. Le navi arrivano dalle piattaforme e dagli altri porti; scegli un altro porto come destinazione per mandarci la merce in nave.') : b.kind === 'warehouse' ? TR('Solo cibo e animali. Manda la merce solo agli edifici che scegli qui sotto come uscita.')
-      : TR('Solo merci (legno, mobili, cotone, lana, tessuti, vestiti, energia). Manda la merce solo agli edifici che scegli qui sotto come uscita.')));
-    destSection(box, b);   // uscita: dove mandare le scorte
+    prod.appendChild(subButton('accept', TR('Cosa accetta ({a} di {b})', { a: takes.filter(g => b.accept[g] !== false).length, b: takes.length })));
+    if (b.kind === 'port' && !dockTiles(b).length) prod.appendChild(el('div', 'pwarn', TR("Dietro il porto non c'è acqua: le navi non possono attraccare.")));
   }
 
   if (b.kind === 'farm') {
-    box.appendChild(el('div', 'plabel', TR('Cosa coltivare')));
-    const crops = el('div', 'pchoices pwrap');
+    const left = el('div', 'pgood');
+    if (b.crop) left.append(goodImg(b.crop), el('span', null, TR('Campi: {n}', { n: b.fields })));
+    prod.appendChild(flowBox(left, goodsList(() => b.store, TR('Ancora niente raccolto.'))));
+    prod.appendChild(barWithLabels(() => b.growth, 1, () => TR('Crescita: {n}%', { n: Math.floor(b.growth * 100) }), () => TR('Inventario: {a} / {b}', { a: sumOf(b.store), b: farmCap(b) })));
+    const crops = el('div', 'picons');
     for (const [id, c] of Object.entries(CROPS)) {
       const locked = cropLocked(id);
-      const btn = el('button', 'pchoice' + (b.crop === id ? ' active' : '') + (locked ? ' locked' : ''));
-      btn.append(goodImg(id), el('span', null, (locked ? '🔒 ' : '') + c.name));
-      if (locked) btn.title = TR('Bloccato: sbloccalo nei Progressi (P)');
+      const btn = iconChoice(id, (locked ? '🔒 ' : '') + c.name, (b.crop === id ? 'active' : '') + (locked ? ' locked' : ''));
+      if (locked) btn.title = c.name + ' - ' + TR('Bloccato: sbloccalo nei Progressi (P)');
       btn.addEventListener('click', () => {
         if (locked) { openProgress(UNLOCKS.find(u => u.crops && u.crops.includes(id)).id); return; }
         if (b.crop !== id) { b.crop = id; b.growth = 0; game.dirty = true; } // si riparte dalla semina
@@ -388,138 +509,93 @@ function renderPanel() {
       });
       crops.appendChild(btn);
     }
-    box.appendChild(crops);
-
+    prod.appendChild(crops);
     const fr = el('div', 'prow', TR('Campi: {n}', { n: b.fields }) + ' ');
-    const add = el('button', 'psmall', TR('Aggiungi campi'));
+    const add = el('button', 'psmall', '+ ' + TR('Aggiungi campi'));
     add.addEventListener('click', () => enterFieldMode(b));
     fr.appendChild(add);
-    box.appendChild(fr);
-    if (!b.fields) box.appendChild(el('div', 'pwarn', TR('Senza campi la fattoria non produce.')));
-
-    box.appendChild(liveText('div', 'prow', () => TR('Crescita: {n}%', { n: Math.floor(b.growth * 100) })));
-    box.appendChild(el('div', 'pnote', TR('Raccolto: {n} unità ({f} campi) ogni {s} s con tutto il personale', { n: b.fields * FARM.yieldPerField, f: b.fields, s: FARM.cycleSec })));
-    box.appendChild(bar(() => b.growth, 1));
-    box.appendChild(liveText('div', 'prow', () => TR('Inventario: {a} / {b}', { a: sumOf(b.store), b: farmCap(b) })));
-    box.appendChild(bar(() => sumOf(b.store), farmCap(b)));
-    box.appendChild(goodsList(() => b.store, TR('Ancora niente raccolto.')));
-    box.appendChild(liveText('div', 'pwarn', () => b.full ? TR('Inventario pieno: la crescita è ferma.') : ''));
-    destSection(box, b);
+    prod.appendChild(fr);
+    if (!b.fields) prod.appendChild(el('div', 'pwarn', TR('Senza campi la fattoria non produce.')));
   }
 
   if (b.kind === 'livestock') {
-    box.appendChild(el('div', 'plabel', TR('Cosa allevare')));
-    const row = el('div', 'pchoices pwrap');
+    const row = el('div', 'picons');
     for (const [a, A] of Object.entries(LIVESTOCK)) {
       const ok = animalAllowed(b, a);
-      const btn = el('button', 'pchoice' + (b.animal === a ? ' active' : '') + (ok ? '' : ' bad'));
-      btn.append(goodImg(A.icon), el('span', null, A.animal));
-      btn.title = ok ? TR('Produce: {list}', { list: Object.keys(A.out).map(g => GOODS[g].name.toLowerCase()).join(', ') }) : TR("Qui non c'è erba: solo pecore");
+      const btn = iconChoice(A.icon, A.animal, (b.animal === a ? 'active' : '') + (ok ? '' : ' bad'));
+      btn.title = A.animal + ' - ' + (ok ? TR('Produce: {list}', { list: Object.keys(A.out).map(g => GOODS[g].name.toLowerCase()).join(', ') }) : TR("Qui non c'è erba: solo pecore"));
       btn.addEventListener('click', () => { if (setAnimal(b, a)) { game.dirty = true; renderPanel(); requestDraw(); } else toast(TR("In montagna e sulla sabbia non c'è erba: qui solo pecore")); });
       row.appendChild(btn);
     }
-    box.appendChild(row);
+    prod.appendChild(row);
   }
 
   if (natureOf(b)) {
     const L = natureOf(b);
-    if (L.oil) {
-      box.appendChild(liveText('div', 'prow', () => TR('Giacimento: {n}% (produce in proporzione)', { n: Math.round((b.oil ?? oilUnder(b.kind, b.ax, b.ay)) * 100) })));
-      if (BUILDINGS[b.kind].water) box.appendChild(el('div', 'pnote', TR('Il personale vive a bordo. Scegli un porto come destinazione: una nave porta il petrolio.')));
-    }
-    if (L.trees) {
-      box.appendChild(liveText('div', 'prow', () => TR('Alberi nella zona: {n} - produzione {p}% (100% con {m} alberi, fino a 150%)', { n: b.trees || 0, p: Math.round(forestRatio(b, L) * 100), m: L.trees })));
-      box.appendChild(liveText('div', 'pwarn', () => !b.trees ? TR('Nessun bosco vicino: mettila accanto a una foresta.') : ''));
-    }
-    const prod = el('div', 'prow', TR('Produce:') + ' ');
-    for (const [g, q] of Object.entries(L.out)) { prod.appendChild(goodImg(g)); prod.appendChild(el('span', 'pdim', q + ' ')); }
-    prod.appendChild(el('span', 'pdim', TR('ogni {n} s', { n: L.every })));
-    box.appendChild(prod);
-    box.appendChild(liveText('div', 'prow', () => TR('Prossima produzione: {n}%', { n: Math.floor((b.growth || 0) * 100) })));
-    box.appendChild(bar(() => b.growth || 0, 1));
-    box.appendChild(liveText('div', 'prow', () => TR('Deposito: {a} / {b}', { a: sumOf(b.store), b: CAPS[b.kind].store })));
-    box.appendChild(goodsList(() => b.store, TR('Ancora niente.')));
-    box.appendChild(liveText('div', 'pwarn', () => b.full ? TR('Deposito pieno: scegli dove mandare la merce.') : ''));
-    destSection(box, b);
+    const left = el('div', 'pflow-make');
+    for (const [g, q] of Object.entries(L.out)) { left.appendChild(goodImg(g)); left.appendChild(el('span', 'pdim', q + ' ')); }
+    left.appendChild(el('span', 'pdim', TR('ogni {n} s', { n: L.every })));
+    prod.prepend(flowBox(left, goodsList(() => b.store, TR('Ancora niente.'))));
+    prod.appendChild(barWithLabels(() => b.growth || 0, 1, () => TR('Prossima produzione: {n}%', { n: Math.floor((b.growth || 0) * 100) }), () => TR('Deposito: {a} / {b}', { a: sumOf(b.store), b: CAPS[b.kind].store })));
+    if (L.oil) prod.appendChild(liveText('div', 'pnote', () => TR('Giacimento: {n}% (produce in proporzione)', { n: Math.round((b.oil ?? oilUnder(b.kind, b.ax, b.ay)) * 100) })));
+    if (L.trees) prod.appendChild(liveText('div', 'pnote', () => TR('Alberi nella zona: {n} - produzione {p}% (100% con {m} alberi, fino a 150%)', { n: b.trees || 0, p: Math.round(forestRatio(b, L) * 100), m: L.trees })));
   }
 
   if (isProcessor(b)) {
-    const recs = RECIPES[b.kind];
-    box.appendChild(subButton('recipes', TR('Ricette ({a} di {b} accese)', { a: recs.filter(r => b.recipes[r.out] !== false).length, b: recs.length })));
-    box.appendChild(liveText('div', 'prow', () => TR('Materie prime: {a} / {b}', { a: sumOf(b.input), b: CAPS[b.kind].input })));
-    box.appendChild(goodsList(() => b.input, TR('Nessuna materia prima.')));
-    box.appendChild(liveText('div', 'prow', () => TR('Prodotti pronti: {a} / {b}', { a: sumOf(b.store), b: CAPS[b.kind].store })));
-    box.appendChild(bar(() => sumOf(b.store), CAPS[b.kind].store));
-    box.appendChild(goodsList(() => b.store, TR('Ancora niente.')));
-    box.appendChild(liveText('div', 'pwarn', () => b.full ? TR('Deposito prodotti pieno: scegli dove mandarli.') :
-      b.noInput ? TR('Mancano materie prime: mandale qui da una fattoria o mettile in un magazzino.') : ''));
-    destSection(box, b);
+    prod.appendChild(flowBox(goodsList(() => b.input, TR('Nessuna materia prima.')), goodsList(() => b.store, TR('Ancora niente.'))));
+    prod.appendChild(barWithLabels(() => sumOf(b.store), CAPS[b.kind].store, () => TR('Materie prime: {a} / {b}', { a: sumOf(b.input), b: CAPS[b.kind].input }), () => TR('Prodotti pronti: {a} / {b}', { a: sumOf(b.store), b: CAPS[b.kind].store })));
+    prod.appendChild(el('div', 'plabel', TR('Ricette')));
+    const recs = el('div', 'picons');
+    for (const r of RECIPES[b.kind]) {
+      const on = b.recipes[r.out] !== false;
+      const btn = iconChoice(r.out, GOODS[r.out].name, (on ? 'active' : 'off') + ' precipe-ico');
+      btn.title = GOODS[r.out].name + ' ← ' + Object.entries(r.in).map(([g, n]) => (n > 1 ? n + 'x ' : '') + GOODS[g].name).join(' + ') + ' - ' + TR('Clic per accendere o spegnere');
+      btn.addEventListener('click', () => { b.recipes[r.out] = !on; game.dirty = true; renderPanel(); });
+      recs.appendChild(btn);
+    }
+    prod.appendChild(recs);
   }
 
   if (POWER[b.kind]) {
     const P = POWER[b.kind];
-    box.appendChild(liveText('div', 'prow', () => TR('Energia prodotta: {n}', { n: b.power || 0 }) + (P.perLevel ? ' ' + TR('(quota {n})', { n: game.map[b.ay][b.ax].elev }) : '')));
-    if (P.fuel) {
-      box.appendChild(liveText('div', 'prow', () => GOODS[P.fuel].name + ': ' + ((b.input || {})[P.fuel] || 0) + ' / ' + CAPS[b.kind].input + ' ' + TR('(1 ogni {n} s)', { n: P.burn })));
-      box.appendChild(bar(() => (b.input || {})[P.fuel] || 0, CAPS[b.kind].input));
-      box.appendChild(liveText('div', 'pwarn', () => b.noInput ? TR('Senza carbone è spenta: mandalo qui dalla carbonaia o mettilo in un magazzino merci.') : ''));
-    }
-    netSection(box, b);
+    prod.appendChild(liveText('div', 'prow', () => TR('Energia prodotta: {n}', { n: b.power || 0 }) + (P.perLevel ? ' ' + TR('(quota {n})', { n: game.map[b.ay][b.ax].elev }) : '')));
+    if (P.fuel) prod.appendChild(barWithLabels(() => (b.input || {})[P.fuel] || 0, CAPS[b.kind].input, () => GOODS[P.fuel].name + ': ' + ((b.input || {})[P.fuel] || 0) + ' / ' + CAPS[b.kind].input, () => TR('(1 ogni {n} s)', { n: P.burn })));
+    netSection(prod, b);
   }
   if (b.kind === 'pylon' || b.kind === 'pole' || b.kind === 'substation') netSection(box, b);
 
   if (COUNTER[b.kind]) {   // panificio: vende anche al banco
     const C = COUNTER[b.kind];
-    box.appendChild(el('div', 'plabel', TR('Vendita al banco')));
-    box.appendChild(liveText('div', 'prow', () => TR('Clienti (abitanti entro {r} tile): {n}', { r: C.radius, n: b.customers || 0 })));
-    box.appendChild(liveText('div', 'prow', () => TR('Venduti: {n} - tasse incassate: {m}', { n: b.sold || 0, m: money(b.taxes || 0) })));
-    box.appendChild(el('div', 'pnote', TR('Vende pane, biscotti e torte agli abitanti vicini; quello che avanza va alle destinazioni.')));
+    prod.appendChild(el('div', 'plabel', TR('Vendita al banco')));
+    prod.appendChild(liveText('div', 'pnote', () => TR('Clienti (abitanti entro {r} tile): {n}', { r: C.radius, n: b.customers || 0 })));
+    prod.appendChild(liveText('div', 'pnote', () => TR('Venduti: {n} - tasse incassate: {m}', { n: b.sold || 0, m: money(b.taxes || 0) })));
   }
   if (SHOPS[b.kind]) {
     const S = SHOPS[b.kind], cap = CAPS[b.kind].store;
-    box.appendChild(liveText('div', 'prow', () => TR('Clienti (abitanti entro {r} tile): {n}', { r: S.radius, n: b.customers || 0 })));
-    box.appendChild(liveText('div', 'prow', () => TR('Venduti: {n} - tasse incassate: {m}', { n: b.sold, m: money(b.taxes) })));
-    box.appendChild(liveText('div', 'prow', () => TR('Scaffali: {a} / {b}', { a: sumOf(b.store), b: cap })));
-    box.appendChild(bar(() => sumOf(b.store), cap));
     box.appendChild(goodsList(() => b.store, TR('Scaffali vuoti.')));
-    box.appendChild(liveText('div', 'pwarn', () => b.empty ? TR('Scaffali vuoti: mandagli merce o mettila in un magazzino.') : ''));
-    const sells = Object.keys(GOODS).filter(g => shopOf(g) === b.kind);
+    box.appendChild(barWithLabels(() => sumOf(b.store), cap, () => TR('Scaffali: {a} / {b}', { a: sumOf(b.store), b: cap })));
+    box.appendChild(liveText('div', 'pnote', () => TR('Clienti (abitanti entro {r} tile): {n}', { r: S.radius, n: b.customers || 0 })));
+    box.appendChild(liveText('div', 'pnote', () => TR('Venduti: {n} - tasse incassate: {m}', { n: b.sold, m: money(b.taxes) })));
     const row = el('div', 'prow pwrapicons', TR('Vende:') + ' ');
-    for (const g of sells) { const im = goodImg(g); im.title = GOODS[g].name; row.appendChild(im); }
+    for (const g of Object.keys(GOODS).filter(g => shopOf(g) === b.kind)) row.appendChild(goodImg(g));
     box.appendChild(row);
-    box.appendChild(el('div', 'pnote', TR('Si rifornisce dai magazzini che lo hanno come uscita. Tasse: {n}% del prezzo.', { n: Math.round(TAX_RATE * 100) })));
   }
-  if (isConsumer(b)) box.appendChild(liveText('div', (b.powered || 0) > 0.5 ? 'pnote' : 'pwarn', () => (b.powered || 0) > 0.5
-    ? TR('⚡ Corrente: sì ({n}%)', { n: Math.round((b.powered || 0) * 100) })
-    : b.lv == null ? TR('⚡ Senza corrente: collegala a una strada (i cavi sono sotto le strade) o a un palo della luce.')
-    : TR('⚡ Senza corrente: la sua rete non ha centrali né collegamento fuori mappa.')));
-  waterBusSection(box, b);
+  waterBusSection(prod, b);
   renderSubpanel(b);
+  box.scrollTop = scroll;
 }
 
 // Acqua e bus nel pannello (richiesta dell'utente)
 function waterBusSection(box, b) {
-  if (isWaterUser(b)) box.appendChild(liveText('div', (b.watered || 0) >= 0.5 ? 'pnote' : 'pwarn', () => {
-    if ((b.watered || 0) >= 0.5) return TR('💧 Acqua: sì ({n}%)', { n: Math.round((b.watered || 0) * 100) });
-    const n = waterNetOf(b);
-    const why = b.wnet == null ? TR('collegala a una strada (i tubi sono sotto le strade)')
-      : !n || !n.supply ? TR("serve un pozzo dell'acqua o un depuratore collegato alle stesse strade")
-      : !n.sewer ? TR('serve uno scarico delle acque sporche collegato alle stesse strade')
-      : TR("l'acqua non basta per tutti: costruisci altre fonti o scarichi");
-    return TR('💧 Senza acqua: {why}.', { why }) + ' ' + (b.kind === 'house' ? TR('La casa si riempie solo fino a {n} abitanti.', { n: WATER.dryHouse }) : TR('Lavora più piano ({n}%).', { n: Math.round(WATER.drySpeed * 100) }));
-  }));
   if (b.kind === 'waterWell' || b.kind === 'waterPlant') {
     box.appendChild(liveText('div', 'prow', () => TR("Acqua prodotta: {n}", { n: b.pumped || 0 }) + (b.kind === 'waterWell' ? ' ' + TR('(falda {n}%)', { n: Math.round((b.gw ?? groundwaterAt(b.ax, b.ay)) * 100) }) : '')));
     box.appendChild(liveText('div', 'pnote', () => { const n = waterNetOf(b); return n ? TR('Rete: acqua {a} - consumo {b} - scarichi {c}', { a: n.supply, b: n.demand, c: n.sewer }) : TR('Non collegata: serve una strada accanto.'); }));
   }
   if (b.kind === 'sewage') {
     box.appendChild(liveText('div', 'prow', () => TR('Acque sporche portate via: {a} / {b}', { a: Math.round(b.flow || 0), b: WATER.sewage })));
-    box.appendChild(liveText('div', 'pwarn', () => b.wnet == null ? TR("Non collegato: trascina un tubo dell'acqua fino a una strada.") : ''));
-    box.appendChild(el('div', 'pnote', TR("Più acqua sporca = macchia marrone più grande intorno allo scarico.")));
+
   }
-  if (b.kind === 'busStop') box.appendChild(liveText('div', b.depot ? 'pnote' : 'pwarn', () => b.depot
-    ? TR('🚌 Servita dal deposito: chi abita entro {n} tile va a lavorare con il bus.', { n: BUS.walk })
-    : TR('🚌 Nessun deposito dei bus raggiunge questa fermata per strada.')));
+  if (b.kind === 'busStop' && b.depot) box.appendChild(el('div', 'pnote', TR('🚌 Servita dal deposito: chi abita entro {n} tile va a lavorare con il bus.', { n: BUS.walk })));
   if (b.kind === 'busDepot') {
     box.appendChild(liveText('div', 'prow', () => TR('Fermate servite: {n}', { n: [...game.buildings.values()].filter(s => s.kind === 'busStop' && s.depot === b.id).length })));
     box.appendChild(liveText('div', 'prow', () => TR('Bus in giro: {a} / {b}', { a: vehicles.filter(v => v.kind === 'bus' && v.from === b.id).length, b: BUS.perDepot })));

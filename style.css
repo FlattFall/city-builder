@@ -548,3 +548,64 @@ body.touch #topbar img.ticon { width: 20px; height: 20px; }
   #topbar .speed-btns button { min-width: 19px; }
   #topbar img.ticon { width: 15px; height: 15px; }
 }
+
+/* ---------- Pannello semplice (panel.js, richiesta dell'utente: prima era troppo pieno) ---------- */
+@media (min-width: 821px) and (min-height: 521px) { #panel { width: 290px; } }
+.pstatus { display: flex; align-items: center; gap: 6px; padding: 5px 7px; border-radius: 4px; font-size: 12px; margin: 0 0 6px; }
+.pstatus.ok { background: #1f3320; color: #a7f070; }
+.pstatus.warn { background: #3a2a1a; color: #ffb36b; }
+.pstatus-ic { width: 16px; height: 16px; flex: none; }
+.pstatus-ic[hidden] { display: none; }
+#panel .pfix { margin-left: auto; font-size: 11px; padding: 1px 6px; border-color: #ffd966; background: #4a4f78; }
+#panel .pfix[hidden] { display: none; }
+.phelp { background: #1a1c2c; border-radius: 4px; padding: 5px 7px; margin: -2px 0 6px; }
+.phelp[hidden] { display: none; }
+.pchips { display: grid; gap: 5px; margin: 0 0 8px; }
+.pchip { background: #1a1c2c; border-radius: 4px; padding: 4px 3px; text-align: center; font-size: 11px; color: #94b0c2; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.pchip b { font-size: 14px; color: #f4f4f4; }
+.pchip.pstars b { color: #ffd966; letter-spacing: 1px; font-size: 13px; }
+#panel .pchip button { font-size: 10px; padding: 0 4px; margin-top: 2px; }
+.ptabs { display: flex; margin: 0 -12px 8px; border-top: 2px solid #1a1c2c; }
+#panel .ptabbtn { flex: 1; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: #1f2338; color: #94b0c2; padding: 6px 0; font-size: 12px; }
+#panel .ptabbtn.on { background: #262b44; color: #ffd966; border-bottom-color: #ffd966; }
+.ptab-n { margin-left: 5px; background: #3a3f63; color: #f4f4f4; border-radius: 8px; padding: 0 5px; font-size: 10px; }
+.ptab { display: none; } .ptab.on { display: block; }
+.pflow { display: flex; align-items: center; gap: 6px; background: #1a1c2c; border-radius: 5px; padding: 6px 7px; }
+.pflow-col { flex: 1; min-width: 0; }
+.pflow .pgoods { margin: 0; }
+.pflow .pnote { margin: 0; font-size: 11px; color: #7f8aa3; }
+.pflow-make { display: flex; align-items: center; flex-wrap: wrap; gap: 3px; font-size: 11px; }
+.parrow { color: #5a5f8a; font-size: 16px; }
+.pbarlbl { display: flex; justify-content: space-between; gap: 6px; font-size: 11px; color: #94b0c2; margin: 1px 0 6px; }
+.pbarlbl span:last-child { text-align: right; }
+.picons { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+#panel .picon { width: 36px; height: 34px; padding: 2px; display: flex; align-items: center; justify-content: center; }
+#panel .picon img { width: 24px; height: 24px; image-rendering: pixelated; }
+#panel .picon.locked { opacity: .35; }
+#panel .picon.off { opacity: .35; filter: grayscale(1); }
+#panel .picon.precipe-ico.active { border-color: #a7f070; background: #2c3a2c; }
+.psr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.pdest-row { display: flex; align-items: center; gap: 6px; background: #1a1c2c; border-radius: 4px; padding: 4px 5px; margin-bottom: 4px; font-size: 12px; }
+.pdest-row img { width: 26px; height: 20px; image-rendering: pixelated; flex: none; }
+.pdest-row .pdest-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pdest-row small { color: #94b0c2; white-space: nowrap; }
+.pdest-row.bad small { color: #ff9b6b; }
+.pdest-pct { color: #ffd966; }
+#panel .pdest-x { border: 0; background: none; color: #94b0c2; padding: 0 3px; }
+#panel .padd { width: 100%; border: 2px dashed #5a5f8a; background: #262b44; color: #c9d2e0; padding: 5px; margin: 2px 0 4px; }
+#panel .padd.open { border-color: #ffd966; color: #ffd966; }
+.ppick { background: #1a1c2c; border: 1px solid #44486b; border-radius: 4px; padding: 4px 6px 6px; margin-bottom: 6px; }
+.ppick-head { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #94b0c2; margin: 5px 0 3px; }
+.ppick-head img { width: 22px; height: 16px; image-rendering: pixelated; }
+#panel .ppick-head .pgroup-all { margin-left: auto; font-size: 10px; padding: 0 5px; }
+#panel .ppick .pdest { width: 100%; display: flex; justify-content: space-between; margin-bottom: 3px; }
+.pvanrow { display: flex; align-items: center; gap: 4px; font-size: 12px; margin: 8px 0 4px; flex-wrap: wrap; }
+.pvan { display: inline-block; width: 16px; height: 9px; border-radius: 2px; background: #f2f2f2; }
+.pvan.out { background: #a7f070; }
+.pvan.empty { background: none; border: 1px dashed #5a5f8a; height: 7px; width: 14px; }
+.pvanrow small { color: #94b0c2; margin-left: 4px; flex-basis: 100%; }
+#panel .pchip button { display: flex; flex-direction: column; align-items: center; line-height: 1.15; white-space: nowrap; }
+.pcost { font-size: 9px; color: #ffd966; }
+.pbarlbl { flex-wrap: wrap; }
+.pbarlbl span { white-space: nowrap; }
+.pbarlbl span:last-child { margin-left: auto; }

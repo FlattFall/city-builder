@@ -460,6 +460,7 @@ function check(cond, msg) {
   check(fm.fieldMode, 'dopo la fattoria si scelgono i campi');
   check(fm.fields === 12 && fm.far, `campi assegnati alla fattoria: ${fm.fields}, lontano rifiutato`);
   await page.click('#panel .pchoice:has-text("Patate")');
+  await page.click('#panel .ptabbtn[data-tab="ship"]');   // pannello semplice: le destinazioni stanno nella scheda Spedizioni
   await page.click('#panel .pdest:has-text("Magazzino alimenti")');
   const del = await page.evaluate(() => {
     const farm = [...game.buildings.values()].find(b => b.kind === 'farm');
