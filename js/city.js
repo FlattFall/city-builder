@@ -233,9 +233,10 @@ function drawTownHall(c, ax, ay, base, r) {
   const clocks = (bx, top) => {   // bx già girato: le facce visibili sono +u e +v
     if (!DETAIL) return;
     const cu = (bx[0] + bx[2]) / 2, cv = (bx[1] + bx[3]) / 2, zc = top - 5 / STEP, R = 0.09, RZ = 2.6 / STEP;
-    // un quadrante solo (con due sembravano due occhi): sul lato del portico se si vede, se no di fianco
-    const vis = n => (n[0] === 0 && n[1] === 1) || (n[0] === 1 && n[1] === 0);
-    const face = [rotVec(0, 1, r), rotVec(1, 0, r), rotVec(-1, 0, r)].find(vis);
+    // un quadrante solo, sulla facciata principale (quella del portico), e solo se si vede: con due
+    // sembravano occhi, e spostato di lato nelle altre rotazioni non era coerente (scelta dell'utente)
+    const face = rotVec(0, 1, r);
+    if (!((face[0] === 0 && face[1] === 1) || (face[0] === 1 && face[1] === 0))) return;
     for (const [nu, nv] of [face]) {
       const fu = nu ? bx[2] + 0.002 : cu, fv = nv ? bx[3] + 0.002 : cv, tu = nv ? 1 : 0, tv = nu ? 1 : 0;
       const P = (a, z) => iso(ax, ay, fu + tu * a, fv + tv * a, zc + z);
