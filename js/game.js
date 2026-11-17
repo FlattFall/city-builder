@@ -75,6 +75,8 @@ function fillDips(x, y) {
         if (ends[0] !== ends[1]) continue;
         const mids = tiles.slice(1, -1);
         if (!mids.every(([tx, ty]) => game.map[ty][tx].elev < ends[0])) continue;
+        // una strada del giocatore non alza mai la principale (si romperebbero le sue rampe); il generatore sì
+        if (!game.map[y][x].main && mids.some(([tx, ty]) => game.map[ty][tx].main)) continue;
         for (const [tx, ty] of mids) { game.map[ty][tx].elev = ends[0]; filled.push([tx, ty]); }
       }
     }
@@ -99,10 +101,14 @@ function rampDir(x, y) {
   if (!t.path) return -1;
   if (t.rb) return t.rb.low ? t.rb.slope : -1; // nelle rotonde decide la rotonda
   const e = t.elev;
+  // La strada principale decide le sue rampe guardando solo se stessa: una strada collegata di lato
+  // (o un'altra strada accanto alla salita) non deve mai spianarla o romperla (segnalazione dell'utente:
+  // collegando una strada prima di una salita o dopo una discesa la principale si spezzava).
+  const same = t.main ? (nx, ny) => inMap(nx, ny) && game.map[ny][nx].main && sameNet(x, y, nx, ny) : (nx, ny) => sameNet(x, y, nx, ny);
   let dir = -1;
   for (let i = 0; i < 4; i++) {
     const nx = x + DIRS[i].dx, ny = y + DIRS[i].dy;
-    if (sameNet(x, y, nx, ny) && game.map[ny][nx].elev === e + 1) {
+    if (same(nx, ny) && game.map[ny][nx].elev === e + 1) {
       if (dir !== -1) return -1;
       dir = i;
     }
@@ -110,7 +116,7 @@ function rampDir(x, y) {
   if (dir === -1) return -1;
   for (const side of [(dir + 1) % 4, (dir + 3) % 4]) {
     const nx = x + DIRS[side].dx, ny = y + DIRS[side].dy;
-    if (sameNet(x, y, nx, ny) && game.map[ny][nx].elev === e) return -1;
+    if (same(nx, ny) && game.map[ny][nx].elev === e) return -1;
   }
   return dir;
 }

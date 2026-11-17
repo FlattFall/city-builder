@@ -1380,9 +1380,15 @@ function paintTiles(N, y0, y1, rowA, rowB, visible, foot, drawNode) {
     const b = game.map[py][px].building;
     if (b && b.kind !== 'house') {
       const d = BUILDINGS[b.kind];
-      if ((d.w > 1 || d.h > 1) && game.map[y][x].building !== b) {
-        const fx = b.ax + d.w - 1, fy = b.ay + d.h - 1;
-        return inMap(fx, fy) && visible(fx, fy) ? fy * N + fx : -1;
+      if (d.w > 1 || d.h > 1) {
+        if (game.map[y][x].building !== b) {
+          const fx = b.ax + d.w - 1, fy = b.ay + d.h - 1;
+          return inMap(fx, fy) && visible(fx, fy) ? fy * N + fx : -1;
+        }
+        // dentro lo stesso edificio grande l'ordine resta quello dei suoi tile, anche se un passante o un
+        // veicolo ci mette piede: prima il tile entrava in attesa del passante, veniva disegnato DOPO
+        // l'edificio e il suo pavimento grigio copriva il supermercato per un attimo (segnalazione dell'utente)
+        return py * N + px;
       }
     }
     const pk = py * N + px, va = foot.get(pk);
