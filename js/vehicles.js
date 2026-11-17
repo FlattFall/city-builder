@@ -265,7 +265,7 @@ function checkHouseLinks() {
 function spawnResident() {
   if (vehicles.length >= MAX_CARS) return;
   checkHouseLinks();
-  const houses = [...game.buildings.values()].filter(b => b.kind === 'house' && b.residents + b.incoming < houseCap(b));
+  const houses = [...game.buildings.values()].filter(b => b.kind === 'house' && b.residents + b.incoming < houseCap(b) && !happyBlocksArrival(b));
   if (!houses.length) return;
   const entries = entryTiles();
   for (let tries = 0; tries < Math.min(5, houses.length); tries++) {
@@ -371,6 +371,7 @@ function simUpdate(dt) {
   if (moveInTimer <= 0) { moveInTimer = MOVE_IN_EVERY; spawnResident(); }
   economyUpdate(dt);
   if (typeof pedsUpdate === 'function') pedsUpdate(dt);   // passanti (people.js)
+  if (typeof cityUpdate === 'function') cityUpdate(dt);   // felicità, ladri e polizia (city.js)
   game.forestT = (game.forestT || 0) + dt;   // orologio dei tagli degli alberi (forest.js)
   if (vehicles.length || (typeof peds !== 'undefined' && peds.length)) requestDraw();
 }
@@ -593,6 +594,12 @@ function drawVehicle(c, v) {
   } else {
     vbox(R(-L, L, -W, W), 1, 3.6, { l: body, r: shade(body, -0.25), t: shade(body, 0.12) });             // carrozzeria
     vbox(R(-L * 0.55, L * 0.35, -W * 0.86, W * 0.86), 4.6, 3, { l: '#8fc8e2', r: '#6fa6c2', t: shade(body, 0.2) });   // abitacolo con i vetri
+    if (v.kind === 'police') {   // fascia blu sui fianchi e sirena sul tetto (city.js)
+      const P = (u, vv, z) => iso(0, 0, u, vv, h + z / STEP), [u0, v0, u1, v1] = R(-L, L, -W, W);
+      poly(c, [P(u0, v1, 2.2), P(u1, v1, 2.2), P(u1, v1, 3.4), P(u0, v1, 3.4)], '#2f55b0');
+      poly(c, [P(u1, v1, 2.2), P(u1, v0, 2.2), P(u1, v0, 3.4), P(u1, v1, 3.4)], '#24448e');
+      drawSirenLights(c, v, mx, my, h, f, sd);
+    }
   }
   for (const a of axles) wheel(a, nearSide * (W + 0.004), true);
   if (!DETAIL) return;

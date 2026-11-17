@@ -81,6 +81,9 @@ const BUILDINGS = {
   // bus (richiesta dell'utente): portano la gente a lavorare da una fermata all'altra
   busStop:    { name: 'Fermata del bus', w: 1, h: 1, cost: 150, height: 14, group: 'bus', infra: true },
   busDepot:   { name: 'Deposito dei bus', w: 2, h: 2, cost: 2500, height: 22, group: 'bus' },
+  // municipio (uno solo: da qui si regolano le tasse) e stazione di polizia (contro i ladri): city.js
+  townHall:   { name: 'Municipio', w: 2, h: 2, cost: 6000, height: 40, group: 'city', unique: true },
+  police:     { name: 'Stazione di polizia', w: 2, h: 2, cost: 4000, height: 24, group: 'city' },
 };
 // Acqua: consumo per abitante e per attività; quanto dà una fonte con tutto il personale; quanto
 // porta via uno scarico. Senza acqua le case si riempiono solo a metà e le attività lavorano più piano.
@@ -348,7 +351,9 @@ const UPGRADE = { max: 3, speed: [1, 1.4, 1.8, 2.2], cost: [0.6, 1, 1.5] };
 // Il panificio vende anche al banco (richiesta dell'utente): pane, biscotti e torte che fa lui,
 // agli abitanti vicini, come un piccolo negozio (quello che avanza lo manda alle destinazioni)
 const COUNTER = { bakery: { tick: 12, radius: 15, buyRate: 0.15, cat: 'bakery' } };
-const TAX_RATE = 0.5;                                 // tasse sulle vendite che vanno al giocatore
+const TAX_RATE = 0.5;   // tasse di partenza: con il municipio si cambiano (game.taxRate, city.js)
+function taxRate() { return typeof game !== 'undefined' && game.taxRate != null ? game.taxRate : TAX_RATE; }
+//                                 // tasse sulle vendite che vanno al giocatore
 
 // ---------- Lavoro ----------
 // Persone che servono per far funzionare un'attività; lavorano lì gli abitanti delle case
@@ -357,7 +362,7 @@ const JOBS = { farm: 4, warehouse: 2, factory: 6, bakery: 2, supermarket: 3,
   livestock: 3, dairy: 5, slaughterhouse: 5,
   forestry: 3, sawmill: 4, furnitureFactory: 5, furnitureStore: 3, goodsWarehouse: 2,
   textileMill: 5, clothingFactory: 5, clothingStore: 3,
-  charcoalKiln: 2, coalPlant: 5, solarPlant: 1, windPlant: 1, oilWell: 2, port: 4, refinery: 6, gasStation: 2, waterWell: 1, waterPlant: 3, busDepot: 3 };
+  charcoalKiln: 2, coalPlant: 5, solarPlant: 1, windPlant: 1, oilWell: 2, port: 4, refinery: 6, gasStation: 2, waterWell: 1, waterPlant: 3, busDepot: 3, townHall: 4, police: 4 };
 // la piattaforma petrolifera non prende lavoratori dalle case (il personale vive a bordo)
 const JOB_RADIUS = 12;
 function jobRadiusOf(kind) { return (BUILDINGS[kind] && BUILDINGS[kind].jobRadius) || JOB_RADIUS; }

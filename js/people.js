@@ -182,6 +182,7 @@ function drawPed(c, v) {
   c.fillStyle = v.shirt;
   c.beginPath(); c.moveTo(x0 - 0.85, y0 - 4.1); c.lineTo(x0 + 0.85, y0 - 4.1); c.lineTo(x0 + 0.75, y0 - 1.9); c.lineTo(x0 - 0.75, y0 - 1.9); c.closePath(); c.fill();
   c.fillStyle = 'rgba(0,0,0,0.18)'; c.fillRect(x0, y0 - 4.1, 0.85, 2.2);   // lato in ombra
+  if (v.thief) { c.fillStyle = '#f2f2f2'; c.fillRect(x0 - 0.8, y0 - 3.5, 1.6, 0.4); c.fillRect(x0 - 0.78, y0 - 2.7, 1.56, 0.4); }   // ladro: maglia a righe (city.js)
   arm(1, sw);
   if (v.bag) { c.fillStyle = '#8a5a3a'; c.fillRect(x0 + 0.9 + sx * sw * 0.7 - 0.5, y0 - 2.4 + sy * sw * 0.35, 1, 1); }
   c.fillStyle = v.skin; c.beginPath(); c.arc(x0, y0 - 4.85, 0.75, 0, Math.PI * 2); c.fill();

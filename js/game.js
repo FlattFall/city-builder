@@ -362,6 +362,7 @@ function newGame(seed, size) {
   game.map = generateTerrain(seed, game.size);
   game.money = START_MONEY;
   game.grid = null; game.elec = null; game.stats = null;
+  game.taxRate = null; game.happy = null; game.crime = null;   // tasse di partenza, felicità e furti (city.js)
   game.undoStack = []; game.undoStroke = null;   // niente da annullare in una mappa nuova
   game.speed = 1;   // velocità normale
   if (typeof refreshSpeed === 'function') refreshSpeed();
@@ -512,6 +513,7 @@ function checkTool(tool, x, y) {
       return { msg: tool === 'port' ? TR('Il retro del porto deve dare sull\'acqua (R per ruotarlo): davanti la strada, dietro il mare')
         : tool === 'sewage' ? TR('Lo scarico va costruito in riva al mare: il retro sull\'acqua (R per ruotarlo)')
         : TR('Il retro del depuratore deve dare sul mare (R per ruotarlo): davanti la strada, dietro il mare') };
+    if (b.unique && [...game.buildings.values()].some(o => o.kind === tool)) return { msg: TR('Ne puoi costruire uno solo per città') };
     if (b.oil && !oilUnder(tool, x, y)) return { msg: TR('Qui sotto non c\'è petrolio (scegli una zona scura)') };
     if (b.groundwater && !groundwaterAt(x, y)) return { msg: TR("Qui sotto non c'è acqua (scegli una zona azzurra)") };
 

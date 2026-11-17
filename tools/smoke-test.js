@@ -25,7 +25,7 @@ function check(cond, msg) {
   // i test più vecchi provano tutti gli strumenti: le mappe nuove hanno tutto sbloccato
   // (i progressi si provano alla fine con la newGame vera, __newGame)
   await page.evaluate(() => { localStorage.setItem('citybuilder.tutorial', 'off');   // il tutorial (tutorial.js) si prova a parte
-    ACCIDENT.maxChance = 0; WATER.required = false;   // niente incidenti a caso né acqua nelle prove vecchie (si provano a parte)
+    ACCIDENT.maxChance = 0; WATER.required = false; CRIME.minPop = 1e9;   // niente incidenti a caso né acqua nelle prove vecchie (si provano a parte)
     window.__oilAt = oilAt; window.__newGame = newGame; newGame = (...a) => { __newGame(...a); unlockAll(); }; });
   await page.screenshot({ path: SHOTS + '/1-start.png' });
 
@@ -1393,7 +1393,7 @@ function check(cond, msg) {
   await page.reload();
   await page.waitForTimeout(300);
   await page.evaluate(() => { localStorage.setItem('citybuilder.tutorial', 'off');   // il tutorial (tutorial.js) si prova a parte
-    ACCIDENT.maxChance = 0; WATER.required = false; window.__oilAt = oilAt; window.__newGame = newGame; newGame = (...a) => { __newGame(...a); unlockAll(); }; });   // come all'inizio
+    ACCIDENT.maxChance = 0; WATER.required = false; CRIME.minPop = 1e9; window.__oilAt = oilAt; window.__newGame = newGame; newGame = (...a) => { __newGame(...a); unlockAll(); }; });   // come all'inizio
   const kept = await page.evaluate(() => LANG === 'es' && document.getElementById('m-new').textContent === 'Nuevo mapa');
   await page.evaluate(() => setLanguage('it'));
   const back = await page.evaluate(() => GOODS.wheat.name === 'Grano' && TOOL_GROUPS[1].label === 'Strade' && document.getElementById('m-new').textContent === 'Nuova mappa');
@@ -1968,6 +1968,40 @@ function check(cond, msg) {
   check(nw.accident && nw.stopped, 'incidente stradale: costa soldi e i veicoli restano fermi: ' + JSON.stringify(nw));
   check(nw.dry && nw.well && nw.noSewer && nw.sewageLand && nw.sewage && nw.notLinked && nw.wet && nw.stain && nw.pipeUnder && nw.undDemolish && nw.undOnly, 'acqua: pozzo + scarico sull\'acqua, case con l\'acqua, macchia marrone: ' + JSON.stringify(nw));
   check(nw.busJobs && nw.busOut, 'bus: lavoratori da case lontane con le fermate, bus in giro: ' + JSON.stringify(nw));
+
+  // 66. città: municipio unico con le tasse, felicità delle case, ladri e polizia
+  const ct = await page.evaluate(() => {
+    newGame(128, 4242); game.money = 1e6; ACCIDENT.maxChance = 0; WATER.required = false; CRIME.minPop = 24;
+    const x = 40, y = 60, r = {};
+    for (let dy = -8; dy < 10; dy++) for (let dx = -4; dx < 40; dx++) Object.assign(game.map[y + dy][x + dx], { type: T.GRASS, elev: 2, path: null, building: null, field: null, main: false, bridge: null });
+    for (let dx = -3; dx < 38; dx++) useTool('road', x + dx, y);
+    for (let i = 0; i < 16; i++) { useTool('house', x + i, y - 1); useTool('house', x + i, y + 1); }
+    game.rotation = 0; useTool('supermarket', x + 20, y + 1);
+    let pop = 0; for (const b of game.buildings.values()) if (b.kind === 'house') { b.residents = 4; pop += 4; }
+    game.population = pop;
+    const cev = CRIME.every, cpr = CRIME.perResident; CRIME.every = 2; CRIME.perResident = 0.05;
+    const m0 = game.money;
+    for (let i = 0; i < 400; i++) simUpdate(0.1);
+    r.thefts = cityState().thefts > 0 && game.money < m0;
+    const h0 = Math.round(game.happy);
+    r.happyLow = game.happy < HAPPY.base;
+    r.th1 = useTool('townHall', x + 24, y - 2).ok; r.th2 = useTool('townHall', x + 30, y - 2).ok;
+    const th = [...game.buildings.values()].find(b => b.kind === 'townHall'); th.workers = 4;
+    game.taxRate = 0.8; updateHappiness(); const hi = game.happy;
+    game.taxRate = 0.25; updateHappiness(); const lo = game.happy;
+    r.tax = lo > hi && serializeGame().taxRate === 0.25;
+    r.police = useTool('police', x + 27, y - 2).ok;
+    const p = [...game.buildings.values()].find(b => b.kind === 'police');
+    const c0 = cityState().caught; let car = false;
+    for (let i = 0; i < 1200; i++) { p.workers = 4; simUpdate(0.1); if (vehicles.some(v => v.kind === 'police')) car = true; }
+    r.caught = cityState().caught > c0 && car;
+    CRIME.every = cev; CRIME.perResident = cpr; CRIME.minPop = 1e9;
+    r.h0 = h0;
+    return r;
+  });
+  check(ct.thefts && ct.happyLow, 'ladri: senza polizia rubano soldi e la felicità scende: ' + JSON.stringify(ct));
+  check(ct.th1 && !ct.th2 && ct.tax, 'municipio: uno solo, tasse basse = gente più felice, tasse salvate: ' + JSON.stringify(ct));
+  check(ct.police && ct.caught, 'polizia: la volante arresta i ladri: ' + JSON.stringify(ct));
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();

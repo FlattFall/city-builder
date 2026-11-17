@@ -99,7 +99,7 @@ const MANUAL = [
     b.appendChild(mEl('p', null, TR('Ogni attività prende i lavoratori dalle case entro <b>{n} tile</b>. Più personale = lavora più in fretta; senza personale si ferma. In alto vedi quanti <b>Disoccupati</b> ci sono: se sono tanti puoi aprire nuove attività.', { n: JOB_RADIUS })));
     b.appendChild(mEl('h4', null, TR('Le icone sopra gli edifici')));
     const names = { noRoad: 'Nessuna strada (o non collegata alla principale)', noWorkers: 'Nessun lavoratore', fewWorkers: 'Pochi lavoratori',
-      full: 'Deposito pieno: scegli una destinazione', noInput: 'Mancano le materie prime', empty: 'Negozio vuoto: niente da vendere', noPower: 'Senza corrente: non è collegato alla rete elettrica (strada o palo della luce)', noWater: "Senza acqua: serve un pozzo (o un depuratore) e uno scarico collegati con le strade" };
+      full: 'Deposito pieno: scegli una destinazione', noInput: 'Mancano le materie prime', empty: 'Negozio vuoto: niente da vendere', noPower: 'Senza corrente: non è collegato alla rete elettrica (strada o palo della luce)', noWater: "Senza acqua: serve un pozzo (o un depuratore) e uno scarico collegati con le strade", unhappy: 'Abitanti scontenti: guarda nel pannello della casa cosa manca', theft: 'Furto: un ladro ha colpito qui (con la polizia vicina arriva la volante)' };
     for (const [st, txt] of Object.entries(names)) {
       const s = mEl('div', 'man-stat'); s.append(mImg(statusIcon(st)), document.createTextNode(TR(txt))); b.appendChild(s);
     }
@@ -210,6 +210,16 @@ const MANUAL = [
     b.appendChild(mEl('div', 'man-tip', TR('Attenzione al traffico: ogni tanto succede un <b>incidente stradale</b>. I veicoli coinvolti restano fermi un po\' (si forma la coda) e paghi danni e soccorsi ({a}-{b} €). Più veicoli ci sono in giro, più è probabile.', { a: ACCIDENT.costMin, b: ACCIDENT.costMax })));
   } },
 
+  { id: 'city', title: 'Felicità, tasse e sicurezza', icon: 'townHall', build(b) {
+    b.appendChild(mEl('p', null, TR('Ogni casa ha una <b>felicità</b> da 0 a 100 (in alto vedi la media della città). Sale con acqua, corrente, lavoro, negozi vicini, polizia, municipio e bus; scende con i furti, le tasse alte e le fabbriche troppo vicine. Clicca una casa con la Mano per vedere cosa conta di più.')));
+    b.appendChild(mEl('p', null, TR('Gente felice compra di più nei negozi. Quando la città ha almeno {n} abitanti, sotto il {a}% nessuno viene più ad abitare in quella casa e sotto il {b}% gli abitanti se ne vanno dalla città.', { n: HAPPY.grace, a: HAPPY.noArrive, b: HAPPY.leave })));
+    b.appendChild(item('townHall'));
+    b.appendChild(mEl('p', null, TR('Nel pannello del municipio regoli le <b>tasse sulle vendite</b> dal {a}% al {b}% (si parte dal {c}%). Più tasse = più soldi da ogni pezzo venduto, ma la gente è meno felice; tasse basse la rendono più contenta. Senza municipio le tasse restano al {c}%.', { a: Math.round(TAX.min * 100), b: Math.round(TAX.max * 100), c: Math.round(TAX_RATE * 100) })));
+    b.appendChild(item('police'));
+    b.appendChild(mEl('p', null, TR('Quando la città supera i {n} abitanti arrivano i <b>ladri</b>: rubano soldi e la gente delle case vicine si sente meno sicura per un po\'. La stazione di polizia protegge tutto entro {r} tile: i furti sono molto più rari e quando un ladro ci prova parte la volante e lo arresta.', { n: CRIME.minPop, r: POLICE.radius })));
+    b.appendChild(mEl('div', 'man-tip', TR('Più la città è grande, più servono stazioni di polizia: una sola non copre tutte le case lontane.')));
+  } },
+
   { id: 'logistics', title: 'Magazzini e furgoni', icon: 'warehouse', build(b) {
     b.appendChild(item('warehouse'));
     b.appendChild(item('goodsWarehouse'));
@@ -220,7 +230,7 @@ const MANUAL = [
   } },
 
   { id: 'shops', title: 'Negozi, vendite e soldi', icon: 'supermarket', build(b) {
-    b.appendChild(mEl('p', null, TR('I clienti di un negozio sono gli abitanti delle case vicine. Per ogni cosa venduta incassi il <b>{n}%</b> del prezzo come tasse.', { n: Math.round(TAX_RATE * 100) })));
+    b.appendChild(mEl('p', null, TR('I clienti di un negozio sono gli abitanti delle case vicine. Per ogni cosa venduta incassi il <b>{n}%</b> del prezzo come tasse.', { n: Math.round(taxRate() * 100) })));
     for (const [k, S] of Object.entries(SHOPS)) {
       b.appendChild(item(k, TR('Clienti entro {n} tile.', { n: S.radius })));
       const row = mEl('div', 'chain-row');
@@ -237,7 +247,7 @@ const MANUAL = [
   // Tabella di tutte le merci (richiesta dell'utente): chi le fa, quanto e ogni quanti secondi,
   // dove si vendono, a che prezzo e quanto incassi. Tutto preso dai dati del gioco.
   { id: 'table', title: 'Tabella dei prodotti', icon: 'supermarket', build(b) {
-    const tax = g => Math.max(1, Math.round(GOODS[g].price * TAX_RATE));
+    const tax = g => Math.max(1, Math.round(GOODS[g].price * taxRate()));
     const usedBy = g => [...new Set(Object.entries(RECIPES).filter(([, rs]) => rs.some(r => r.in[g])).map(([k]) => k)
       .concat(Object.entries(POWER).filter(([, P]) => P.fuel === g).map(([k]) => k)))];
     const sells = g => {   // dove si vende, oppure a chi serve
@@ -253,7 +263,7 @@ const MANUAL = [
       for (const h of heads) hr.appendChild(mEl('th', null, h));
       t.appendChild(hr); b.appendChild(t); return t;
     };
-    b.appendChild(mEl('p', null, TR('Tempi con tutto il personale (con meno lavoratori va più piano; con la corrente fino al {n}% più veloce). "Ti dà" = tasse che incassi per ogni pezzo venduto ({t}% del prezzo).', { n: Math.round(GRID.boost * 100), t: Math.round(TAX_RATE * 100) })));
+    b.appendChild(mEl('p', null, TR('Tempi con tutto il personale (con meno lavoratori va più piano; con la corrente fino al {n}% più veloce). "Ti dà" = tasse che incassi per ogni pezzo venduto ({t}% del prezzo).', { n: Math.round(GRID.boost * 100), t: Math.round(taxRate() * 100) })));
     // 1) materie prime
     b.appendChild(mEl('h3', null, TR('Materie prime')));
     const t1 = table([TR('Merce'), TR('Chi la produce'), TR('Quanto'), TR('Ogni'), TR('Si vende'), TR('Prezzo'), TR('Ti dà')]);

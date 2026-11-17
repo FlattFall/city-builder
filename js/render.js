@@ -850,6 +850,8 @@ function drawBuildingOn(c, x, y, b) {
   else if (b.kind === 'sewage') drawSewage(c, b.ax, b.ay, base, b.rot || 0, b.flow || 0);
   else if (b.kind === 'waterPlant') drawWaterPlant(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'busDepot') drawBusDepot(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'townHall') drawTownHall(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'police') drawPolice(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'livestock') drawLivestock(c, b.ax, b.ay, base, b.rot || 0, b.animal || 'cowFarm', b.level || 0);
   else if (b.kind === 'coalPlant') drawCoalPlant(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'solarPlant') drawSolarPlant(c, b.ax, b.ay, base, b.rot || 0);
@@ -1475,6 +1477,8 @@ function drawFrame() {
     const f = game.fieldMode ? game.buildings.get(game.fieldMode) : (game.tool === 'farm' && game.hover ? { ax: game.hover.x, ay: game.hover.y } : null);
     if (f) { const R = FARM.fieldRadius; return { x0: f.ax - R, y0: f.ay - R, x1: f.ax + 1 + R, y1: f.ay + 1 + R }; }
     // azienda forestale: la zona dove prende il legno (in mano o selezionata), in verde (richiesta dell'utente)
+    const po = game.tool === 'police' && game.hover ? { ax: game.hover.x, ay: game.hover.y } : sel && sel.kind === 'police' ? sel : null;
+    if (po) { const R = POLICE.radius; return { x0: po.ax - R, y0: po.ay - R, x1: po.ax + 1 + R, y1: po.ay + 1 + R, elec: true }; }
     const fo = game.tool === 'forestry' && game.hover ? { ax: game.hover.x, ay: game.hover.y } : sel && sel.kind === 'forestry' ? sel : null;
     if (fo) { const R = FORESTRY.forestry.radius; return { x0: fo.ax - R, y0: fo.ay - R, x1: fo.ax + 1 + R, y1: fo.ay + 1 + R, forest: true }; }
     return null;
@@ -1704,7 +1708,7 @@ function drawSelection(c, b) {
 // Icone di stato sopra le attività:
 //  persona rossa/arancione = mancano lavoratori, scatola arancione = deposito pieno,
 //  cassa vuota blu = mancano materie prime, scaffale viola = supermercato senza merce
-const STATUS_COLORS = { noWorkers: '#d94141', fewWorkers: '#e8a33a', full: '#e07b39', noInput: '#3f6fd9', empty: '#8e5bd1', noRoad: '#5b5b66', noPower: '#c99a1e', noWater: '#2f7fd0' };
+const STATUS_COLORS = { noWorkers: '#d94141', fewWorkers: '#e8a33a', full: '#e07b39', noInput: '#3f6fd9', empty: '#8e5bd1', noRoad: '#5b5b66', noPower: '#c99a1e', noWater: '#2f7fd0', theft: '#2b2b33', unhappy: '#8e5bd1' };
 function drawWorkerIcons(c) {
   for (const b of game.buildings.values()) {
     const st = buildingStatus(b);
@@ -1744,6 +1748,14 @@ function drawStatusIcon(c, st, x, y) {
       c.beginPath(); c.moveTo(x + 1, y - 4.5); c.lineTo(x - 2.5, y + 0.5); c.lineTo(x - 0.2, y + 0.5); c.lineTo(x - 1, y + 4.5); c.lineTo(x + 2.5, y - 0.5); c.lineTo(x + 0.2, y - 0.5); c.closePath(); c.fill();
       c.strokeStyle = '#ff5d5d'; c.lineWidth = 1.6;
       c.beginPath(); c.moveTo(x - 4, y + 4); c.lineTo(x + 4, y - 4); c.stroke();
+    } else if (st === 'theft') {                                      // ladro: maschera nera con gli occhi
+      c.fillStyle = '#ff5d5d'; c.beginPath(); c.arc(x, y, 6, 0, Math.PI * 2); c.lineWidth = 1.2; c.strokeStyle = '#ff5d5d'; c.stroke();
+      c.fillStyle = '#f1c9a5'; c.beginPath(); c.arc(x, y, 3.6, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#1b1b20'; c.fillRect(x - 4, y - 1.6, 8, 2.2);
+      c.fillStyle = '#ffffff'; c.fillRect(x - 2.2, y - 1, 1.2, 1); c.fillRect(x + 1, y - 1, 1.2, 1);
+    } else if (st === 'unhappy') {                                    // faccina triste
+      c.fillRect(x - 2.4, y - 2.2, 1.3, 1.6); c.fillRect(x + 1.1, y - 2.2, 1.3, 1.6);
+      c.lineWidth = 1.2; c.beginPath(); c.arc(x, y + 3.6, 2.6, Math.PI * 1.15, Math.PI * 1.85); c.stroke();
     } else if (st === 'empty') {
       for (const dy of [-3, 0, 3]) c.fillRect(x - 3.5, y + dy, 7, 1);    // scaffale vuoto
     }

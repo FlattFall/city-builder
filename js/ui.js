@@ -44,6 +44,8 @@ const TOOL_INFO = {
   sewage: { label: 'Scarico delle acque sporche (2x2)', cost: BUILDINGS.sewage.cost, desc: "In riva al mare (il retro sull'acqua): un tubo scarica in mare le acque sporche (fino a " + WATER.sewage + ' unità). Si collega ai tubi sotto le strade, anche con un tubo. Senza lavoratori. Intorno l\'acqua diventa marrone.' },
   pipe: { label: "Tubo dell'acqua", cost: COSTS.pipe, desc: "Tubo sotto terra: collega scarichi, pozzi ed edifici lontani ai tubi che passano sotto ogni strada. Con il tubo in mano vedi la mappa dei tubi." },
   busStop: { label: 'Fermata del bus', cost: BUILDINGS.busStop.cost, desc: 'Accanto a una strada. Chi abita entro ' + BUS.walk + ' tile va col bus a lavorare nelle attività vicine a un\'altra fermata dello stesso deposito, anche lontane. Le attività servite lavorano il ' + Math.round(BUS.boost * 100) + '% più in fretta.' },
+  townHall: { label: 'Municipio (2x2)', cost: BUILDINGS.townHall.cost, desc: 'Uno per città. Da qui regoli le tasse e vedi quanto è felice la gente. 4 impiegati.' },
+  police: { label: 'Stazione di polizia (2x2)', cost: BUILDINGS.police.cost, desc: 'Protegge le case e i negozi entro 16 tile: meno furti, i ladri vengono arrestati e la gente è più felice. 4 agenti.' },
   busDepot: { label: 'Deposito dei bus (2x2)', cost: BUILDINGS.busDepot.cost, desc: 'Da qui partono i bus per tutte le fermate che raggiunge per strada. 3 autisti.' },
   demolish:  { label: 'Demolisci', desc: 'Toglie edifici, strade, ponti, tunnel, campi e alberi. Trascinando toglie solo cose dello stesso tipo del primo clic. Un edificio demolito ti ridà il 75% del costo.' },
   raise:     { label: 'Alza terreno', cost: COSTS.terrain, desc: 'Alza il terreno di un livello (solo dove non ci sono strade o edifici).' },
@@ -55,7 +57,7 @@ const TOOL_INFO = {
 const TOOL_GROUPS = [
   { key: '1', id: 'hand',     label: 'Mano',      tools: ['hand'] },
   { key: '2', id: 'paths',    label: 'Strade',    tools: ['road', 'oneway', 'highway', 'bridge', 'hwBridge', 'tunnel', 'dirt', 'rail'] },
-  { key: '3', id: 'homes',    label: 'Città',     tools: ['house', 'busStop', 'busDepot', 'waterWell', 'waterPlant', 'sewage', 'pipe'] },
+  { key: '3', id: 'homes',    label: 'Città',     tools: ['house', 'townHall', 'police', 'busStop', 'busDepot', 'waterWell', 'waterPlant', 'sewage', 'pipe'] },
   { key: '4', id: 'industry', label: 'Agroalimentare', tools: ['farm', 'livestock',
     'warehouse', 'factory', 'dairy', 'slaughterhouse', 'bakery', 'supermarket'] },
   { key: '5', id: 'wood',     label: 'Legno',     tools: ['forestry', 'sawmill', 'furnitureFactory', 'furnitureStore', 'goodsWarehouse'] },
@@ -351,6 +353,8 @@ function buildIcons() {
   ICONS.busStop = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawBusStop(c, 0, 0, 0, 0); }, 1.1);
   ICONS.waterPlant = bigIcon(c => drawWaterPlant(c, 0, 0, 0, 0), '#9a9a92');
   ICONS.busDepot = bigIcon(c => drawBusDepot(c, 0, 0, 0, 0), '#9a9a92');
+  ICONS.townHall = bigIcon(c => drawTownHall(c, 0, 0, 0, 0), '#b8b4a8');
+  ICONS.police = bigIcon(c => drawPolice(c, 0, 0, 0, 0), '#8f939a');
   ICONS.substation = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawSubstation(c, 0, 0, 0, 0); }, 1.3);
   ICONS.solarPlant = bigIcon(c => drawSolarPlant(c, 0, 0, 0, 0), GROUND.solarPlant);
   ICONS.windPlant = makeIcon(c => {   // più piccola: le torri sono alte
@@ -548,6 +552,8 @@ function updateHud() {
   document.getElementById('unemployed').textContent = Math.max(0, game.population - (game.employed || 0));
   document.getElementById('houses').textContent = game.houses;
   document.getElementById('industries').textContent = game.industries;
+  const hp = document.getElementById('happiness');
+  if (hp) { const v = game.population > 0 && game.happy != null ? Math.round(game.happy) : null; hp.textContent = v == null ? '-' : v + '%'; hp.style.color = v == null ? '' : happyColor(v); }
   if (typeof progressLive === 'function') progressLive();
 }
 

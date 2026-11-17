@@ -57,7 +57,8 @@ function panelShapeOf(b) {
   const others = [...game.buildings.values()].filter(w => w.kind !== 'house').map(w => w.id).join(',');
   return [b.id, b.crop, b.animal, b.name, JSON.stringify(b.dests || []), b.fields, others, b.residents >= HOUSE_CAPACITY, !!b.unreachable, accessTiles(b).length,
     !!b.incoming, Object.keys(b.store || {}).join(), Object.keys(b.input || {}).join(),
-    JSON.stringify(b.accept || {}), JSON.stringify(b.recipes || {}), JSON.stringify(b.split || {}), b.vans || 0, b.level || 0].join('|');
+    JSON.stringify(b.accept || {}), JSON.stringify(b.recipes || {}), JSON.stringify(b.split || {}), b.vans || 0, b.level || 0,
+    b.kind === 'house' ? JSON.stringify(b.happyWhy || {}) : '', b.kind === 'townHall' ? JSON.stringify(cityHappyWhy()) + taxRate() : ''].join('|');
 }
 
 function openBuildingPanel(b) {
@@ -97,7 +98,7 @@ function destChoices(b) {
 const panelTab = {};          // scheda aperta per tipo di edificio: 'prod' o 'ship'
 let destPickOpen = false;     // elenco "+ Aggiungi destinazione" aperto
 const STATUS_TITLE = { noWorkers: 'Senza lavoratori', fewWorkers: 'Pochi lavoratori', noRoad: 'Nessuna strada', full: 'Deposito pieno',
-  noInput: 'Mancano materie prime', empty: 'Scaffali vuoti', noWater: 'Senza acqua', noPower: 'Senza corrente' };
+  noInput: 'Mancano materie prime', empty: 'Scaffali vuoti', noWater: 'Senza acqua', noPower: 'Senza corrente', theft: 'Furto!', unhappy: 'Abitanti scontenti' };
 const statusIconUrl = {};
 function statusIcon(st) {
   if (!statusIconUrl[st]) { const c = document.createElement('canvas'); c.width = c.height = 32; const x = c.getContext('2d'); x.scale(2, 2); drawStatusIcon(x, st, 8, 8); statusIconUrl[st] = c.toDataURL(); }
@@ -117,6 +118,12 @@ function statusHelp(b, st) {
     return TR('Mancano materie prime: mandale qui da una fattoria o mettile in un magazzino.');
   }
   if (st === 'empty') return TR('Scaffali vuoti: mandagli merce o mettila in un magazzino.');
+  if (st === 'theft') return b.theftCop ? TR('Un ladro ha colpito qui: la polizia sta arrivando.') : TR('Un ladro ha colpito qui. Costruisci una stazione di polizia vicino (entro {n} tile): i furti calano e i ladri vengono arrestati.', { n: POLICE.radius });
+  if (st === 'unhappy') {
+    const why = b.happyWhy || {};
+    const worst = Object.keys(why).filter(k => why[k] < 0).sort((p, q) => why[p] - why[q]).slice(0, 3).map(k => TR(HAPPY_LABELS[k]).toLowerCase());
+    return TR('Qui la gente è scontenta ({list}). Se resta così, nessuno viene ad abitarci e chi c\'è se ne va.', { list: worst.join(', ') || '-' });
+  }
   if (st === 'noWater') {
     if (b.kind === 'sewage') return TR("Non collegato: trascina un tubo dell'acqua fino a una strada.");
     if (b.kind === 'waterWell' || b.kind === 'waterPlant') return TR('Non collegata: serve una strada accanto.');
@@ -482,7 +489,10 @@ function renderPanel() {
   if (b.kind === 'house') {
     box.appendChild(barWithLabels(() => b.residents, HOUSE_CAPACITY, () => TR('Abitanti: {a} / {b}', { a: b.residents, b: houseCap(b) }), () => b.incoming ? TR('In arrivo: {n}', { n: b.incoming }) : ''));
     box.appendChild(liveText('div', 'pnote', () => TR('Lavorano: {a} - disoccupati: {b}', { a: b.employed || 0, b: Math.max(0, b.residents - (b.employed || 0)) })));
+    houseHappySection(box, b);
   }
+  if (b.kind === 'townHall') townHallSection(box, b);
+  if (b.kind === 'police') policeSection(box, b);
 
   if (isWarehouse(b)) {
     prod.appendChild(goodsList(() => b.store, TR('Vuoto.')));

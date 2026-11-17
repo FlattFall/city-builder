@@ -456,7 +456,7 @@ function sellToCustomers(b, S, ok) {
   for (const h of game.buildings.values())
     if (h.kind === 'house' && distToBuilding(b, h.ax, h.ay) <= S.radius) customers += h.residents || 0;
   b.customers = customers;
-  let buys = Math.ceil(customers * S.buyRate);
+  let buys = Math.ceil(customers * S.buyRate * (typeof happyBuy === 'function' ? happyBuy() : 1));   // gente felice compra di più (city.js)
   const goods = Object.keys(b.store).filter(g => !ok || ok(g));
   b.empty = customers > 0 && !goods.length;
   let i = b.cursor || 0;
@@ -464,7 +464,7 @@ function sellToCustomers(b, S, ok) {
     const g = goods[i++ % goods.length];
     if (!b.store[g]) continue;
     addTo(b.store, g, -1);
-    const tax = Math.max(1, Math.round(GOODS[g].price * TAX_RATE));
+    const tax = Math.max(1, Math.round(GOODS[g].price * taxRate()));
     game.money += tax; b.taxes += tax; b.sold++; buys--; noteSold(g, 1); noteMoney('taxes', tax);
   }
   b.cursor = i;
@@ -720,8 +720,9 @@ function powerStatus(b) {
   return null;
 }
 function buildingStatus(b) {
+  if (b.theftT > 0) return 'theft';   // appena derubato (city.js)
   // casa senza strada accanto o non raggiungibile dalla strada principale
-  if (b.kind === 'house') return (!accessTiles(b).length || b.unreachable) ? 'noRoad' : waterStatus(b) || powerStatus(b);
+  if (b.kind === 'house') return (!accessTiles(b).length || b.unreachable) ? 'noRoad' : waterStatus(b) || powerStatus(b) || (b.residents > 0 && b.happy != null && b.happy < HAPPY.unhappy ? 'unhappy' : null);
   if (b.kind === 'sewage') return waterStatus(b);
   if (b.kind === 'busStop') return accessTiles(b).length ? (b.depot ? null : 'noInput') : 'noRoad';
   if (BUILDINGS[b.kind].water) return b.full ? 'full' : b.noInput ? 'noInput' : null;   // piattaforma: niente strada né lavoratori dalle case
