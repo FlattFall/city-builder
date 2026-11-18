@@ -16,7 +16,14 @@ const POLICE = { radius: 16, carSpeed: 1.9 };
 const CRIME = { every: 14, minPop: 24, perResident: 0.0035, max: 0.75, policeCut: 0.3, stealMin: 80, stealPer: 2, stealMax: 1500, memory: 90, radius: 7, icon: 14 };
 const HAPPY_LABELS = { water: 'Acqua', power: 'Corrente', jobs: 'Lavoro', shops: 'Negozi vicini', safety: 'Sicurezza', crime: 'Furti recenti',
   taxes: 'Tasse', noise: 'Fabbriche vicine', hall: 'Municipio', bus: 'Bus',
-  school: 'Scuola elementare', highSchool: 'Scuola superiore', university: 'Università' };
+  school: 'Scuola elementare', highSchool: 'Scuola superiore', university: 'Università', parks: 'Parchi' };
+// PARCHI (richiesta dell'utente): le case entro `radius` tile da un parco sono più felici; conta il parco
+// migliore che hanno vicino (+`happy`). Niente lavoratori né strada (infra, green).
+const PARKS = {
+  garden:  { radius: 4,  happy: 4 },
+  park:    { radius: 8,  happy: 7 },
+  bigPark: { radius: 12, happy: 10 },
+};
 // SCUOLE (richiesta dell'utente): una casa "va" a una scuola se sta entro `radius` tile o se è vicina a una
 // fermata dello stesso bus (busLinked). Ogni scuola ha `seats` posti, contati in abitanti delle case servite
 // (meno maestri = meno posti); le case più vicine prendono il posto per prime. Chi ci va: +`happy` felicità.
@@ -62,6 +69,9 @@ function houseHappiness(h, ctx) {
   if (ctx.hall) why.hall = 5;
   if (game.bus && game.bus.near && game.bus.near.has(h.id)) why.bus = 4;
   if (h.edu) for (const k in SCHOOLS) if (h.edu[k]) why[k] = SCHOOLS[k].happy;
+  let park = 0;
+  for (const p of ctx.parks) if (PARKS[p.kind].happy > park && distToBuilding(p, h.ax, h.ay) <= PARKS[p.kind].radius) park = PARKS[p.kind].happy;
+  if (park) why.parks = park;
   let v = HAPPY.base;
   for (const k in why) v += why[k];
   h.happyWhy = why;
@@ -102,6 +112,7 @@ function updateHappiness() {
     police: all.filter(b => b.kind === 'police' && b.workers > 0),
     noisy: all.filter(isNoisy),
     hall: all.some(b => b.kind === 'townHall' && b.workers > 0),
+    parks: all.filter(b => PARKS[b.kind]),
   };
   let sum = 0, n = 0;
   for (const h of all) if (h.kind === 'house') {
@@ -263,6 +274,13 @@ function schoolSection(box, b) {
   box.appendChild(liveText('div', 'pnote', () => TR('Ci vanno {n} case: quelle entro {r} tile e quelle vicine a una fermata dello stesso bus.', { n: b.homes || 0, r: S.radius })));
   box.appendChild(el('div', 'pnote', TR('Le famiglie che ci vanno sono più felici (+{n}). Senza tutto il personale ci sono meno posti.', { n: S.happy })));
   box.appendChild(liveText('div', 'pnote', () => (b.pupils || 0) >= schoolSeats(b) && schoolSeats(b) > 0 ? TR('Piena: costruiscine un\'altra per le case che restano fuori.') : ''));
+}
+// parco: quante case rende più felici
+function parkSection(box, b) {
+  const P = PARKS[b.kind];
+  const n = () => [...game.buildings.values()].filter(h => h.kind === 'house' && distToBuilding(b, h.ax, h.ay) <= P.radius).length;
+  box.appendChild(liveText('div', 'pnote', () => TR('Rende più felici le {n} case entro {r} tile (+{h}).', { n: n(), r: P.radius, h: P.happy })));
+  box.appendChild(el('div', 'pnote', TR('Se una casa ha vicino più parchi, conta il migliore. Non servono lavoratori né strada.')));
 }
 // zona protetta dalla polizia (con la stazione in mano o selezionata): fArea in render.js
 
@@ -549,5 +567,168 @@ function drawUniversity3(c, ax, ay, base, r) {
     ] },
     partTree(c, ax, ay, base, 0.45, 2.7, 4), partTree(c, ax, ay, base, 0.85, 2.62, 7),
     partTree(c, ax, ay, base, 2.15, 2.62, 11), partTree(c, ax, ay, base, 2.55, 2.7, 13),
+  ]);
+}
+
+// ---- parchi: disegno (richiesta dell'utente: tre zone verdi di grandezza diversa) ----
+// forme a terra con le coordinate del riquadro senza rotazione (seguono rotUV / ROT_SIZE)
+function groundPoly(c, ax, ay, base, r, pts, color, edge) {
+  const q = pts.map(([u, v]) => { const p = rotUV(u, v, r); return iso(ax, ay, p[0], p[1], base); });
+  poly(c, q, color);
+  if (edge && DETAIL) { c.strokeStyle = edge; c.lineWidth = 0.8; c.beginPath(); q.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.closePath(); c.stroke(); }
+}
+function ellipsePts(cu, cv, ru, rv, n = 24, wob = 0) {
+  const out = [];
+  for (let k = 0; k < n; k++) { const t = k / n * Math.PI * 2, w = 1 + wob * Math.sin(t * 3 + 1); out.push([cu + Math.cos(t) * ru * w, cv + Math.sin(t) * rv * w]); }
+  return out;
+}
+// vialetto di ghiaia: una striscia larga `w` tile lungo una spezzata
+function groundPath(c, ax, ay, base, r, pts, w, color) {
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const [a, b] = [pts[i], pts[i + 1]], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1;
+    const nx = -dy / L * w / 2, ny = dx / L * w / 2;
+    groundPoly(c, ax, ay, base, r, [[a[0] + nx, a[1] + ny], [b[0] + nx, b[1] + ny], [b[0] - nx, b[1] - ny], [a[0] - nx, a[1] - ny]], color);
+    groundPoly(c, ax, ay, base, r, ellipsePts(b[0], b[1], w / 2, w / 2, 10), color);   // giunto tondo
+  }
+}
+// aiuola rotonda: terra e fiori di colori diversi (sempre uguali per quel parco)
+function flowerBed(c, ax, ay, base, r, cu, cv, rad, seed) {
+  groundPoly(c, ax, ay, base, r, ellipsePts(cu, cv, rad, rad, 16), '#7a5a3a', '#5e4430');
+  if (!DETAIL) return;
+  const cols = ['#ff5a5a', '#ffd84a', '#ff8fd0', '#ffffff', '#b07aff'];
+  for (let k = 0; k < 14; k++) {
+    const a = hash(seed, k, 31) * Math.PI * 2, d = Math.sqrt(hash(seed, k, 37)) * rad * 0.85;
+    const p = rotUV(cu + Math.cos(a) * d, cv + Math.sin(a) * d, r), q = iso(ax, ay, p[0], p[1], base);
+    c.fillStyle = '#3f8a3a'; c.fillRect(q[0] - 0.6, q[1] - 0.4, 1.2, 0.9);
+    c.fillStyle = cols[k % cols.length]; c.fillRect(q[0] - 0.5, q[1] - 1.3, 1, 1);
+  }
+}
+const PARK_GRASS = '#6fbd57', PARK_PATH = '#dccaa0', PARK_WATER = '#4fa8dc';
+const BENCH = { l: '#a0683c', r: '#7d5030', t: '#b97d4a', plain: true };
+// panchina lungo u o lungo v (seduta e schienale come un pezzo solo)
+// panchina: due gambe di ferro, seduta di doghe e schienale sul lato `back` (gruppo: dal basso verso l'alto)
+function bench(u, v, alongU) {
+  const L = 0.12, W = 0.04, legC = { l: '#4a4a52', r: '#3a3a40', t: '#5a5a62', plain: true };
+  const B = (a0, b0, a1, b1, h, z, col) => ({ box: alongU ? [u + a0, v + b0, u + a1, v + b1] : [u + b0, v + a0, u + b1, v + a1], h, z, col });
+  return { group: [
+    B(-L + 0.01, -W, -L + 0.03, W, 1.4, 0, legC), B(L - 0.03, -W, L - 0.01, W, 1.4, 0, legC),
+    B(-L, -W, L, W, 0.6, 1.4, BENCH),
+    B(-L, -W, L, -W + 0.015, 1.8, 2.0, BENCH),
+  ] };
+}
+// anatre che nuotano piano in tondo su uno specchio d'acqua
+function ducks(c, ax, ay, base, r, cu, cv, ru, rv, n) {
+  if (!DETAIL) return;
+  animSeen = true;
+  for (let k = 0; k < n; k++) {
+    const t = animT * 0.12 + k * 2.1, p = rotUV(cu + Math.cos(t) * ru * (0.4 + 0.25 * k), cv + Math.sin(t) * rv * (0.4 + 0.25 * k), r);
+    const [x, y] = iso(ax, ay, p[0], p[1], base);
+    c.fillStyle = 'rgba(255,255,255,0.35)'; c.beginPath(); c.ellipse(x, y + 0.6, 2, 0.7, 0, 0, Math.PI * 2); c.fill();   // scia
+    c.fillStyle = k % 2 ? '#8a6a4a' : '#f4f4f0'; c.beginPath(); c.ellipse(x, y - 0.4, 1.4, 0.8, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = k % 2 ? '#2f6b3a' : '#f4f4f0'; c.beginPath(); c.arc(x + 1, y - 1.3, 0.6, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#f2a03a'; c.fillRect(x + 1.5, y - 1.4, 0.8, 0.4);
+  }
+}
+// specchio d'acqua con la riva, i riflessi e le ninfee
+function pond(c, ax, ay, base, r, cu, cv, ru, rv, seed) {
+  groundPoly(c, ax, ay, base, r, ellipsePts(cu, cv, ru + 0.06, rv + 0.06, 28, 0.06), '#c9b98e');   // riva di sabbia
+  groundPoly(c, ax, ay, base, r, ellipsePts(cu, cv, ru, rv, 28, 0.06), PARK_WATER, '#2f7fb0');
+  if (!DETAIL) return;
+  for (let k = 0; k < 4; k++) {   // ninfee
+    const p = rotUV(cu + (hash(seed, k, 3) - 0.5) * ru * 1.2, cv + (hash(seed, k, 5) - 0.5) * rv * 1.2, r), q = iso(ax, ay, p[0], p[1], base);
+    c.fillStyle = '#3f9a4a'; c.beginPath(); c.ellipse(q[0], q[1], 1.6, 0.8, 0, 0, Math.PI * 2); c.fill();
+    if (k % 2 === 0) { c.fillStyle = '#ff9ad0'; c.fillRect(q[0] - 0.4, q[1] - 0.9, 0.9, 0.9); }
+  }
+  const sh = (animT * 0.3) % 1;   // luccichio che scorre
+  for (let k = 0; k < 3; k++) {
+    const p = rotUV(cu - ru * 0.5 + ru * ((sh + k / 3) % 1), cv - rv * 0.3 + k * rv * 0.25, r), q = iso(ax, ay, p[0], p[1], base);
+    aline(c, [q[0] - 2, q[1]], [q[0] + 2, q[1]], '#dff2ff', 0.6);
+  }
+}
+
+// Giardino 1x1: aiuole negli angoli, piazzola di ghiaia con l'albero in mezzo, panchina e vialetto
+function drawGarden(c, x, y, base, r) { withRotSize(1, () => drawGarden1(c, x, y, base, r)); }
+function drawGarden1(c, x, y, base, r) {
+  groundPoly(c, x, y, base, r, [[0.03, 0.03], [0.97, 0.03], [0.97, 0.97], [0.03, 0.97]], PARK_GRASS);
+  groundPath(c, x, y, base, r, [[0.5, 1.0], [0.5, 0.5]], 0.16, PARK_PATH);
+  groundPoly(c, x, y, base, r, ellipsePts(0.5, 0.45, 0.2, 0.2, 18), PARK_PATH);
+  flowerBed(c, x, y, base, r, 0.2, 0.2, 0.12, x * 7 + y);
+  flowerBed(c, x, y, base, r, 0.8, 0.2, 0.12, x * 7 + y + 1);
+  flowerBed(c, x, y, base, r, 0.18, 0.82, 0.1, x * 7 + y + 2);
+  flowerBed(c, x, y, base, r, 0.82, 0.82, 0.1, x * 7 + y + 3);
+  drawParts2(c, x, y, base, r, [
+    partTree(c, x, y, base, 0.5, 0.45, x * 3 + y * 5),
+    bench(0.78, 0.5, false),
+  ]);
+}
+
+// Parco 2x2: prato, stagno con le ninfee e le anatre, vialetti, aiuola, alberi e panchine
+function drawPark(c, ax, ay, base, r) {
+  const sd = ax * 13 + ay * 7;
+  groundPoly(c, ax, ay, base, r, [[0.04, 0.04], [1.96, 0.04], [1.96, 1.96], [0.04, 1.96]], PARK_GRASS);
+  groundPath(c, ax, ay, base, r, [[0.5, 2.0], [0.62, 1.4], [0.95, 1.18], [1.55, 1.32], [2.0, 1.42]], 0.18, PARK_PATH);
+  groundPath(c, ax, ay, base, r, [[0.62, 1.4], [0.42, 0.85], [0.5, 0.0]], 0.16, PARK_PATH);
+  pond(c, ax, ay, base, r, 1.3, 0.62, 0.48, 0.38, sd);
+  flowerBed(c, ax, ay, base, r, 1.1, 1.72, 0.17, sd);
+  ducks(c, ax, ay, base, r, 1.3, 0.62, 0.48, 0.38, 2);
+  drawParts2(c, ax, ay, base, r, [
+    partTree(c, ax, ay, base, 0.22, 0.32, sd + 1), partTree(c, ax, ay, base, 0.2, 1.05, sd + 2),
+    partTree(c, ax, ay, base, 0.25, 1.75, sd + 3), partTree(c, ax, ay, base, 1.75, 1.78, sd + 4),
+    bench(1.25, 1.48, true), bench(0.62, 0.75, false),
+  ]);
+}
+
+// Grande parco 3x3: lago con l'isolotto e le anatre, gazebo bianco, giochi con la sabbiera e l'altalena,
+// vialetti ad anello, aiuole, tanti alberi e panchine
+function drawBigPark(c, ax, ay, base, r) { withRotSize(3, () => drawBigPark3(c, ax, ay, base, r)); }
+function drawBigPark3(c, ax, ay, base, r) {
+  const sd = ax * 11 + ay * 17;
+  groundPoly(c, ax, ay, base, r, [[0.04, 0.04], [2.96, 0.04], [2.96, 2.96], [0.04, 2.96]], PARK_GRASS);
+  groundPath(c, ax, ay, base, r, [[1.5, 3.0], [1.5, 2.3], [2.05, 1.95], [2.35, 1.25], [2.05, 0.45], [1.25, 0.25], [0.5, 0.45]], 0.2, PARK_PATH);
+  groundPath(c, ax, ay, base, r, [[1.5, 2.3], [0.75, 2.2], [0.3, 1.6], [0.3, 0.9], [0.5, 0.45]], 0.2, PARK_PATH);
+  groundPath(c, ax, ay, base, r, [[2.05, 1.95], [2.3, 2.3]], 0.18, PARK_PATH);
+  pond(c, ax, ay, base, r, 1.2, 1.2, 0.7, 0.55, sd);
+  groundPoly(c, ax, ay, base, r, ellipsePts(1.0, 1.08, 0.17, 0.15, 16, 0.08), '#c9b98e');   // isolotto
+  groundPoly(c, ax, ay, base, r, ellipsePts(1.0, 1.08, 0.13, 0.11, 16, 0.08), '#5aa845');
+  flowerBed(c, ax, ay, base, r, 0.95, 2.6, 0.2, sd);
+  flowerBed(c, ax, ay, base, r, 2.0, 2.65, 0.16, sd + 1);
+  groundPoly(c, ax, ay, base, r, [[2.25, 0.62], [2.85, 0.62], [2.85, 1.0], [2.25, 1.0]], '#c9a96a');   // terra battuta dei giochi
+  ducks(c, ax, ay, base, r, 1.35, 1.35, 0.5, 0.35, 3);
+  const white = { l: '#f8f6f0', r: '#dcd8cc', t: '#ffffff', plain: true };
+  const wood = { l: '#c9472f', r: '#a3382a', t: '#e0604a', plain: true };
+  // tetto a piramide del gazebo (verde scuro), sopra la soletta
+  const pyramid = (bx, top) => {
+    const P = (u, v, h) => iso(ax, ay, u, v, h), cu = (bx[0] + bx[2]) / 2, cv = (bx[1] + bx[3]) / 2, A = P(cu, cv, top + 6 / STEP);
+    const k = [P(bx[0], bx[1], top), P(bx[2], bx[1], top), P(bx[2], bx[3], top), P(bx[0], bx[3], top)];
+    poly(c, [k[0], k[1], A], '#2f6b4a'); poly(c, [k[3], k[0], A], '#2f6b4a');   // facce dietro
+    poly(c, [k[2], k[3], A], '#4f9a6a'); poly(c, [k[1], k[2], A], '#3a7f57');   // facce davanti (luce a sinistra)
+    if (DETAIL) { aline(c, k[3], A, '#000000', 0.3); aline(c, k[2], A, '#000000', 0.3); aline(c, k[1], A, '#000000', 0.3); }
+    c.fillStyle = '#ffd966'; c.fillRect(A[0] - 0.5, A[1] - 2, 1, 2);
+  };
+  drawParts2(c, ax, ay, base, r, [
+    // gazebo: pedana, 4 colonnine, soletta con il tetto (gruppo: dal basso verso l'alto)
+    { group: [
+      { box: [2.04, 2.04, 2.56, 2.56], h: 1.5, col: { l: '#e6e0d2', r: '#cbc4b4', t: '#efeadf', plain: true } },
+      ...[[2.08, 2.08], [2.46, 2.08], [2.08, 2.46], [2.46, 2.46]].map(([u, v]) => ({ box: [u, v, u + 0.06, v + 0.06], h: 8, z: 1.5, col: white })),
+      { box: [2.0, 2.0, 2.6, 2.6], h: 1.2, z: 9.5, col: white, after: pyramid },
+    ] },
+    // giochi: sabbiera e altalena
+    { box: [2.3, 0.66, 2.55, 0.94], h: 1, col: { l: '#a07c4c', r: '#86643a', t: '#ecd89a', plain: true } },
+    { group: [
+      { box: [2.62, 0.68, 2.645, 0.705], h: 7, col: wood }, { box: [2.62, 0.92, 2.645, 0.945], h: 7, col: wood },
+      { box: [2.62, 0.68, 2.645, 0.945], h: 0.8, z: 7, col: wood, after(bx, top) {
+        if (!DETAIL) return;
+        for (const f of [0.33, 0.67]) {
+          const u = bx[0] + (bx[2] - bx[0]) * f, v = bx[1] + (bx[3] - bx[1]) * f;
+          const a = iso(ax, ay, u, v, top - 1 / STEP), b = iso(ax, ay, u, v, base + 2.5 / STEP);
+          line(c, a, b, '#4a3a2a'); c.fillStyle = '#3a3a40'; c.fillRect(b[0] - 1, b[1] - 0.5, 2, 1);
+        }
+      } },
+    ] },
+    partTree(c, ax, ay, base, 1.0, 1.06, sd + 9),   // sull'isolotto
+    partTree(c, ax, ay, base, 0.25, 0.22, sd + 1), partTree(c, ax, ay, base, 0.22, 2.55, sd + 2),
+    partTree(c, ax, ay, base, 0.55, 2.75, sd + 3), partTree(c, ax, ay, base, 2.75, 1.55, sd + 4),
+    partTree(c, ax, ay, base, 2.72, 0.25, sd + 5), partTree(c, ax, ay, base, 1.9, 0.2, sd + 6),
+    bench(1.72, 2.62, false), bench(2.55, 1.6, false), bench(0.55, 1.7, false), bench(1.25, 0.52, true),
   ]);
 }

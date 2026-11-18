@@ -37,6 +37,7 @@ function pedDoors(b) {
 function pedTarget(b) {
   const d = BUILDINGS[b.kind];
   if (b.kind === 'busStop') return 2;
+  if (d.green) return 3;                // a fare una passeggiata nel parco
   if (d.infra || d.water || POWER[b.kind] || b.kind === 'waterWell' || b.kind === 'sewage') return 0;
   if (SHOPS[b.kind]) return 4;          // ai negozi si va più volentieri
   if (SCHOOLS[b.kind]) return 4;        // studenti che vanno a scuola (city.js)

@@ -726,7 +726,7 @@ function buildingStatus(b) {
   if (b.kind === 'sewage') return waterStatus(b);
   if (b.kind === 'busStop') return accessTiles(b).length ? (b.depot ? null : 'noInput') : 'noRoad';
   if (BUILDINGS[b.kind].water) return b.full ? 'full' : b.noInput ? 'noInput' : null;   // piattaforma: niente strada né lavoratori dalle case
-  if (b.kind === 'pylon' || b.kind === 'pole') return null;   // tralicci e pali: niente strada né lavoratori
+  if (b.kind === 'pylon' || b.kind === 'pole' || BUILDINGS[b.kind].green) return null;   // anche i parchi: vanno da soli   // tralicci e pali: niente strada né lavoratori
   if (b.kind === 'substation') return powerStatus(b);   // niente strada né lavoratori: solo i collegamenti
   const need = JOBS[b.kind];
   if (need && (b.workers || 0) < need) return b.workers ? 'fewWorkers' : 'noWorkers';

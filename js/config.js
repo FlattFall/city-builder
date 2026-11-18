@@ -87,6 +87,10 @@ const BUILDINGS = {
   // scuole (richiesta dell'utente): le case vicine (o collegate con il bus) sono più felici; SCHOOLS in city.js
   school:     { name: 'Scuola elementare', w: 2, h: 2, cost: 3000, height: 22, group: 'city' },
   highSchool: { name: 'Scuola superiore', w: 2, h: 2, cost: 6000, height: 28, group: 'city' },
+  // parchi (richiesta dell'utente): zone verdi di tre grandezze, niente lavoratori né strada; PARKS in city.js
+  garden:     { name: 'Giardino', w: 1, h: 1, cost: 400, height: 16, group: 'city', infra: true, green: true, anySide: true },
+  park:       { name: 'Parco', w: 2, h: 2, cost: 2000, height: 16, group: 'city', infra: true, green: true, anySide: true },
+  bigPark:    { name: 'Grande parco', w: 3, h: 3, cost: 6000, height: 20, group: 'city', infra: true, green: true, anySide: true },
   university: { name: 'Università', w: 3, h: 3, cost: 16000, height: 50, group: 'city' },   // 3x3 (richiesta dell'utente): rotUV con ROT_SIZE = 3
 };
 // Acqua: consumo per abitante e per attività; quanto dà una fonte con tutto il personale; quanto

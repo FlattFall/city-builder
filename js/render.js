@@ -839,6 +839,7 @@ function drawBuildingOn(c, x, y, b) {
   if (b.kind === 'bakery') { drawBakery(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (b.kind === 'charcoalKiln') { drawCharcoalKiln(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (b.kind === 'waterWell') { drawWaterWell(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
+  if (b.kind === 'garden') { drawGarden(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (b.kind === 'busStop') { drawBusStop(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (b.kind === 'pylon') { drawPylon(c, x, y, game.map[y][x].elev, b.armV !== false, game.map[y][x].type === T.WATER); return; }
   if (b.kind === 'pole') { drawPole(c, x, y, game.map[y][x].elev, b.armV !== false, b.feed); return; }
@@ -869,6 +870,8 @@ function drawBuildingOn(c, x, y, b) {
   else if (b.kind === 'school') drawSchool(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'highSchool') drawHighSchool(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'university') drawUniversity(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'park') drawPark(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'bigPark') drawBigPark(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'livestock') drawLivestock(c, b.ax, b.ay, base, b.rot || 0, b.animal || 'cowFarm', b.level || 0);
   else if (b.kind === 'coalPlant') drawCoalPlant(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'solarPlant') drawSolarPlant(c, b.ax, b.ay, base, b.rot || 0);
@@ -1499,6 +1502,9 @@ function drawFrame() {
     // scuole: la zona da cui arrivano gli studenti a piedi (city.js)
     const sc = SCHOOLS[game.tool] && game.hover ? { kind: game.tool, ax: game.hover.x, ay: game.hover.y } : sel && SCHOOLS[sel.kind] ? sel : null;
     if (sc) { const R = SCHOOLS[sc.kind].radius, W = BUILDINGS[sc.kind].w - 1; return { x0: sc.ax - R, y0: sc.ay - R, x1: sc.ax + W + R, y1: sc.ay + W + R, elec: true }; }
+    // parchi: la zona delle case che diventano più felici, in verde
+    const pk = PARKS[game.tool] && game.hover ? { kind: game.tool, ax: game.hover.x, ay: game.hover.y } : sel && PARKS[sel.kind] ? sel : null;
+    if (pk) { const R = PARKS[pk.kind].radius, W = BUILDINGS[pk.kind].w - 1; return { x0: pk.ax - R, y0: pk.ay - R, x1: pk.ax + W + R, y1: pk.ay + W + R, forest: true }; }
     const fo = game.tool === 'forestry' && game.hover ? { ax: game.hover.x, ay: game.hover.y } : sel && sel.kind === 'forestry' ? sel : null;
     if (fo) { const R = FORESTRY.forestry.radius; return { x0: fo.ax - R, y0: fo.ay - R, x1: fo.ax + 1 + R, y1: fo.ay + 1 + R, forest: true }; }
     return null;

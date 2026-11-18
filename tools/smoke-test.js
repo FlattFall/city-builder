@@ -2046,6 +2046,35 @@ function check(cond, msg) {
   check(sc.seats && sc.full && sc.panel, 'scuole: i posti finiscono e il pannello li mostra: ' + JSON.stringify(sc));
   check(sc.locks, 'scuole: elementare da subito, superiore e università da sbloccare: ' + JSON.stringify(sc));
 
+  // 68. parchi: tre grandezze, le case vicine sono più felici (conta il parco migliore), niente lavoratori né strada
+  const pk = await page.evaluate(() => {
+    newGame(128, 4244); game.money = 1e6; ACCIDENT.maxChance = 0; WATER.required = false;
+    const x = 40, y = 60, r = {};
+    for (let dy = -8; dy < 10; dy++) for (let dx = -4; dx < 60; dx++) Object.assign(game.map[y + dy][x + dx], { type: T.GRASS, elev: 2, path: null, building: null, field: null, main: false, bridge: null });
+    for (let dx = -3; dx < 58; dx++) useTool('road', x + dx, y);
+    for (let i = 0; i < 40; i++) useTool('house', x + i, y - 1);
+    for (const b of game.buildings.values()) if (b.kind === 'house') b.residents = 4;
+    game.population = 30;
+    game.rotation = 0;
+    r.placed = useTool('garden', x, y + 2).ok && useTool('park', x + 20, y + 2).ok && useTool('bigPark', x + 36, y + 2).ok;   // senza strada accanto
+    updateHappiness();
+    const H = i => game.map[y - 1][x + i].building;
+    r.garden = H(1).happyWhy.parks === PARKS.garden.happy;                 // solo il giardino vicino
+    r.park = H(18).happyWhy.parks === PARKS.park.happy;
+    r.best = H(28).happyWhy.parks === PARKS.bigPark.happy;                 // vicino al parco e al grande parco: conta il grande
+    r.none = !H(10).happyWhy.parks;                                         // troppo lontano da tutti
+    r.noIcon = [...game.buildings.values()].filter(b => PARKS[b.kind]).every(b => buildingStatus(b) === null);
+    r.noJobs = game.industries === 0;
+    const g = [...game.buildings.values()].find(b => b.kind === 'park');
+    r.panel = (() => { openBuildingPanel(g); const t = document.getElementById('panel').textContent; closePanel(); return t.includes('entro 8 tile'); })();
+    __newGame(9, 128);
+    r.locks = !toolLocked('garden') && !toolLocked('park') && toolLocked('bigPark');
+    newGame(9, 128);
+    return r;
+  });
+  check(pk.placed && pk.garden && pk.park && pk.best && pk.none, 'parchi: le case vicine sono più felici, conta il parco migliore: ' + JSON.stringify(pk));
+  check(pk.noIcon && pk.noJobs && pk.panel && pk.locks, 'parchi: niente lavoratori né strada, pannello, grande parco da sbloccare: ' + JSON.stringify(pk));
+
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();
 })();
