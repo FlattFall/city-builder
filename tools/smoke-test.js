@@ -2075,6 +2075,27 @@ function check(cond, msg) {
   check(pk.placed && pk.garden && pk.park && pk.best && pk.none, 'parchi: le case vicine sono più felici, conta il parco migliore: ' + JSON.stringify(pk));
   check(pk.noIcon && pk.noJobs && pk.panel && pk.locks, 'parchi: niente lavoratori né strada, pannello, grande parco da sbloccare: ' + JSON.stringify(pk));
 
+  // 69. parchi: cinque aspetti (a caso quando si costruiscono, pulsante Cambia aspetto, si salvano)
+  const pv = await page.evaluate(() => {
+    newGame(128, 4245); game.money = 1e7; const r = {}, seen = new Set();
+    for (let i = 0; i < 40; i++) { const x = 10 + (i % 10) * 4, y = 10 + Math.floor(i / 10) * 4;
+      for (let dy = 0; dy < 3; dy++) for (let dx = 0; dx < 3; dx++) Object.assign(game.map[y + dy][x + dx], { type: T.GRASS, elev: 2, path: null, building: null, field: null, main: false, bridge: null, tree: false });
+      if (useTool('park', x, y).ok) seen.add(parkVariant(game.map[y][x].building)); }
+    r.random = seen.size >= 4;
+    const b = [...game.buildings.values()].find(q => q.kind === 'park'), v0 = parkVariant(b);
+    openBuildingPanel(b);
+    const btn = [...document.querySelectorAll('#panel button')].find(e => e.textContent.startsWith('Cambia aspetto'));
+    btn.click();
+    r.cycle = parkVariant(b) === (v0 + 1) % 5 && document.getElementById('panel').textContent.includes('Cambia aspetto (' + ((v0 + 1) % 5 + 1) + '/5)');
+    closePanel();
+    const want = parkVariant(b);
+    game.saveId = null; saveGame(); loadGame(game.saveId);
+    const b2 = [...game.buildings.values()].find(q => q.ax === b.ax && q.ay === b.ay);
+    r.saved = b2 && parkVariant(b2) === want;
+    return r;
+  });
+  check(pv.random && pv.cycle && pv.saved, 'parchi: cinque aspetti, Cambia aspetto, salvati: ' + JSON.stringify(pv));
+
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();
 })();

@@ -193,6 +193,7 @@ DICT.es = {
   'Grande parco': 'Parque grande',
   'Parchi': 'Parques',
   'Grande parco 3x3 con il lago e il gazebo: rende felici le case fino a 12 tile.': 'Parque grande 3x3 con lago y quiosco: hace felices a las casas hasta a 12 casillas.',
+  'Cambia aspetto ({n}/{m})': 'Cambiar aspecto ({n}/{m})',
   'Rende più felici le {n} case entro {r} tile (+{h}).': 'Hace más felices a las {n} casas a menos de {r} casillas (+{h}).',
   'Se una casa ha vicino più parchi, conta il migliore. Non servono lavoratori né strada.': 'Si una casa tiene varios parques cerca, cuenta el mejor. No hacen falta trabajadores ni calle.',
   'I <b>parchi</b> rendono più felici le case vicine: giardino +{a} entro {ra} tile, parco +{b} entro {rb} tile, grande parco +{c} entro {rc} tile. Se una casa ne ha vicino più di uno, conta il migliore. Non servono lavoratori né strada: basta lo spazio.': 'Los <b>parques</b> hacen más felices a las casas cercanas: jardín +{a} a menos de {ra} casillas, parque +{b} a menos de {rb} casillas, parque grande +{c} a menos de {rc} casillas. Si una casa tiene más de uno cerca, cuenta el mejor. No hacen falta trabajadores ni calle: basta el espacio.',

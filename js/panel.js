@@ -58,7 +58,7 @@ function panelShapeOf(b) {
   return [b.id, b.crop, b.animal, b.name, JSON.stringify(b.dests || []), b.fields, others, b.residents >= HOUSE_CAPACITY, !!b.unreachable, accessTiles(b).length,
     !!b.incoming, Object.keys(b.store || {}).join(), Object.keys(b.input || {}).join(),
     JSON.stringify(b.accept || {}), JSON.stringify(b.recipes || {}), JSON.stringify(b.split || {}), b.vans || 0, b.level || 0,
-    b.kind === 'house' ? JSON.stringify(b.happyWhy || {}) : '', b.kind === 'townHall' ? JSON.stringify(cityHappyWhy()) + taxRate() : ''].join('|');
+    b.kind === 'house' ? JSON.stringify(b.happyWhy || {}) : '', b.kind === 'townHall' ? JSON.stringify(cityHappyWhy()) + taxRate() : '', b.variant | 0].join('|');
 }
 
 function openBuildingPanel(b) {

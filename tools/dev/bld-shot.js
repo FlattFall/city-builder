@@ -2,7 +2,7 @@
 // Uso: node tools/dev/bld-shot.js <strumento> <nome> [zoomIndex]   -> /home/claude/shots/<nome>.png (4 riquadri)
 const path = require('path');
 const { chromium } = require('playwright');
-const [tool, name, zi = '5'] = process.argv.slice(2);
+const [tool, name, zi = '5', variant] = process.argv.slice(2);
 (async () => {
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 620, height: 500 } });
@@ -13,7 +13,7 @@ const [tool, name, zi = '5'] = process.argv.slice(2);
   await page.evaluate(() => { newGame(12345, 128); unlockAll(); game.started = true; document.getElementById('menu').hidden = true; game.money = 1e9; const st = document.createElement('style'); st.textContent = 'body > *:not(canvas){display:none!important}'; document.head.appendChild(st); drawWorkerIcons = () => {}; ACCIDENT.maxChance = 0; CRIME.minPop = 1e9; });
   const shots = [];
   for (let r = 0; r < 4; r++) {
-    await page.evaluate(([tool, r, zi]) => {
+    await page.evaluate(([tool, r, zi, variant]) => {
       // spiano un pezzo di prato, strada tutta intorno e l'edificio in mezzo
       const x0 = 40, y0 = 40;
       for (let y = y0 - 4; y < y0 + 6; y++) for (let x = x0 - 4; x < x0 + 6; x++) {
@@ -25,14 +25,14 @@ const [tool, name, zi = '5'] = process.argv.slice(2);
       game.rotation = r;
       const res = useTool(tool, x0, y0);
       if (!res.ok) throw new Error('non piazzato: ' + JSON.stringify(res));
-      const b = game.map[y0][x0].building; b.workers = JOBS[b.kind] || 0;
+      const b = game.map[y0][x0].building; b.workers = JOBS[b.kind] || 0; if (variant != null) b.variant = +variant;
       vehicles.length = 0; peds.length = 0;
       cam.zi = zi; const z = zoomLevel();
       cam.x = view.w / 2 - (x0 + w / 2 - (y0 + w / 2)) * TW / 2 * z;
       cam.y = view.h / 2 - ((x0 + w / 2 + y0 + w / 2) * TH / 2 - 3 * STEP - 14 - (w - 2) * 8) * z;
       game.hover = null; game.tool = 'hand'; game.selected = null;
       requestDraw(); drawFrame();
-    }, [tool, r, +zi]);
+    }, [tool, r, +zi, variant]);
     await page.waitForTimeout(150);
     shots.push((await page.screenshot()).toString('base64'));
   }

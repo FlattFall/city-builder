@@ -193,6 +193,7 @@ DICT.en = {
   'Grande parco': 'Large park',
   'Parchi': 'Parks',
   'Grande parco 3x3 con il lago e il gazebo: rende felici le case fino a 12 tile.': 'Large 3x3 park with a lake and a gazebo: makes houses up to 12 tiles away happy.',
+  'Cambia aspetto ({n}/{m})': 'Change look ({n}/{m})',
   'Rende più felici le {n} case entro {r} tile (+{h}).': 'Makes the {n} houses within {r} tiles happier (+{h}).',
   'Se una casa ha vicino più parchi, conta il migliore. Non servono lavoratori né strada.': 'If a house has several parks nearby, the best one counts. No workers or road needed.',
   'I <b>parchi</b> rendono più felici le case vicine: giardino +{a} entro {ra} tile, parco +{b} entro {rb} tile, grande parco +{c} entro {rc} tile. Se una casa ne ha vicino più di uno, conta il migliore. Non servono lavoratori né strada: basta lo spazio.': '<b>Parks</b> make nearby houses happier: garden +{a} within {ra} tiles, park +{b} within {rb} tiles, large park +{c} within {rc} tiles. If a house has more than one nearby, the best one counts. No workers or road needed: just the space.',

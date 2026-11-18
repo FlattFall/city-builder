@@ -839,7 +839,7 @@ function drawBuildingOn(c, x, y, b) {
   if (b.kind === 'bakery') { drawBakery(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (b.kind === 'charcoalKiln') { drawCharcoalKiln(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (b.kind === 'waterWell') { drawWaterWell(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
-  if (b.kind === 'garden') { drawGarden(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
+  if (b.kind === 'garden') { drawGarden(c, x, y, game.map[y][x].elev, b.rot || 0, parkVariant(b)); return; }
   if (b.kind === 'busStop') { drawBusStop(c, x, y, game.map[y][x].elev, b.rot || 0); return; }
   if (b.kind === 'pylon') { drawPylon(c, x, y, game.map[y][x].elev, b.armV !== false, game.map[y][x].type === T.WATER); return; }
   if (b.kind === 'pole') { drawPole(c, x, y, game.map[y][x].elev, b.armV !== false, b.feed); return; }
@@ -870,8 +870,8 @@ function drawBuildingOn(c, x, y, b) {
   else if (b.kind === 'school') drawSchool(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'highSchool') drawHighSchool(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'university') drawUniversity(c, b.ax, b.ay, base, b.rot || 0);
-  else if (b.kind === 'park') drawPark(c, b.ax, b.ay, base, b.rot || 0);
-  else if (b.kind === 'bigPark') drawBigPark(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'park') drawPark(c, b.ax, b.ay, base, b.rot || 0, parkVariant(b));
+  else if (b.kind === 'bigPark') drawBigPark(c, b.ax, b.ay, base, b.rot || 0, parkVariant(b));
   else if (b.kind === 'livestock') drawLivestock(c, b.ax, b.ay, base, b.rot || 0, b.animal || 'cowFarm', b.level || 0);
   else if (b.kind === 'coalPlant') drawCoalPlant(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'solarPlant') drawSolarPlant(c, b.ax, b.ay, base, b.rot || 0);

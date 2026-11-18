@@ -43,7 +43,7 @@ function tileSig(t, x, y) {
   }
   const b = t.building;
   if (b) h = Math.imul(h ^ (b.id * 2654435761 | 0), 33) + (b.rot | 0) * 97 + (b.level | 0) * 389 + (b.flow > 0 ? 7 : 0)
-    + ((b.feed ?? 9) + 1) * 1031 + (b.armV === false ? 3 : 0) + strCode(b.animal) | 0;
+    + (b.variant | 0) * 5003 + ((b.feed ?? 9) + 1) * 1031 + (b.armV === false ? 3 : 0) + strCode(b.animal) | 0;
   if (t.bridge) {
     const br = game.bridges.get(t.bridge.id);
     h = Math.imul(h ^ (t.bridge.id * 7919 + t.bridge.i), 37) + (br ? strCode(br.path) + (br.e[t.bridge.i] | 0) * 13 : 0) | 0;

@@ -324,7 +324,7 @@ function setAnimal(b, a) {
 
 // Dati iniziali di un edificio appena costruito
 function newBuilding(kind, x, y) {
-  const b = { id: game.nextId++, kind, variant: houseVariant(x, y), ax: x, ay: y, rot: game.rotation || 0 };
+  const b = { id: game.nextId++, kind, variant: BUILDINGS[kind].green ? Math.floor(hash(x, y, 77) * PARK_VARIANTS) : houseVariant(x, y), ax: x, ay: y, rot: game.rotation || 0 };
   if (kind === 'busStop' && typeof busStopRotation === 'function') b.rot = busStopRotation(x, y, b.rot);   // la pensilina guarda la strada
   if (kind === 'house') { b.residents = 0; b.incoming = 0; }
   if (kind === 'farm') { b.crop = 'wheat'; b.growth = 0; b.fields = 0; }
