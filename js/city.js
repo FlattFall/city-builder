@@ -452,51 +452,102 @@ function drawHighSchool(c, ax, ay, base, r) {
   ]);
 }
 
-// Università: due ali di mattoni rossi con il tetto di ardesia, corpo centrale bianco con le colonne
-// e la cupola verde rame, prato davanti con il viale e due alberi
-function drawUniversity(c, ax, ay, base, r) {
-  groundRect(c, ax, ay, base, [0.06, 1.08, 1.94, 1.94], r, '#6bb35a');         // prato
-  groundRect(c, ax, ay, base, [0.3, 1.18, 1.7, 1.36], r, '#d8d2c2');           // piazzetta davanti alle colonne
-  groundRect(c, ax, ay, base, [0.3, 1.36, 0.7, 2.0], r, '#d8d2c2');            // viale fino all'entrata
-  const brick = { l: '#b5583e', r: '#93432f', t: '#7e3a2a' };
-  const stone = { l: '#f1ece0', r: '#d6cfbe', t: '#e2dccd' }, white = { l: '#f8f6f0', r: '#dcd8cc', t: '#ffffff', plain: true };
-  const slate = { rh: 7, back: '#3e4852', roof: '#55616d', gable: '#b5583e' };
-  const glass = '#bcd6e6';
-  const wing = (u0, u1) => ({ box: [u0, 0.15, u1, 1.0], h: 20, col: brick, roof: slate, doors: [
-    ...winRow('+v', [u0 + 0.1, u0 + 0.36], 4, 9, 0.14, glass), ...winRow('+v', [u0 + 0.1, u0 + 0.36], 12, 17, 0.14, glass),
-    ...winRow('-v', [u0 + 0.1, u0 + 0.36], 4, 9, 0.14, glass), ...winRow('-v', [u0 + 0.1, u0 + 0.36], 12, 17, 0.14, glass),
-    ...winRow('+u', [0.3, 0.62], 4, 9, 0.14, glass), ...winRow('+u', [0.3, 0.62], 12, 17, 0.14, glass),
-    ...winRow('-u', [0.3, 0.62], 4, 9, 0.14, glass), ...winRow('-u', [0.3, 0.62], 12, 17, 0.14, glass),
+// Università 3x3 (richiesta dell'utente: più grande e più bella): campus a U. Dietro il palazzo principale
+// color pietra con il colonnato, il frontone e la grande cupola verde rame su un tamburo con le finestre;
+// ai lati due ali di mattoni rossi con il tetto di ardesia che vengono avanti; nella piazza la fontana;
+// davanti il viale con le siepi, il cancello di mattoni e gli alberi sul prato. Riquadro da 0 a 3
+// (withRotSize(3)), entrata al centro del lato davanti.
+function drawUniversity(c, ax, ay, base, r) { withRotSize(3, () => drawUniversity3(c, ax, ay, base, r)); }
+function drawUniversity3(c, ax, ay, base, r) {
+  const pave = '#ddd6c4';
+  groundRect(c, ax, ay, base, [0.05, 0.05, 2.95, 2.95], r, '#69b058');         // prato
+  groundRect(c, ax, ay, base, [0.72, 1.32, 2.28, 2.1], r, pave);              // piazza
+  groundRect(c, ax, ay, base, [1.3, 2.1, 1.7, 3.0], r, pave);                 // viale fino al cancello
+  groundRect(c, ax, ay, base, [0.2, 2.25, 0.62, 2.4], r, pave);               // vialetti verso le porte delle ali
+  groundRect(c, ax, ay, base, [2.38, 2.25, 2.8, 2.4], r, pave);
+  const stone = { l: '#f3ecdb', r: '#d8cfb8', t: '#e6dfcc' }, white = { l: '#fbf9f3', r: '#e0dbcf', t: '#ffffff', plain: true };
+  const brick = { l: '#b9573c', r: '#94432e', t: '#7e3a2a' };
+  const slate = { rh: 9, back: '#3c4650', roof: '#56626e', gable: '#b9573c', cross: true };
+  const glass = '#bcd6e6', wood = '#5a3d2b';
+  const hedge = { l: '#3f8a3a', r: '#2f6f2c', t: '#4fa046', plain: true };
+  const W = (face, list, z0, z1, w = 0.13) => winRow(face, list, z0, z1, w, glass);
+  // ala di mattoni (lunga verso il davanti), porta sul lato che guarda la piazza
+  const wing = (u0, u1, inner) => ({ box: [u0, 0.25, u1, 2.25], h: 20, col: brick, roof: slate, doors: [
+    ...W('+v', [u0 + 0.1, u0 + 0.34], 4, 9), ...W('+v', [u0 + 0.1, u0 + 0.34], 12, 17),
+    ...W('-v', [u0 + 0.1, u0 + 0.34], 4, 9), ...W('-v', [u0 + 0.1, u0 + 0.34], 12, 17),
+    ...W(inner, [0.4, 0.75, 1.1, 1.45], 4, 9), ...W(inner, [0.4, 0.75, 1.1, 1.45, 1.8], 12, 17),
+    { face: inner, a: 1.78, b: 1.98, z1: 9, color: wood },
+    ...W(inner === '+u' ? '-u' : '+u', [0.4, 0.75, 1.1, 1.45, 1.8], 4, 9), ...W(inner === '+u' ? '-u' : '+u', [0.4, 0.75, 1.1, 1.45, 1.8], 12, 17),
   ] });
-  const copper = { l: '#6fbf9a', r: '#4f9a7a' };
-  drawParts2(c, ax, ay, base, r, [
-    wing(0.12, 0.75), wing(1.25, 1.88),
-    partTree(c, ax, ay, base, 1.45, 1.66, 4), partTree(c, ax, ay, base, 1.8, 1.55, 11),
-    { box: [0.75, 0.25, 1.25, 1.1], h: 26, col: stone, doors: [
-      { face: '+v', a: 0.9, b: 1.1, z1: 11, color: '#5a3d2b' },
-      ...winRow('+v', [0.82, 1.04], 15, 21, 0.14, glass), ...winRow('-v', [0.82, 1.04], 6, 12, 0.14, glass), ...winRow('-v', [0.82, 1.04], 15, 21, 0.14, glass),
-      ...winRow('+u', [0.45, 0.75], 6, 12, 0.14, glass), ...winRow('-u', [0.45, 0.75], 6, 12, 0.14, glass),
-      ...winRow('+u', [0.45, 0.75], 15, 21, 0.14, glass), ...winRow('-u', [0.45, 0.75], 15, 21, 0.14, glass),
-    ] },
-    // portico: colonne e frontone (gruppo: dal basso verso l'alto)
-    { group: [
-      ...[0.79, 0.92, 1.03, 1.16].map(u => ({ box: [u, 1.12, u + 0.05, 1.17], h: 13, col: white })),
-      { box: [0.76, 1.1, 1.24, 1.2], h: 3, z: 13, col: stone, roof: { rh: 3, back: '#cfc8b5', roof: '#e2dccd', gable: '#f1ece0' } },
-    ] },
-    // tamburo e cupola sopra il corpo centrale
-    { box: [0.83, 0.47, 1.17, 0.81], h: 5, z: 26, cyl: true, col: { l: '#f1ece0', r: '#d6cfbe', t: '#e2dccd' }, after(bx, top) {
-      const cu = (bx[0] + bx[2]) / 2, cv = (bx[1] + bx[3]) / 2, rad = (bx[2] - bx[0]) / 2;
-      const [x, y] = iso(ax, ay, cu, cv, top), rx = rad * TW * 0.7071, ry = rad * TH * 0.7071, hh = rx * 0.95;
-      c.fillStyle = copper.l; c.beginPath(); c.ellipse(x, y, rx, hh, 0, Math.PI, Math.PI * 1.5); c.lineTo(x, y + ry); c.ellipse(x, y, rx, ry, 0, Math.PI / 2, Math.PI); c.closePath(); c.fill();
-      c.fillStyle = copper.r; c.beginPath(); c.ellipse(x, y, rx, hh, 0, Math.PI * 1.5, Math.PI * 2); c.ellipse(x, y, rx, ry, 0, 0, Math.PI / 2); c.lineTo(x, y - hh); c.closePath(); c.fill();
-      if (DETAIL) {
-        c.strokeStyle = 'rgba(0,0,0,0.35)'; c.lineWidth = 0.4;
-        c.beginPath(); c.ellipse(x, y, rx, hh, 0, Math.PI, Math.PI * 2); c.ellipse(x, y, rx, ry, 0, 0, Math.PI); c.stroke();
-        for (const f of [-0.5, 0.5]) { c.beginPath(); c.ellipse(x, y, rx * Math.abs(f) * 1.0, hh, 0, f < 0 ? Math.PI : Math.PI * 1.5, f < 0 ? Math.PI * 1.5 : Math.PI * 2); c.stroke(); }
-        aline(c, [x - rx * 0.55, y - hh * 0.55], [x - rx * 0.2, y - hh * 0.85], '#ffffff', 0.5);
+  // tamburo con le finestrelle e la cupola verde rame con la lanterna
+  const dome = (bx, top) => {
+    const cu = (bx[0] + bx[2]) / 2, cv = (bx[1] + bx[3]) / 2, rad = (bx[2] - bx[0]) / 2;
+    const [x, y] = iso(ax, ay, cu, cv, top), rx = rad * TW * 0.7071, ry = rad * TH * 0.7071, hh = rx * 0.9;
+    if (DETAIL) {   // finestrelle sulla metà del tamburo che si vede
+      const yb = y + 7.5;
+      for (let k = 1; k < 6; k++) {
+        const a = k / 6 * Math.PI, wx = x + Math.cos(a) * rx * 0.92, wy = yb - 5.5 + Math.sin(a) * ry * 0.92;
+        c.fillStyle = '#7d97ab'; c.fillRect(wx - 0.9 * Math.sin(a), wy, 1.8 * Math.sin(a), 3.4);
       }
-      c.fillStyle = '#f1ece0'; c.fillRect(x - 1, y - hh - 2.6, 2, 2.6);         // lanterna
-      c.fillStyle = '#4f9a7a'; c.beginPath(); c.moveTo(x - 1.4, y - hh - 2.6); c.lineTo(x + 1.4, y - hh - 2.6); c.lineTo(x, y - hh - 4.6); c.closePath(); c.fill();
-    } },
+    }
+    const L = '#73c4a0', R = '#4c9677';
+    c.fillStyle = L; c.beginPath(); c.ellipse(x, y, rx, hh, 0, Math.PI, Math.PI * 1.5); c.lineTo(x, y + ry); c.ellipse(x, y, rx, ry, 0, Math.PI / 2, Math.PI); c.closePath(); c.fill();
+    c.fillStyle = R; c.beginPath(); c.ellipse(x, y, rx, hh, 0, Math.PI * 1.5, Math.PI * 2); c.ellipse(x, y, rx, ry, 0, 0, Math.PI / 2); c.lineTo(x, y - hh); c.closePath(); c.fill();
+    if (DETAIL) {   // costoloni della cupola, contorno, riflesso
+      c.strokeStyle = 'rgba(30,70,55,0.55)'; c.lineWidth = 0.45;
+      for (const f of [0.35, 0.7]) for (const sg of [-1, 1]) { c.beginPath(); c.ellipse(x, y, rx * f, hh, 0, sg < 0 ? Math.PI : Math.PI * 1.5, sg < 0 ? Math.PI * 1.5 : Math.PI * 2); c.stroke(); }
+      c.beginPath(); c.moveTo(x, y - hh); c.lineTo(x, y + ry); c.stroke();
+      c.strokeStyle = 'rgba(0,0,0,0.4)'; c.beginPath(); c.ellipse(x, y, rx, hh, 0, Math.PI, Math.PI * 2); c.ellipse(x, y, rx, ry, 0, 0, Math.PI); c.stroke();
+      aline(c, [x - rx * 0.62, y - hh * 0.45], [x - rx * 0.25, y - hh * 0.88], '#ffffff', 0.55);
+    }
+    // lanterna in cima con la punta dorata
+    c.fillStyle = '#f3ecdb'; c.fillRect(x - 1.6, y - hh - 3.4, 3.2, 3.6);
+    c.fillStyle = '#d8cfb8'; c.fillRect(x, y - hh - 3.4, 1.6, 3.6);
+    c.fillStyle = '#7d97ab'; c.fillRect(x - 0.6, y - hh - 2.8, 1.2, 1.8);
+    c.fillStyle = '#4c9677'; c.beginPath(); c.moveTo(x - 2.1, y - hh - 3.4); c.lineTo(x + 2.1, y - hh - 3.4); c.lineTo(x, y - hh - 6.2); c.closePath(); c.fill();
+    c.fillStyle = '#ffd966'; c.fillRect(x - 0.4, y - hh - 8, 0.8, 2);
+  };
+  const fountain = (bx, top) => {   // acqua che zampilla e ricade nella vasca
+    if (!DETAIL) return;
+    animSeen = true;
+    const [x, y] = iso(ax, ay, (bx[0] + bx[2]) / 2, (bx[1] + bx[3]) / 2, top);
+    c.fillStyle = '#d8cfb8'; c.fillRect(x - 0.8, y - 4, 1.6, 4);
+    for (let k = 0; k < 6; k++) {
+      const t = (animT * 0.9 + k / 6) % 1, a = k / 6 * Math.PI * 2;
+      const px = x + Math.cos(a) * 4.5 * t, py = y - 4 - 5 * t + 9 * t * t + Math.sin(a) * 1.6 * t;
+      c.fillStyle = 'rgba(220,240,255,' + (0.9 - 0.5 * t).toFixed(2) + ')'; c.fillRect(px - 0.5, py - 0.5, 1, 1);
+    }
+  };
+  drawParts2(c, ax, ay, base, r, [
+    wing(0.12, 0.7, '+u'), wing(2.3, 2.88, '-u'),
+    // palazzo principale: due piani di finestre, cornicione chiaro, porta grande dietro le colonne
+    { box: [0.7, 0.2, 2.3, 1.3], h: 24, col: stone, doors: [
+      { face: '+v', a: 1.38, b: 1.62, z1: 12, color: wood },
+      ...W('+v', [0.8, 1.04, 1.83, 2.07], 4, 10), ...W('+v', [0.8, 1.04, 1.28, 1.59, 1.83, 2.07], 14, 20),
+      ...W('-v', [0.8, 1.04, 1.28, 1.59, 1.83, 2.07], 4, 10), ...W('-v', [0.8, 1.04, 1.28, 1.59, 1.83, 2.07], 14, 20),
+      ...W('+u', [0.35, 0.65, 0.95], 4, 10), ...W('+u', [0.35, 0.65, 0.95], 14, 20),
+      ...W('-u', [0.35, 0.65, 0.95], 4, 10), ...W('-u', [0.35, 0.65, 0.95], 14, 20),
+      { face: '+v', a: 0.7, b: 2.3, z0: 22, z1: 24, color: '#e6dfcc' }, { face: '-v', a: 0.7, b: 2.3, z0: 22, z1: 24, color: '#e6dfcc' },
+      { face: '+u', a: 0.2, b: 1.3, z0: 22, z1: 24, color: '#e6dfcc' }, { face: '-u', a: 0.2, b: 1.3, z0: 22, z1: 24, color: '#e6dfcc' },
+    ] },
+    // colonnato e frontone (gruppo: dal basso verso l'alto)
+    { group: [
+      { box: [0.98, 1.3, 2.02, 1.5], h: 1.5, col: { l: '#e6e0d2', r: '#cbc4b4', t: '#efeadf', plain: true } },   // gradini
+      ...[1.02, 1.2, 1.38, 1.55, 1.73, 1.91].map(u => ({ box: [u, 1.36, u + 0.07, 1.43], h: 15, z: 1.5, col: white })),
+      { box: [0.98, 1.3, 2.02, 1.47], h: 3, z: 16.5, col: stone, roof: { rh: 6, back: '#cfc6b0', roof: '#e6dfcc', gable: '#f3ecdb', cross: true } },
+    ] },
+    { box: [1.16, 0.4, 1.84, 1.08], h: 8, z: 24, cyl: true, col: { l: '#f3ecdb', r: '#d8cfb8', t: '#e6dfcc' }, after: dome },
+    // fontana nella piazza
+    { box: [1.28, 1.52, 1.72, 1.96], h: 2.5, cyl: true, col: { l: '#e6dfcc', r: '#c9c0aa', t: '#d8cfb8', hollow: '#5fb3e0' }, after: fountain },
+    // siepi lungo il viale
+    { box: [1.14, 2.2, 1.24, 2.82], h: 2.5, col: hedge }, { box: [1.76, 2.2, 1.86, 2.82], h: 2.5, col: hedge },
+    // cancello di mattoni con l'arco e i cappelli di pietra
+    { group: [
+      { box: [1.02, 2.86, 1.16, 3.0], h: 11, col: brick }, { box: [1.84, 2.86, 1.98, 3.0], h: 11, col: brick },
+      { box: [1.16, 2.9, 1.84, 2.96], h: 2, z: 9, col: { l: '#2f4f7a', r: '#24405f', t: '#3a5f8f', plain: true } },
+      { box: [1.0, 2.84, 1.18, 3.02], h: 1.2, z: 11, col: stone }, { box: [1.82, 2.84, 2.0, 3.02], h: 1.2, z: 11, col: stone },
+    ] },
+    partTree(c, ax, ay, base, 0.45, 2.7, 4), partTree(c, ax, ay, base, 0.85, 2.62, 7),
+    partTree(c, ax, ay, base, 2.15, 2.62, 11), partTree(c, ax, ay, base, 2.55, 2.7, 13),
   ]);
 }

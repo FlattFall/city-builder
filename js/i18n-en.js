@@ -558,7 +558,7 @@ TOOL_TEXT.en = {
   police: { label: 'Police station (2x2)', desc: 'Protects houses and shops within 16 tiles: fewer thefts, thieves get arrested and people are happier. 4 officers.' },
   school: { label: 'Primary school (2x2)', desc: 'Children from houses within 10 tiles (or near a stop of the same bus) go to school: happier families. 80 places, 3 teachers.' },
   highSchool: { label: 'High school (2x2)', desc: 'Teenagers from houses within 14 tiles (or by bus) study here: happier families. 150 places, 5 teachers.' },
-  university: { label: 'University (2x2)', desc: 'Students come from every house within 24 tiles (or by bus): a happier city. 400 places, 8 professors.' },
+  university: { label: 'University (3x3)', desc: 'Students come from every house within 24 tiles (or by bus): a happier city. 400 places, 8 professors.' },
   busDepot: { label: 'Bus depot (2x2)', desc: 'Buses leave from here for every stop it reaches by road. 3 drivers.' },
   pylon: { label: 'Pylon', desc: `High voltage: connects to pylons within ${ELEC.pylonRange} tiles and to substations within ${ELEC.linkRange}. Also on water. Drag to place them in a row. On the edge of the map it buys and sells power outside.` },
   pole: { label: 'Power pole', desc: `Wooden low-voltage pole: carries road power up to ${ELEC.poleRange} tiles (from one pole to the next) and to whoever is within ${ELEC.poleReach} tiles. Drag to place them in a row.` },

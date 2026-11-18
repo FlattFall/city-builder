@@ -557,7 +557,7 @@ TOOL_TEXT.es = {
   police: { label: 'Comisaría de policía (2x2)', desc: 'Protege las casas y tiendas a menos de 16 casillas: menos robos, los ladrones son detenidos y la gente está más feliz. 4 agentes.' },
   school: { label: 'Escuela primaria (2x2)', desc: 'Los niños de las casas a menos de 10 casillas (o cerca de una parada del mismo autobús) van a la escuela: familias más felices. 80 plazas, 3 maestros.' },
   highSchool: { label: 'Instituto (2x2)', desc: 'Los chicos de las casas a menos de 14 casillas (o en autobús) estudian aquí: familias más felices. 150 plazas, 5 profesores.' },
-  university: { label: 'Universidad (2x2)', desc: 'Los estudiantes llegan de todas las casas a menos de 24 casillas (o en autobús): una ciudad más feliz. 400 plazas, 8 profesores.' },
+  university: { label: 'Universidad (3x3)', desc: 'Los estudiantes llegan de todas las casas a menos de 24 casillas (o en autobús): una ciudad más feliz. 400 plazas, 8 profesores.' },
   busDepot: { label: 'Cochera de autobuses (2x2)', desc: 'De aquí salen los autobuses hacia todas las paradas que alcanza por calle. 3 conductores.' },
   pylon: { label: 'Torre eléctrica', desc: `Alta tensión: se conecta a las torres a menos de ${ELEC.pylonRange} casillas y a las subestaciones a menos de ${ELEC.linkRange}. También sobre el agua. Arrastrando las pones en fila. En el borde del mapa compra y vende corriente afuera.` },
   pole: { label: 'Poste de luz', desc: `Poste de madera de baja tensión: lleva la corriente de las calles hasta ${ELEC.poleRange} casillas (de un poste a otro) y a quien esté a menos de ${ELEC.poleReach} casillas. Arrastrando los pones en fila.` },

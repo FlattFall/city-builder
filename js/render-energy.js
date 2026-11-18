@@ -65,7 +65,7 @@ function drawPart2(c, ax, ay, base, r, p, b) {
   if (p.draw) { p.draw(b, z0); return; }   // pezzo disegnato a mano (es. un veicolo parcheggiato)
   if (p.cyl) top = cyl(c, ax, ay, z0, (b[0] + b[2]) / 2, (b[1] + b[3]) / 2, Math.min(b[2] - b[0], b[3] - b[1]) / 2, p.h, p.col);
   else top = box(c, ax, ay, z0, b[0], b[1], b[2], b[3], p.h, p.col);
-  if (p.roof) gableRoof(c, ax, ay, top, b[0] - 0.04, b[1] - 0.04, b[2] + 0.04, b[3] + 0.04, p.roof.rh, Object.assign({ gableL: p.col.l }, p.roof), (r & 1) === 1);
+  if (p.roof) gableRoof(c, ax, ay, top, b[0] - 0.04, b[1] - 0.04, b[2] + 0.04, b[3] + 0.04, p.roof.rh, Object.assign({ gableL: p.col.l }, p.roof), ((r & 1) === 1) !== !!p.roof.cross);   // cross: colmo lungo v (ali lunghe)
   if (p.doors) for (const d of p.doors) drawDoor(c, ax, ay, z0, r, p.box, d);
   if (p.after) p.after(b, top);
 }

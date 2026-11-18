@@ -1498,7 +1498,7 @@ function drawFrame() {
     if (po) { const R = POLICE.radius; return { x0: po.ax - R, y0: po.ay - R, x1: po.ax + 1 + R, y1: po.ay + 1 + R, elec: true }; }
     // scuole: la zona da cui arrivano gli studenti a piedi (city.js)
     const sc = SCHOOLS[game.tool] && game.hover ? { kind: game.tool, ax: game.hover.x, ay: game.hover.y } : sel && SCHOOLS[sel.kind] ? sel : null;
-    if (sc) { const R = SCHOOLS[sc.kind].radius; return { x0: sc.ax - R, y0: sc.ay - R, x1: sc.ax + 1 + R, y1: sc.ay + 1 + R, elec: true }; }
+    if (sc) { const R = SCHOOLS[sc.kind].radius, W = BUILDINGS[sc.kind].w - 1; return { x0: sc.ax - R, y0: sc.ay - R, x1: sc.ax + W + R, y1: sc.ay + W + R, elec: true }; }
     const fo = game.tool === 'forestry' && game.hover ? { ax: game.hover.x, ay: game.hover.y } : sel && sel.kind === 'forestry' ? sel : null;
     if (fo) { const R = FORESTRY.forestry.radius; return { x0: fo.ax - R, y0: fo.ay - R, x1: fo.ax + 1 + R, y1: fo.ay + 1 + R, forest: true }; }
     return null;

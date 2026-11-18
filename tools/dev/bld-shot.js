@@ -5,7 +5,7 @@ const { chromium } = require('playwright');
 const [tool, name, zi = '5'] = process.argv.slice(2);
 (async () => {
   const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport: { width: 520, height: 420 } });
+  const page = await browser.newPage({ viewport: { width: 620, height: 500 } });
   await page.addInitScript(() => { localStorage.setItem('citybuilder.lang', 'it'); localStorage.setItem('citybuilder.tutorial', 'off'); });
   const errs = []; page.on('pageerror', e => errs.push(e.message));
   await page.goto('file://' + path.resolve(__dirname, '..', '..', 'index.html'));
@@ -20,15 +20,16 @@ const [tool, name, zi = '5'] = process.argv.slice(2);
         const t = game.map[y][x]; if (t.building) game.buildings.delete(t.building.id);
         t.building = null; if (t.path) setPath(x, y, null); t.field = null; t.tree = false; t.type = T.GRASS; t.elev = 3;
       }
-      for (let i = -1; i <= 2; i++) { useTool('road', x0 + i, y0 - 1); useTool('road', x0 + i, y0 + 2); useTool('road', x0 - 1, y0 + i); useTool('road', x0 + 2, y0 + i); }
+      const w = BUILDINGS[tool].w;
+      for (let i = -1; i <= w; i++) { useTool('road', x0 + i, y0 - 1); useTool('road', x0 + i, y0 + w); useTool('road', x0 - 1, y0 + i); useTool('road', x0 + w, y0 + i); }
       game.rotation = r;
       const res = useTool(tool, x0, y0);
       if (!res.ok) throw new Error('non piazzato: ' + JSON.stringify(res));
       const b = game.map[y0][x0].building; b.workers = JOBS[b.kind] || 0;
       vehicles.length = 0; peds.length = 0;
       cam.zi = zi; const z = zoomLevel();
-      cam.x = view.w / 2 - (x0 + 1 - (y0 + 1)) * TW / 2 * z;
-      cam.y = view.h / 2 - ((x0 + 1 + y0 + 1) * TH / 2 - 3 * STEP - 14) * z;
+      cam.x = view.w / 2 - (x0 + w / 2 - (y0 + w / 2)) * TW / 2 * z;
+      cam.y = view.h / 2 - ((x0 + w / 2 + y0 + w / 2) * TH / 2 - 3 * STEP - 14 - (w - 2) * 8) * z;
       game.hover = null; game.tool = 'hand'; game.selected = null;
       requestDraw(); drawFrame();
     }, [tool, r, +zi]);
@@ -36,9 +37,9 @@ const [tool, name, zi = '5'] = process.argv.slice(2);
     shots.push((await page.screenshot()).toString('base64'));
   }
   // un'immagine sola con le 4 rotazioni
-  const html = '<body style="margin:0;background:#222;display:grid;grid-template-columns:520px 520px;gap:4px">' +
+  const html = '<body style="margin:0;background:#222;display:grid;grid-template-columns:620px 620px;gap:4px">' +
     shots.map((s, i) => `<div style="position:relative"><img src="data:image/png;base64,${s}"><span style="position:absolute;left:8px;top:6px;color:#fff;font:bold 16px sans-serif;background:#0008;padding:2px 6px">Rotazione ${i + 1}</span></div>`).join('') + '</body>';
-  const p2 = await browser.newPage({ viewport: { width: 1044, height: 844 } });
+  const p2 = await browser.newPage({ viewport: { width: 1244, height: 1004 } });
   await p2.setContent(html);
   require('fs').mkdirSync('/home/claude/shots', { recursive: true });
   await p2.screenshot({ path: `/home/claude/shots/${name}.png` });

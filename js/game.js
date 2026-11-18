@@ -333,15 +333,20 @@ function newBuilding(kind, x, y) {
 }
 
 // ---------- Rotazione ed entrata ----------
-// Gli edifici 2x2 si disegnano in un riquadro (u, v da 0 a 2); rot (0-3) lo gira di 90° alla volta
+// Gli edifici 2x2 si disegnano in un riquadro (u, v da 0 a 2); rot (0-3) lo gira di 90° alla volta.
+// Gli edifici 3x3 (università) usano un riquadro da 0 a 3: per loro ROT_SIZE = 3 (withRotSize), così
+// rotUV, rotBox, drawDoor, groundRect e drawParts2 girano attorno al centro giusto.
+let ROT_SIZE = 2;
 function rotUV(u, v, r) {
+  const S = ROT_SIZE;
   switch (r & 3) {
     case 0: return [u, v];
-    case 1: return [2 - v, u];
-    case 2: return [2 - u, 2 - v];
-    default: return [v, 2 - u];
+    case 1: return [S - v, u];
+    case 2: return [S - u, S - v];
+    default: return [v, S - u];
   }
 }
+function withRotSize(S, fn) { const old = ROT_SIZE; ROT_SIZE = S; try { return fn(); } finally { ROT_SIZE = old; } }
 
 // Fattoria e magazzino hanno una sola entrata: il tile dell'impronta da cui si entra e il tile
 // fuori (dove deve esserci la strada). Senza rotazione l'entrata è davanti a sinistra.
@@ -351,13 +356,15 @@ function entranceOf(b) { return entrancesOf(b)[0] || null; }
 function entrancesOf(b) {
   const def = BUILDINGS[b.kind];
   if (def.w === 1 || def.anySide) return [];   // senza entrata: va bene una strada su qualsiasi lato
-  const out = [];
-  for (const u of def.wide ? [0.5, 1.5] : [0.5]) {
-    const inn = rotUV(u, 1.5, b.rot || 0), o = rotUV(u, 2.5, b.rot || 0);
-    const x = b.ax + Math.floor(inn[0]), y = b.ay + Math.floor(inn[1]);
-    const rx = b.ax + Math.floor(o[0]), ry = b.ay + Math.floor(o[1]);
-    out.push({ x, y, rx, ry, d: DIRS.findIndex(D => D.dx === rx - x && D.dy === ry - y) });
-  }
+  const out = [], S = def.w;   // 3x3: entrata al centro del lato davanti
+  withRotSize(S, () => {
+    for (const u of def.wide ? [0.5, 1.5] : S === 3 ? [1.5] : [0.5]) {
+      const inn = rotUV(u, S - 0.5, b.rot || 0), o = rotUV(u, S + 0.5, b.rot || 0);
+      const x = b.ax + Math.floor(inn[0]), y = b.ay + Math.floor(inn[1]);
+      const rx = b.ax + Math.floor(o[0]), ry = b.ay + Math.floor(o[1]);
+      out.push({ x, y, rx, ry, d: DIRS.findIndex(D => D.dx === rx - x && D.dy === ry - y) });
+    }
+  });
   return out;
 }
 

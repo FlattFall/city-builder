@@ -48,7 +48,7 @@ const TOOL_INFO = {
   police: { label: 'Stazione di polizia (2x2)', cost: BUILDINGS.police.cost, desc: 'Protegge le case e i negozi entro 16 tile: meno furti, i ladri vengono arrestati e la gente è più felice. 4 agenti.' },
   school: { label: 'Scuola elementare (2x2)', cost: BUILDINGS.school.cost, desc: 'I bambini delle case entro 10 tile (o vicine a una fermata dello stesso bus) vanno a scuola: famiglie più felici. 80 posti, 3 maestri.' },
   highSchool: { label: 'Scuola superiore (2x2)', cost: BUILDINGS.highSchool.cost, desc: 'I ragazzi delle case entro 14 tile (o con il bus) studiano qui: famiglie più felici. 150 posti, 5 professori.' },
-  university: { label: 'Università (2x2)', cost: BUILDINGS.university.cost, desc: 'Gli studenti arrivano da tutte le case entro 24 tile (o con il bus): la città è più felice. 400 posti, 8 professori.' },
+  university: { label: 'Università (3x3)', cost: BUILDINGS.university.cost, desc: 'Gli studenti arrivano da tutte le case entro 24 tile (o con il bus): la città è più felice. 400 posti, 8 professori.' },
   busDepot: { label: 'Deposito dei bus (2x2)', cost: BUILDINGS.busDepot.cost, desc: 'Da qui partono i bus per tutte le fermate che raggiunge per strada. 3 autisti.' },
   demolish:  { label: 'Demolisci', desc: 'Toglie edifici, strade, ponti, tunnel, campi e alberi. Trascinando toglie solo cose dello stesso tipo del primo clic. Un edificio demolito ti ridà il 75% del costo.' },
   raise:     { label: 'Alza terreno', cost: COSTS.terrain, desc: 'Alza il terreno di un livello (solo dove non ci sono strade o edifici).' },
@@ -270,11 +270,11 @@ function tileIcon(drawTop, scale) {
   });
 }
 
-function bigIcon(drawBuilding, ground) {
+function bigIcon(drawBuilding, ground, n = 2) {   // n = lato in tile (3 per l'università)
   return makeIcon(c => {
-    const s = 0.85;
-    c.setTransform(s, 0, 0, s, 32, 46 - 2 * TH * s);
-    for (const [u, v] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+    const s = 0.85 * 2 / n;
+    c.setTransform(s, 0, 0, s, 32, 46 - n * TH * s);
+    for (let u = 0; u < n; u++) for (let v = 0; v < n; v++) {
       const P = (a, b) => iso(0, 0, u + a, v + b, 0);
       poly(c, [P(0, 0), P(1, 0), P(1, 1), P(0, 1)], ground);
     }
@@ -360,7 +360,7 @@ function buildIcons() {
   ICONS.police = bigIcon(c => drawPolice(c, 0, 0, 0, 0), '#8f939a');
   ICONS.school = bigIcon(c => drawSchool(c, 0, 0, 0, 0), '#e0b84a');
   ICONS.highSchool = bigIcon(c => drawHighSchool(c, 0, 0, 0, 0), '#8fa3b8');
-  ICONS.university = bigIcon(c => drawUniversity(c, 0, 0, 0, 0), '#b5583e');
+  ICONS.university = bigIcon(c => drawUniversity(c, 0, 0, 0, 0), '#6bb35a', 3);
   ICONS.substation = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawSubstation(c, 0, 0, 0, 0); }, 1.3);
   ICONS.solarPlant = bigIcon(c => drawSolarPlant(c, 0, 0, 0, 0), GROUND.solarPlant);
   ICONS.windPlant = makeIcon(c => {   // più piccola: le torri sono alte
