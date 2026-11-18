@@ -84,6 +84,37 @@ function fillDips(x, y) {
   return filled;
 }
 
+// ---------- Curva ai piedi di una salita ----------
+// Una rampa sale solo dritta: se la strada gira proprio ai piedi di una salita (o subito dopo una
+// discesa), il tile della curva resterebbe piatto e la salita staccata (segnalazione dell'utente:
+// "collegare la strada a volte è complicato"). Allora il tile della curva sale di un livello (piccolo
+// terrapieno) e la rampa si sposta sul tile dritto prima della curva. Si fa solo se poi tutto è
+// collegato davvero, altrimenti si rimette com'era.
+function liftCurves(x, y) {
+  const lifted = [];
+  for (const [qx, qy] of [[x, y], [x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+    if (!inMap(qx, qy)) continue;
+    const q = game.map[qy][qx];
+    if (!q.path || q.main || q.bridge || q.building || q.rb || q.tunnel || q.elev <= 0 || q.elev >= MAX_ELEV) continue;
+    if (rampDir(qx, qy) !== -1) continue;
+    const ns = [];
+    for (let d = 0; d < 4; d++) {
+      const nx = qx + DIRS[d].dx, ny = qy + DIRS[d].dy;
+      if (inMap(nx, ny) && game.map[ny][nx].path && sameNet(qx, qy, nx, ny)) ns.push(d);
+    }
+    if (ns.length !== 2 || (ns[0] + 2) % 4 === ns[1]) continue;      // solo una curva (due bracci ad angolo)
+    const el = d => game.map[qy + DIRS[d].dy][qx + DIRS[d].dx].elev;
+    const up = ns.find(d => el(d) === q.elev + 1), flat = ns.find(d => el(d) === q.elev);
+    if (up == null || flat == null || roadLinked(qx, qy, up)) continue;
+    const head = (hx, hy) => typeof bridgesAtHead === 'function' && bridgesAtHead(hx, hy).length > 0;   // teste di ponti e tunnel: non si toccano
+    if (head(qx, qy) || ns.some(d => head(qx + DIRS[d].dx, qy + DIRS[d].dy))) continue;
+    q.elev++;
+    if (roadLinked(qx, qy, up) && roadLinked(qx, qy, flat)) { lifted.push([qx, qy]); if (q.elev > game.maxElev) game.maxElev = q.elev; }
+    else q.elev--;
+  }
+  return lifted;
+}
+
 // ---------- Direzioni, angoli e rampe ----------
 // Direzioni dei vicini: 0 = NE (y-1), 1 = SE (x+1), 2 = SW (y+1), 3 = NW (x-1)
 const DIRS = [{ dx: 0, dy: -1 }, { dx: 1, dy: 0 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }];
@@ -605,6 +636,7 @@ function useTool(tool, x, y) {
     if (!replacing) {
       if (tool === 'rail') game.rails++; else game.roads++;
       fillDips(x, y);
+      liftCurves(x, y);
     }
     updateRoundabouts();
   } else if (tool === 'pipe') {
