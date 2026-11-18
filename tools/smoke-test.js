@@ -2082,6 +2082,16 @@ function check(cond, msg) {
       for (let dy = 0; dy < 3; dy++) for (let dx = 0; dx < 3; dx++) Object.assign(game.map[y + dy][x + dx], { type: T.GRASS, elev: 2, path: null, building: null, field: null, main: false, bridge: null, tree: false });
       if (useTool('park', x, y).ok) seen.add(parkVariant(game.map[y][x].building)); }
     r.random = seen.size >= 4;
+    // l'anteprima mostra l'aspetto che verrà costruito, e il parco dopo ne ha uno diverso
+    let same = 0, diff = 0;
+    for (let i = 0; i < 10; i++) { const x = 60 + i * 4, y = 60;
+      for (let dy = 0; dy < 3; dy++) for (let dx = 0; dx < 3; dx++) Object.assign(game.map[y + dy][x + dx], { type: T.GRASS, elev: 2, path: null, building: null, field: null, main: false, bridge: null, tree: false });
+      game.tool = 'park'; let shown = null;
+      withPreview({ x, y }, () => { shown = game.map[y][x].building.variant; });
+      useTool('park', x, y);
+      if (parkVariant(game.map[y][x].building) === shown) same++;
+      if (buildVariant('park', x + 4, y) !== shown) diff++; }
+    r.preview = same === 10 && diff === 10;
     const b = [...game.buildings.values()].find(q => q.kind === 'park'), v0 = parkVariant(b);
     openBuildingPanel(b);
     const btn = [...document.querySelectorAll('#panel button')].find(e => e.textContent.startsWith('Cambia aspetto'));
@@ -2094,7 +2104,7 @@ function check(cond, msg) {
     r.saved = b2 && parkVariant(b2) === want;
     return r;
   });
-  check(pv.random && pv.cycle && pv.saved, 'parchi: cinque aspetti, Cambia aspetto, salvati: ' + JSON.stringify(pv));
+  check(pv.random && pv.preview && pv.cycle && pv.saved, 'parchi: cinque aspetti (l\'anteprima mostra quello che si costruisce), Cambia aspetto, salvati: ' + JSON.stringify(pv));
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();

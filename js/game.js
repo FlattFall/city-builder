@@ -322,10 +322,20 @@ function setAnimal(b, a) {
   return true;
 }
 
+// Aspetto del prossimo parco di quel tipo: deciso prima, così l'anteprima mostra proprio quello che si
+// costruisce (richiesta dell'utente: prima l'anteprima ne faceva vedere uno e poi ne metteva un altro)
+function nextParkVariant(kind) {
+  if (!game.parkNext) game.parkNext = {};
+  if (game.parkNext[kind] == null) game.parkNext[kind] = Math.floor(Math.random() * PARK_VARIANTS);
+  return game.parkNext[kind];
+}
+// aspetto di un edificio nuovo (anche quello finto dell'anteprima)
+function buildVariant(kind, x, y) { return BUILDINGS[kind].green ? nextParkVariant(kind) : houseVariant(x, y); }
 // Dati iniziali di un edificio appena costruito
 function newBuilding(kind, x, y) {
-  const b = { id: game.nextId++, kind, variant: BUILDINGS[kind].green ? Math.floor(hash(x, y, 77) * PARK_VARIANTS) : houseVariant(x, y), ax: x, ay: y, rot: game.rotation || 0 };
+  const b = { id: game.nextId++, kind, variant: buildVariant(kind, x, y), ax: x, ay: y, rot: game.rotation || 0 };
   if (kind === 'busStop' && typeof busStopRotation === 'function') b.rot = busStopRotation(x, y, b.rot);   // la pensilina guarda la strada
+  if (BUILDINGS[kind].green) game.parkNext[kind] = (b.variant + 1 + Math.floor(Math.random() * (PARK_VARIANTS - 1))) % PARK_VARIANTS;   // il prossimo parco avrà un aspetto diverso
   if (kind === 'house') { b.residents = 0; b.incoming = 0; }
   if (kind === 'farm') { b.crop = 'wheat'; b.growth = 0; b.fields = 0; }
   if (kind === 'livestock') { b.animal = defaultAnimal(x, y); b.growth = 0; }

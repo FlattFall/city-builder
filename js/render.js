@@ -1305,7 +1305,7 @@ function withPreview(p, draw) {
   else if (tool === 'field') t.field = true;
   else if (tool === 'pipe' && !checkTool('pipe', p.x, p.y)) t.pipe = true;
   else if (BUILDINGS[tool]) {
-    const b = { kind: tool, variant: houseVariant(p.x, p.y), ax: p.x, ay: p.y, rot: game.rotation, animal: tool === 'livestock' ? defaultAnimal(p.x, p.y) : undefined };
+    const b = { kind: tool, variant: buildVariant(tool, p.x, p.y), ax: p.x, ay: p.y, rot: game.rotation, animal: tool === 'livestock' ? defaultAnimal(p.x, p.y) : undefined };
     for (const [q] of saved) game.map[q.y][q.x].building = b;
   }
   try { draw(); } finally {
