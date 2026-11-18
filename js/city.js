@@ -15,7 +15,16 @@ const HAPPY = { base: 50, grace: 40, noArrive: 25, leave: 20, unhappy: 30, every
 const POLICE = { radius: 16, carSpeed: 1.9 };
 const CRIME = { every: 14, minPop: 24, perResident: 0.0035, max: 0.75, policeCut: 0.3, stealMin: 80, stealPer: 2, stealMax: 1500, memory: 90, radius: 7, icon: 14 };
 const HAPPY_LABELS = { water: 'Acqua', power: 'Corrente', jobs: 'Lavoro', shops: 'Negozi vicini', safety: 'Sicurezza', crime: 'Furti recenti',
-  taxes: 'Tasse', noise: 'Fabbriche vicine', hall: 'Municipio', bus: 'Bus' };
+  taxes: 'Tasse', noise: 'Fabbriche vicine', hall: 'Municipio', bus: 'Bus',
+  school: 'Scuola elementare', highSchool: 'Scuola superiore', university: 'Università' };
+// SCUOLE (richiesta dell'utente): una casa "va" a una scuola se sta entro `radius` tile o se è vicina a una
+// fermata dello stesso bus (busLinked). Ogni scuola ha `seats` posti, contati in abitanti delle case servite
+// (meno maestri = meno posti); le case più vicine prendono il posto per prime. Chi ci va: +`happy` felicità.
+const SCHOOLS = {
+  school:     { seats: 80,  radius: 10, happy: 6 },
+  highSchool: { seats: 150, radius: 14, happy: 5 },
+  university: { seats: 400, radius: 24, happy: 7 },
+};
 
 function happyColor(v) { return v >= 65 ? '#a7f070' : v >= 40 ? '#ffd966' : '#ff7b6b'; }
 function cityState() {
@@ -52,14 +61,42 @@ function houseHappiness(h, ctx) {
   if (ctx.noisy.some(n => distToBuilding(n, h.ax, h.ay) <= HAPPY.noise)) why.noise = -10;
   if (ctx.hall) why.hall = 5;
   if (game.bus && game.bus.near && game.bus.near.has(h.id)) why.bus = 4;
+  if (h.edu) for (const k in SCHOOLS) if (h.edu[k]) why[k] = SCHOOLS[k].happy;
   let v = HAPPY.base;
   for (const k in why) v += why[k];
   h.happyWhy = why;
   h.happy = Math.max(0, Math.min(100, v));
 }
 function happyBlocksArrival(h) { return game.population >= HAPPY.grace && h.happy != null && h.happy < HAPPY.noArrive; }
+// ---- scuole ----
+function schoolSeats(s) { return Math.floor(SCHOOLS[s.kind].seats * Math.min(1, (s.workers || 0) / JOBS[s.kind])); }
+function schoolReach(s, h) { return distToBuilding(s, h.ax, h.ay) <= SCHOOLS[s.kind].radius || (typeof busLinked === 'function' && busLinked(h, s)); }
+function updateSchools(all) {
+  const houses = all.filter(b => b.kind === 'house');
+  for (const h of houses) h.edu = null;
+  for (const kind in SCHOOLS) {
+    const schools = all.filter(b => b.kind === kind);
+    for (const s of schools) { s.pupils = 0; s.homes = 0; s.free = schoolSeats(s); }
+    if (!schools.length) continue;
+    // le case più vicine prima, ognuna alla scuola più vicina che ha ancora posto
+    const near = h => Math.min(...schools.map(s => distToBuilding(s, h.ax, h.ay)));
+    const list = houses.filter(h => h.residents > 0).map(h => [near(h), h]).sort((a, b) => a[0] - b[0]);
+    for (const [, h] of list) {
+      let best = null, bd = Infinity;
+      for (const s of schools) {
+        if (s.free < h.residents || !schoolReach(s, h)) continue;
+        const d = distToBuilding(s, h.ax, h.ay);
+        if (d < bd) { bd = d; best = s; }
+      }
+      if (!best) continue;
+      best.free -= h.residents; best.pupils += h.residents; best.homes++;
+      (h.edu || (h.edu = {}))[kind] = best.id;
+    }
+  }
+}
 function updateHappiness() {
   const all = [...game.buildings.values()];
+  updateSchools(all);
   const ctx = {
     shops: all.filter(b => SHOPS[b.kind] && b.workers > 0),
     police: all.filter(b => b.kind === 'police' && b.workers > 0),
@@ -219,6 +256,14 @@ function policeSection(box, b) {
   const C = cityState();
   box.appendChild(liveText('div', 'pnote', () => TR('Ladri arrestati in città: {n}', { n: C.caught })));
 }
+// scuola: posti usati, case servite, raggio
+function schoolSection(box, b) {
+  const S = SCHOOLS[b.kind];
+  box.appendChild(barWithLabels(() => b.pupils || 0, S.seats, () => TR('Posti: {a} / {b}', { a: b.pupils || 0, b: schoolSeats(b) }), () => ''));
+  box.appendChild(liveText('div', 'pnote', () => TR('Ci vanno {n} case: quelle entro {r} tile e quelle vicine a una fermata dello stesso bus.', { n: b.homes || 0, r: S.radius })));
+  box.appendChild(el('div', 'pnote', TR('Le famiglie che ci vanno sono più felici (+{n}). Senza tutto il personale ci sono meno posti.', { n: S.happy })));
+  box.appendChild(liveText('div', 'pnote', () => (b.pupils || 0) >= schoolSeats(b) && schoolSeats(b) > 0 ? TR('Piena: costruiscine un\'altra per le case che restano fuori.') : ''));
+}
 // zona protetta dalla polizia (con la stazione in mano o selezionata): fArea in render.js
 
 // ---- disegno ----
@@ -320,4 +365,138 @@ function drawSirenLights(c, v, mx, my, h, f, sd) {
     c.fillStyle = v.calm ? (w < 0 ? '#c94040' : '#3f6fd9') : col; c.fillRect(p[0] - 0.8, p[1] - 0.6, 1.6, 1.2);
     if (!v.calm && ((w < 0 && on === 0) || (w > 0 && on === 1))) { c.fillStyle = w < 0 ? 'rgba(255,80,80,0.35)' : 'rgba(80,130,255,0.35)'; c.beginPath(); c.arc(p[0], p[1], 3.2, 0, Math.PI * 2); c.fill(); }
   }
+}
+
+// ---- scuole: disegno (richiesta dell'utente) ----
+// linea dipinta a terra (campi da gioco), con le coordinate del riquadro senza rotazione
+function groundLine(c, ax, ay, base, r, pts, color, w = 0.7, close = false) {
+  if (!DETAIL) return;
+  const q = pts.map(([u, v]) => { const p = rotUV(u, v, r); return iso(ax, ay, p[0], p[1], base); });
+  c.strokeStyle = color; c.lineWidth = w;
+  c.beginPath(); q.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); if (close) c.closePath(); c.stroke();
+}
+// albero sul prato di un edificio, ordinato come un pezzo (draw)
+function partTree(c, ax, ay, base, u, v, seed) {
+  return { box: [u - 0.08, v - 0.08, u + 0.08, v + 0.08], h: 16, draw(b) {
+    const p = iso(ax, ay, (b[0] + b[2]) / 2, (b[1] + b[3]) / 2, base);
+    drawTree(c, p[0], p[1] - 8, seed, seed * 3 + 1);
+  } };
+}
+const winRow = (face, list, z0, z1, w = 0.16, color = '#9fd3e8') => list.map(a => ({ face, a, b: a + w, z0, z1, color }));
+
+// Scuola elementare: edificio basso giallo con il tetto rosso, porta blu, finestre su tutti i lati,
+// cortile rosso con il gioco della campana e l'altalena
+function drawSchool(c, ax, ay, base, r) {
+  groundRect(c, ax, ay, base, [0.3, 1.12, 0.7, 2.0], r, '#c9c4b6');            // vialetto dall'entrata
+  groundRect(c, ax, ay, base, [0.85, 1.22, 1.9, 1.9], r, '#c96f4e');           // cortile
+  groundLine(c, ax, ay, base, r, [[0.95, 1.3], [1.8, 1.3], [1.8, 1.82], [0.95, 1.82]], '#f4e9d8', 0.6, true);
+  for (let i = 0; i < 4; i++) groundLine(c, ax, ay, base, r, [[1.0 + i * 0.1, 1.4], [1.1 + i * 0.1, 1.4], [1.1 + i * 0.1, 1.5], [1.0 + i * 0.1, 1.5]], '#ffffff', 0.5, true);   // campana
+  const wall = { l: '#f4d36b', r: '#d8b24a', t: '#c9a43e' };
+  const wood = { l: '#c9472f', r: '#a3382a', t: '#e0604a', plain: true };
+  const glass = '#9fd3e8';
+  drawParts2(c, ax, ay, base, r, [
+    { box: [0.12, 0.15, 1.88, 1.1], h: 13, col: wall, roof: { rh: 8, back: '#9c3b2e', roof: '#c4513d', gable: '#f4d36b' }, doors: [
+      { face: '+v', a: 0.38, b: 0.62, z1: 9, color: '#3f6fd9' },
+      ...winRow('+v', [0.78, 1.08, 1.38, 1.62], 4, 10, 0.18, glass), ...winRow('-v', [0.25, 0.55, 0.85, 1.15, 1.45], 4, 10, 0.18, glass),
+      ...winRow('+u', [0.3, 0.65], 4, 10, 0.18, glass), ...winRow('-u', [0.3, 0.65], 4, 10, 0.18, glass),
+    ] },
+    // pensilina colorata sopra la porta
+    { box: [0.32, 1.1, 0.68, 1.2], h: 1.2, z: 9.5, col: { l: '#e0453a', r: '#b8362d', t: '#f06a5e', plain: true } },
+    // altalena: due pali e la trave (un gruppo solo)
+    { group: [
+      { box: [1.22, 1.56, 1.245, 1.585], h: 7, col: wood },
+      { box: [1.575, 1.56, 1.6, 1.585], h: 7, col: wood },
+      { box: [1.22, 1.56, 1.6, 1.585], h: 0.8, z: 7, col: wood, after(bx, top) {
+        if (!DETAIL) return;
+        for (const f of [0.33, 0.67]) {   // le corde e il seggiolino
+          const u = bx[0] + (bx[2] - bx[0]) * f, v = bx[1] + (bx[3] - bx[1]) * f;
+          const a = iso(ax, ay, u, v, top - 1 / STEP), b = iso(ax, ay, u, v, base + 2.5 / STEP);
+          line(c, a, b, '#4a3a2a'); c.fillStyle = '#3a3a40'; c.fillRect(b[0] - 1, b[1] - 0.5, 2, 1);
+        }
+      } },
+    ] },
+    // casetta-scivolo verde e gialla nel cortile
+    { box: [1.62, 1.28, 1.82, 1.46], h: 5, col: { l: '#4caf50', r: '#3a8f3e', t: '#f2c230', plain: true } },
+  ]);
+}
+
+// Scuola superiore: palazzo grigio chiaro a due piani con la fascia verde acqua, tetto piano,
+// pensilina sull'entrata e il campo sportivo davanti
+function drawHighSchool(c, ax, ay, base, r) {
+  groundRect(c, ax, ay, base, [0.3, 1.0, 0.7, 2.0], r, '#c9c4b6');
+  groundRect(c, ax, ay, base, [0.85, 1.12, 1.92, 1.92], r, '#4f9a44');         // campo sportivo
+  groundLine(c, ax, ay, base, r, [[0.95, 1.2], [1.84, 1.2], [1.84, 1.84], [0.95, 1.84]], '#f2f2f2', 0.6, true);
+  groundLine(c, ax, ay, base, r, [[1.395, 1.2], [1.395, 1.84]], '#f2f2f2', 0.6);
+  if (DETAIL) {   // cerchio di centrocampo
+    const ring = []; for (let k = 0; k <= 16; k++) { const t = k / 16 * Math.PI * 2; ring.push([1.395 + Math.cos(t) * 0.12, 1.52 + Math.sin(t) * 0.12]); }
+    groundLine(c, ax, ay, base, r, ring, '#f2f2f2', 0.6);
+  }
+  const wall = { l: '#e4e7ea', r: '#bfc5cc', t: '#9aa3ad' };
+  const teal = '#3a8f9a', glass = '#9fd3e8';
+  const band = f => ({ face: f, a: f[1] === 'v' ? 0.12 : 0.12, b: f[1] === 'v' ? 1.88 : 1.0, z0: 10, z1: 12, color: teal });
+  const steel = { l: '#9aa0a8', r: '#7d838b', t: '#b4bac2', plain: true };
+  drawParts2(c, ax, ay, base, r, [
+    { box: [0.12, 0.12, 1.88, 1.0], h: 22, col: wall, doors: [
+      band('+v'), band('-v'), band('+u'), band('-u'),
+      { face: '+v', a: 0.36, b: 0.64, z1: 9, color: glass },
+      ...winRow('+v', [0.8, 1.1, 1.4, 1.65], 3, 8, 0.18, glass), ...winRow('+v', [0.2, 0.5, 0.8, 1.1, 1.4, 1.65], 13.5, 19, 0.18, glass),
+      ...winRow('-v', [0.2, 0.5, 0.8, 1.1, 1.4, 1.65], 3, 8, 0.18, glass), ...winRow('-v', [0.2, 0.5, 0.8, 1.1, 1.4, 1.65], 13.5, 19, 0.18, glass),
+      ...winRow('+u', [0.22, 0.6], 3, 8, 0.18, glass), ...winRow('+u', [0.22, 0.6], 13.5, 19, 0.18, glass),
+      ...winRow('-u', [0.22, 0.6], 3, 8, 0.18, glass), ...winRow('-u', [0.22, 0.6], 13.5, 19, 0.18, glass),
+    ] },
+    { box: [0.28, 1.0, 0.72, 1.2], h: 1.5, z: 9, col: { l: teal, r: '#2c6f78', t: '#4fb0bb', plain: true } },   // pensilina
+    { box: [1.3, 0.3, 1.66, 0.62], h: 5, z: 22, col: { l: '#cfd3d8', r: '#a9afb6', t: '#8a919c' } },           // vano scale sul tetto
+    // canestri ai due lati del campo
+    { box: [0.9, 1.5, 0.93, 1.54], h: 11, col: steel, after(bx, top) { if (DETAIL) { const p = iso(ax, ay, bx[2], (bx[1] + bx[3]) / 2, top); c.fillStyle = '#ffffff'; c.fillRect(p[0] - 1.5, p[1] - 1.5, 3, 2.4); c.fillStyle = '#e0602a'; c.fillRect(p[0] - 1, p[1] + 0.9, 2, 0.6); } } },
+    { box: [1.86, 1.5, 1.89, 1.54], h: 11, col: steel, after(bx, top) { if (DETAIL) { const p = iso(ax, ay, bx[0], (bx[1] + bx[3]) / 2, top); c.fillStyle = '#ffffff'; c.fillRect(p[0] - 1.5, p[1] - 1.5, 3, 2.4); c.fillStyle = '#e0602a'; c.fillRect(p[0] - 1, p[1] + 0.9, 2, 0.6); } } },
+  ]);
+}
+
+// Università: due ali di mattoni rossi con il tetto di ardesia, corpo centrale bianco con le colonne
+// e la cupola verde rame, prato davanti con il viale e due alberi
+function drawUniversity(c, ax, ay, base, r) {
+  groundRect(c, ax, ay, base, [0.06, 1.08, 1.94, 1.94], r, '#6bb35a');         // prato
+  groundRect(c, ax, ay, base, [0.3, 1.18, 1.7, 1.36], r, '#d8d2c2');           // piazzetta davanti alle colonne
+  groundRect(c, ax, ay, base, [0.3, 1.36, 0.7, 2.0], r, '#d8d2c2');            // viale fino all'entrata
+  const brick = { l: '#b5583e', r: '#93432f', t: '#7e3a2a' };
+  const stone = { l: '#f1ece0', r: '#d6cfbe', t: '#e2dccd' }, white = { l: '#f8f6f0', r: '#dcd8cc', t: '#ffffff', plain: true };
+  const slate = { rh: 7, back: '#3e4852', roof: '#55616d', gable: '#b5583e' };
+  const glass = '#bcd6e6';
+  const wing = (u0, u1) => ({ box: [u0, 0.15, u1, 1.0], h: 20, col: brick, roof: slate, doors: [
+    ...winRow('+v', [u0 + 0.1, u0 + 0.36], 4, 9, 0.14, glass), ...winRow('+v', [u0 + 0.1, u0 + 0.36], 12, 17, 0.14, glass),
+    ...winRow('-v', [u0 + 0.1, u0 + 0.36], 4, 9, 0.14, glass), ...winRow('-v', [u0 + 0.1, u0 + 0.36], 12, 17, 0.14, glass),
+    ...winRow('+u', [0.3, 0.62], 4, 9, 0.14, glass), ...winRow('+u', [0.3, 0.62], 12, 17, 0.14, glass),
+    ...winRow('-u', [0.3, 0.62], 4, 9, 0.14, glass), ...winRow('-u', [0.3, 0.62], 12, 17, 0.14, glass),
+  ] });
+  const copper = { l: '#6fbf9a', r: '#4f9a7a' };
+  drawParts2(c, ax, ay, base, r, [
+    wing(0.12, 0.75), wing(1.25, 1.88),
+    partTree(c, ax, ay, base, 1.45, 1.66, 4), partTree(c, ax, ay, base, 1.8, 1.55, 11),
+    { box: [0.75, 0.25, 1.25, 1.1], h: 26, col: stone, doors: [
+      { face: '+v', a: 0.9, b: 1.1, z1: 11, color: '#5a3d2b' },
+      ...winRow('+v', [0.82, 1.04], 15, 21, 0.14, glass), ...winRow('-v', [0.82, 1.04], 6, 12, 0.14, glass), ...winRow('-v', [0.82, 1.04], 15, 21, 0.14, glass),
+      ...winRow('+u', [0.45, 0.75], 6, 12, 0.14, glass), ...winRow('-u', [0.45, 0.75], 6, 12, 0.14, glass),
+      ...winRow('+u', [0.45, 0.75], 15, 21, 0.14, glass), ...winRow('-u', [0.45, 0.75], 15, 21, 0.14, glass),
+    ] },
+    // portico: colonne e frontone (gruppo: dal basso verso l'alto)
+    { group: [
+      ...[0.79, 0.92, 1.03, 1.16].map(u => ({ box: [u, 1.12, u + 0.05, 1.17], h: 13, col: white })),
+      { box: [0.76, 1.1, 1.24, 1.2], h: 3, z: 13, col: stone, roof: { rh: 3, back: '#cfc8b5', roof: '#e2dccd', gable: '#f1ece0' } },
+    ] },
+    // tamburo e cupola sopra il corpo centrale
+    { box: [0.83, 0.47, 1.17, 0.81], h: 5, z: 26, cyl: true, col: { l: '#f1ece0', r: '#d6cfbe', t: '#e2dccd' }, after(bx, top) {
+      const cu = (bx[0] + bx[2]) / 2, cv = (bx[1] + bx[3]) / 2, rad = (bx[2] - bx[0]) / 2;
+      const [x, y] = iso(ax, ay, cu, cv, top), rx = rad * TW * 0.7071, ry = rad * TH * 0.7071, hh = rx * 0.95;
+      c.fillStyle = copper.l; c.beginPath(); c.ellipse(x, y, rx, hh, 0, Math.PI, Math.PI * 1.5); c.lineTo(x, y + ry); c.ellipse(x, y, rx, ry, 0, Math.PI / 2, Math.PI); c.closePath(); c.fill();
+      c.fillStyle = copper.r; c.beginPath(); c.ellipse(x, y, rx, hh, 0, Math.PI * 1.5, Math.PI * 2); c.ellipse(x, y, rx, ry, 0, 0, Math.PI / 2); c.lineTo(x, y - hh); c.closePath(); c.fill();
+      if (DETAIL) {
+        c.strokeStyle = 'rgba(0,0,0,0.35)'; c.lineWidth = 0.4;
+        c.beginPath(); c.ellipse(x, y, rx, hh, 0, Math.PI, Math.PI * 2); c.ellipse(x, y, rx, ry, 0, 0, Math.PI); c.stroke();
+        for (const f of [-0.5, 0.5]) { c.beginPath(); c.ellipse(x, y, rx * Math.abs(f) * 1.0, hh, 0, f < 0 ? Math.PI : Math.PI * 1.5, f < 0 ? Math.PI * 1.5 : Math.PI * 2); c.stroke(); }
+        aline(c, [x - rx * 0.55, y - hh * 0.55], [x - rx * 0.2, y - hh * 0.85], '#ffffff', 0.5);
+      }
+      c.fillStyle = '#f1ece0'; c.fillRect(x - 1, y - hh - 2.6, 2, 2.6);         // lanterna
+      c.fillStyle = '#4f9a7a'; c.beginPath(); c.moveTo(x - 1.4, y - hh - 2.6); c.lineTo(x + 1.4, y - hh - 2.6); c.lineTo(x, y - hh - 4.6); c.closePath(); c.fill();
+    } },
+  ]);
 }

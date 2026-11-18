@@ -210,14 +210,20 @@ const MANUAL = [
     b.appendChild(mEl('div', 'man-tip', TR('Attenzione al traffico: ogni tanto succede un <b>incidente stradale</b>. I veicoli coinvolti restano fermi un po\' (si forma la coda) e paghi danni e soccorsi ({a}-{b} €). Più veicoli ci sono in giro, più è probabile.', { a: ACCIDENT.costMin, b: ACCIDENT.costMax })));
   } },
 
-  { id: 'city', title: 'Felicità, tasse e sicurezza', icon: 'townHall', build(b) {
-    b.appendChild(mEl('p', null, TR('Ogni casa ha una <b>felicità</b> da 0 a 100 (in alto vedi la media della città). Sale con acqua, corrente, lavoro, negozi vicini, polizia, municipio e bus; scende con i furti, le tasse alte e le fabbriche troppo vicine. Clicca una casa con la Mano per vedere cosa conta di più.')));
+  { id: 'city', title: 'Felicità, tasse, sicurezza e scuole', icon: 'townHall', build(b) {
+    b.appendChild(mEl('p', null, TR('Ogni casa ha una <b>felicità</b> da 0 a 100 (in alto vedi la media della città). Sale con acqua, corrente, lavoro, negozi vicini, polizia, municipio, bus e scuole; scende con i furti, le tasse alte e le fabbriche troppo vicine. Clicca una casa con la Mano per vedere cosa conta di più.')));
     b.appendChild(mEl('p', null, TR('Gente felice compra di più nei negozi. Quando la città ha almeno {n} abitanti, sotto il {a}% nessuno viene più ad abitare in quella casa e sotto il {b}% gli abitanti se ne vanno dalla città.', { n: HAPPY.grace, a: HAPPY.noArrive, b: HAPPY.leave })));
     b.appendChild(item('townHall'));
     b.appendChild(mEl('p', null, TR('Nel pannello del municipio regoli le <b>tasse sulle vendite</b> dal {a}% al {b}% (si parte dal {c}%). Più tasse = più soldi da ogni pezzo venduto, ma la gente è meno felice; tasse basse la rendono più contenta. Senza municipio le tasse restano al {c}%.', { a: Math.round(TAX.min * 100), b: Math.round(TAX.max * 100), c: Math.round(TAX_RATE * 100) })));
     b.appendChild(item('police'));
     b.appendChild(mEl('p', null, TR('Quando la città supera i {n} abitanti arrivano i <b>ladri</b>: rubano soldi e la gente delle case vicine si sente meno sicura per un po\'. La stazione di polizia protegge tutto entro {r} tile: i furti sono molto più rari e quando un ladro ci prova parte la volante e lo arresta.', { n: CRIME.minPop, r: POLICE.radius })));
     b.appendChild(mEl('div', 'man-tip', TR('Più la città è grande, più servono stazioni di polizia: una sola non copre tutte le case lontane.')));
+    b.appendChild(item('school'));
+    b.appendChild(item('highSchool'));
+    b.appendChild(item('university'));
+    b.appendChild(mEl('p', null, TR('Le <b>scuole</b> rendono più felici le famiglie che ci vanno: scuola elementare +{a}, scuola superiore +{b}, università +{c}. Una casa ci va se sta entro {ra}, {rb} o {rc} tile dalla scuola, oppure se è vicina a una fermata dello stesso bus. Ogni scuola ha dei posti (contati in abitanti, meno se mancano maestri o professori): le case più vicine entrano per prime.',
+      { a: SCHOOLS.school.happy, b: SCHOOLS.highSchool.happy, c: SCHOOLS.university.happy, ra: SCHOOLS.school.radius, rb: SCHOOLS.highSchool.radius, rc: SCHOOLS.university.radius })));
+    b.appendChild(mEl('div', 'man-tip', TR('Con una scuola in mano, o cliccandola con la Mano, vedi la zona da cui arrivano gli studenti. I ragazzi con lo zaino che camminano per strada stanno andando a scuola.')));
   } },
 
   { id: 'logistics', title: 'Magazzini e furgoni', icon: 'warehouse', build(b) {

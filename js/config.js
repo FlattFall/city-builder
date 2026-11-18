@@ -84,6 +84,10 @@ const BUILDINGS = {
   // municipio (uno solo: da qui si regolano le tasse) e stazione di polizia (contro i ladri): city.js
   townHall:   { name: 'Municipio', w: 2, h: 2, cost: 6000, height: 40, group: 'city', unique: true },
   police:     { name: 'Stazione di polizia', w: 2, h: 2, cost: 4000, height: 24, group: 'city' },
+  // scuole (richiesta dell'utente): le case vicine (o collegate con il bus) sono più felici; SCHOOLS in city.js
+  school:     { name: 'Scuola elementare', w: 2, h: 2, cost: 3000, height: 22, group: 'city' },
+  highSchool: { name: 'Scuola superiore', w: 2, h: 2, cost: 6000, height: 28, group: 'city' },
+  university: { name: 'Università', w: 2, h: 2, cost: 14000, height: 44, group: 'city' },
 };
 // Acqua: consumo per abitante e per attività; quanto dà una fonte con tutto il personale; quanto
 // porta via uno scarico. Senza acqua le case si riempiono solo a metà e le attività lavorano più piano.
@@ -362,7 +366,8 @@ const JOBS = { farm: 4, warehouse: 2, factory: 6, bakery: 2, supermarket: 3,
   livestock: 3, dairy: 5, slaughterhouse: 5,
   forestry: 3, sawmill: 4, furnitureFactory: 5, furnitureStore: 3, goodsWarehouse: 2,
   textileMill: 5, clothingFactory: 5, clothingStore: 3,
-  charcoalKiln: 2, coalPlant: 5, solarPlant: 1, windPlant: 1, oilWell: 2, port: 4, refinery: 6, gasStation: 2, waterWell: 1, waterPlant: 3, busDepot: 3, townHall: 4, police: 4 };
+  charcoalKiln: 2, coalPlant: 5, solarPlant: 1, windPlant: 1, oilWell: 2, port: 4, refinery: 6, gasStation: 2, waterWell: 1, waterPlant: 3, busDepot: 3, townHall: 4, police: 4,
+  school: 3, highSchool: 5, university: 8 };
 // la piattaforma petrolifera non prende lavoratori dalle case (il personale vive a bordo)
 const JOB_RADIUS = 12;
 function jobRadiusOf(kind) { return (BUILDINGS[kind] && BUILDINGS[kind].jobRadius) || JOB_RADIUS; }

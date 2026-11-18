@@ -39,6 +39,7 @@ function pedTarget(b) {
   if (b.kind === 'busStop') return 2;
   if (d.infra || d.water || POWER[b.kind] || b.kind === 'waterWell' || b.kind === 'sewage') return 0;
   if (SHOPS[b.kind]) return 4;          // ai negozi si va più volentieri
+  if (SCHOOLS[b.kind]) return 4;        // studenti che vanno a scuola (city.js)
   if (b.kind === 'house') return 1;
   return 2;                             // lavoro
 }
@@ -109,6 +110,7 @@ function pedPoints(walk) {
   P(to[0] + 0.5 - E.dx * 0.25, to[1] + 0.5 - E.dy * 0.25);                         // dentro la porta
   return pts;
 }
+const PED_PACKS = ['#e0453a', '#3f6fd9', '#f2c230', '#43a85a', '#a05ad9', '#ff8a3d'];
 function newPed(pts) {
   const pick = a => a[Math.floor(Math.random() * a.length)];
   return { kind: 'ped', pts, seg: 0, s: 0, speed: PEDS.speed * (0.85 + Math.random() * 0.3),
@@ -123,6 +125,7 @@ function spawnPed() {
   if (!walk) return;
   const p = newPed(pedPoints(walk));
   if (walk.dest.kind === 'busStop') p.stop = walk.dest.id;   // va a prendere il bus
+  if (SCHOOLS[walk.dest.kind] && o.b.kind === 'house') { p.pack = PED_PACKS[Math.floor(Math.random() * PED_PACKS.length)]; p.bag = false; }   // studente con lo zaino
   peds.push(p);
 }
 function pedsUpdate(dt) {
@@ -179,11 +182,14 @@ function drawPed(c, v) {
     c.beginPath(); c.moveTo(x0 + side * 0.85, y0 - 3.7); c.lineTo(x0 + side * 0.95 + sx * s * 0.7, y0 - 2.2 + sy * s * 0.35); c.stroke();
   };
   arm(-1, -sw);
+  const pack = () => { c.fillStyle = v.pack; c.fillRect(x0 - sx * 0.7 - 0.75, y0 - 4 - sy * 0.35, 1.5, 1.9); c.fillStyle = 'rgba(0,0,0,0.2)'; c.fillRect(x0 - sx * 0.7, y0 - 4 - sy * 0.35, 0.75, 1.9); };
+  if (v.pack && !back) pack();   // verso lo schermo: lo zaino è dietro il corpo
   c.fillStyle = v.shirt;
   c.beginPath(); c.moveTo(x0 - 0.85, y0 - 4.1); c.lineTo(x0 + 0.85, y0 - 4.1); c.lineTo(x0 + 0.75, y0 - 1.9); c.lineTo(x0 - 0.75, y0 - 1.9); c.closePath(); c.fill();
   c.fillStyle = 'rgba(0,0,0,0.18)'; c.fillRect(x0, y0 - 4.1, 0.85, 2.2);   // lato in ombra
   if (v.thief) { c.fillStyle = '#f2f2f2'; c.fillRect(x0 - 0.8, y0 - 3.5, 1.6, 0.4); c.fillRect(x0 - 0.78, y0 - 2.7, 1.56, 0.4); }   // ladro: maglia a righe (city.js)
   arm(1, sw);
+  if (v.pack && back) pack();    // di spalle: lo zaino si vede sopra la maglietta
   if (v.bag) { c.fillStyle = '#8a5a3a'; c.fillRect(x0 + 0.9 + sx * sw * 0.7 - 0.5, y0 - 2.4 + sy * sw * 0.35, 1, 1); }
   c.fillStyle = v.skin; c.beginPath(); c.arc(x0, y0 - 4.85, 0.75, 0, Math.PI * 2); c.fill();
   c.fillStyle = v.hair; c.beginPath();

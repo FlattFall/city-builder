@@ -866,6 +866,9 @@ function drawBuildingOn(c, x, y, b) {
   else if (b.kind === 'busDepot') drawBusDepot(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'townHall') drawTownHall(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'police') drawPolice(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'school') drawSchool(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'highSchool') drawHighSchool(c, b.ax, b.ay, base, b.rot || 0);
+  else if (b.kind === 'university') drawUniversity(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'livestock') drawLivestock(c, b.ax, b.ay, base, b.rot || 0, b.animal || 'cowFarm', b.level || 0);
   else if (b.kind === 'coalPlant') drawCoalPlant(c, b.ax, b.ay, base, b.rot || 0);
   else if (b.kind === 'solarPlant') drawSolarPlant(c, b.ax, b.ay, base, b.rot || 0);
@@ -1493,6 +1496,9 @@ function drawFrame() {
     // azienda forestale: la zona dove prende il legno (in mano o selezionata), in verde (richiesta dell'utente)
     const po = game.tool === 'police' && game.hover ? { ax: game.hover.x, ay: game.hover.y } : sel && sel.kind === 'police' ? sel : null;
     if (po) { const R = POLICE.radius; return { x0: po.ax - R, y0: po.ay - R, x1: po.ax + 1 + R, y1: po.ay + 1 + R, elec: true }; }
+    // scuole: la zona da cui arrivano gli studenti a piedi (city.js)
+    const sc = SCHOOLS[game.tool] && game.hover ? { kind: game.tool, ax: game.hover.x, ay: game.hover.y } : sel && SCHOOLS[sel.kind] ? sel : null;
+    if (sc) { const R = SCHOOLS[sc.kind].radius; return { x0: sc.ax - R, y0: sc.ay - R, x1: sc.ax + 1 + R, y1: sc.ay + 1 + R, elec: true }; }
     const fo = game.tool === 'forestry' && game.hover ? { ax: game.hover.x, ay: game.hover.y } : sel && sel.kind === 'forestry' ? sel : null;
     if (fo) { const R = FORESTRY.forestry.radius; return { x0: fo.ax - R, y0: fo.ay - R, x1: fo.ax + 1 + R, y1: fo.ay + 1 + R, forest: true }; }
     return null;

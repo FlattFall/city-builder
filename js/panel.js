@@ -493,6 +493,7 @@ function renderPanel() {
   }
   if (b.kind === 'townHall') townHallSection(box, b);
   if (b.kind === 'police') policeSection(box, b);
+  if (SCHOOLS[b.kind]) schoolSection(box, b);
 
   if (isWarehouse(b)) {
     prod.appendChild(goodsList(() => b.store, TR('Vuoto.')));

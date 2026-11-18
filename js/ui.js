@@ -46,6 +46,9 @@ const TOOL_INFO = {
   busStop: { label: 'Fermata del bus', cost: BUILDINGS.busStop.cost, desc: 'Accanto a una strada. Chi abita entro ' + BUS.walk + ' tile va col bus a lavorare nelle attività vicine a un\'altra fermata dello stesso deposito, anche lontane. Le attività servite lavorano il ' + Math.round(BUS.boost * 100) + '% più in fretta.' },
   townHall: { label: 'Municipio (2x2)', cost: BUILDINGS.townHall.cost, desc: 'Uno per città. Da qui regoli le tasse e vedi quanto è felice la gente. 4 impiegati.' },
   police: { label: 'Stazione di polizia (2x2)', cost: BUILDINGS.police.cost, desc: 'Protegge le case e i negozi entro 16 tile: meno furti, i ladri vengono arrestati e la gente è più felice. 4 agenti.' },
+  school: { label: 'Scuola elementare (2x2)', cost: BUILDINGS.school.cost, desc: 'I bambini delle case entro 10 tile (o vicine a una fermata dello stesso bus) vanno a scuola: famiglie più felici. 80 posti, 3 maestri.' },
+  highSchool: { label: 'Scuola superiore (2x2)', cost: BUILDINGS.highSchool.cost, desc: 'I ragazzi delle case entro 14 tile (o con il bus) studiano qui: famiglie più felici. 150 posti, 5 professori.' },
+  university: { label: 'Università (2x2)', cost: BUILDINGS.university.cost, desc: 'Gli studenti arrivano da tutte le case entro 24 tile (o con il bus): la città è più felice. 400 posti, 8 professori.' },
   busDepot: { label: 'Deposito dei bus (2x2)', cost: BUILDINGS.busDepot.cost, desc: 'Da qui partono i bus per tutte le fermate che raggiunge per strada. 3 autisti.' },
   demolish:  { label: 'Demolisci', desc: 'Toglie edifici, strade, ponti, tunnel, campi e alberi. Trascinando toglie solo cose dello stesso tipo del primo clic. Un edificio demolito ti ridà il 75% del costo.' },
   raise:     { label: 'Alza terreno', cost: COSTS.terrain, desc: 'Alza il terreno di un livello (solo dove non ci sono strade o edifici).' },
@@ -57,7 +60,7 @@ const TOOL_INFO = {
 const TOOL_GROUPS = [
   { key: '1', id: 'hand',     label: 'Mano',      tools: ['hand'] },
   { key: '2', id: 'paths',    label: 'Strade',    tools: ['road', 'oneway', 'highway', 'bridge', 'hwBridge', 'tunnel', 'dirt', 'rail'] },
-  { key: '3', id: 'homes',    label: 'Città',     tools: ['house', 'townHall', 'police', 'busStop', 'busDepot', 'waterWell', 'waterPlant', 'sewage', 'pipe'] },
+  { key: '3', id: 'homes',    label: 'Città',     tools: ['house', 'townHall', 'police', 'school', 'highSchool', 'university', 'busStop', 'busDepot', 'waterWell', 'waterPlant', 'sewage', 'pipe'] },
   { key: '4', id: 'industry', label: 'Agroalimentare', tools: ['farm', 'livestock',
     'warehouse', 'factory', 'dairy', 'slaughterhouse', 'bakery', 'supermarket'] },
   { key: '5', id: 'wood',     label: 'Legno',     tools: ['forestry', 'sawmill', 'furnitureFactory', 'furnitureStore', 'goodsWarehouse'] },
@@ -355,6 +358,9 @@ function buildIcons() {
   ICONS.busDepot = bigIcon(c => drawBusDepot(c, 0, 0, 0, 0), '#9a9a92');
   ICONS.townHall = bigIcon(c => drawTownHall(c, 0, 0, 0, 0), '#b8b4a8');
   ICONS.police = bigIcon(c => drawPolice(c, 0, 0, 0, 0), '#8f939a');
+  ICONS.school = bigIcon(c => drawSchool(c, 0, 0, 0, 0), '#e0b84a');
+  ICONS.highSchool = bigIcon(c => drawHighSchool(c, 0, 0, 0, 0), '#8fa3b8');
+  ICONS.university = bigIcon(c => drawUniversity(c, 0, 0, 0, 0), '#b5583e');
   ICONS.substation = tileIcon((c, P) => { diamond(c, P, COLORS[T.GRASS][0]); drawSubstation(c, 0, 0, 0, 0); }, 1.3);
   ICONS.solarPlant = bigIcon(c => drawSolarPlant(c, 0, 0, 0, 0), GROUND.solarPlant);
   ICONS.windPlant = makeIcon(c => {   // più piccola: le torri sono alte

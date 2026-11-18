@@ -13,7 +13,9 @@ function check(cond, msg) {
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   // i test sono scritti con i testi italiani: senza una lingua scelta il gioco partirebbe in spagnolo
-  await page.addInitScript(() => { try { if (!localStorage.getItem('citybuilder.lang')) localStorage.setItem('citybuilder.lang', 'it'); } catch (e) {} });
+  // solo al primo caricamento della scheda (window.name resta dopo i riavvii): subito dopo un riavvio la memoria a
+  // volte sembrava ancora vuota e questo rimetteva l'italiano sopra la lingua scelta (test della lingua instabile)
+  await page.addInitScript(() => { try { if (window.name !== 'lang-set') { window.name = 'lang-set'; if (!localStorage.getItem('citybuilder.lang')) localStorage.setItem('citybuilder.lang', 'it'); } } catch (e) {} });
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
@@ -1391,7 +1393,8 @@ function check(cond, msg) {
     return out;
   });
   await page.reload();
-  await page.waitForTimeout(300);
+  // aspetta che il gioco sia partito (con 300 ms fissi a volte non lo era ancora: il caricamento dura ~250 ms)
+  await page.waitForFunction(() => typeof LANG !== 'undefined' && LANG === 'es' && document.getElementById('m-new').textContent === 'Nuevo mapa', null, { timeout: 4000 }).catch(() => {});
   await page.evaluate(() => { localStorage.setItem('citybuilder.tutorial', 'off');   // il tutorial (tutorial.js) si prova a parte
     ACCIDENT.maxChance = 0; WATER.required = false; CRIME.minPop = 1e9; window.__oilAt = oilAt; window.__newGame = newGame; newGame = (...a) => { __newGame(...a); unlockAll(); }; });   // come all'inizio
   const kept = await page.evaluate(() => LANG === 'es' && document.getElementById('m-new').textContent === 'Nuevo mapa');
@@ -2004,6 +2007,44 @@ function check(cond, msg) {
   check(ct.thefts && ct.happyLow, 'ladri: senza polizia rubano soldi e la felicità scende: ' + JSON.stringify(ct));
   check(ct.th1 && !ct.th2 && ct.tax, 'municipio: uno solo, tasse basse = gente più felice, tasse salvate: ' + JSON.stringify(ct));
   check(ct.police && ct.caught, 'polizia: la volante arresta i ladri: ' + JSON.stringify(ct));
+
+  // 67. scuole: le case vicine ci vanno e sono più felici, i posti finiscono, senza maestri niente scuola, sblocchi
+  const sc = await page.evaluate(() => {
+    newGame(128, 4243); game.money = 1e6; ACCIDENT.maxChance = 0; WATER.required = false;
+    const x = 40, y = 60, r = {};
+    for (let dy = -8; dy < 10; dy++) for (let dx = -4; dx < 60; dx++) Object.assign(game.map[y + dy][x + dx], { type: T.GRASS, elev: 2, path: null, building: null, field: null, main: false, bridge: null });
+    for (let dx = -3; dx < 58; dx++) useTool('road', x + dx, y);
+    for (let i = 0; i < 30; i++) useTool('house', x + i, y - 1);
+    for (const b of game.buildings.values()) if (b.kind === 'house') b.residents = 4;
+    game.population = 30;   // sotto HAPPY.grace: nessuno se ne va (qui niente corrente e negozi), i conti restano fermi
+    updateHappiness();
+    const near = game.map[y - 1][x + 2].building, far = game.map[y - 1][x + 28].building;
+    r.before = !near.happyWhy.school;
+    game.rotation = 0;
+    r.placed = useTool('school', x, y + 1).ok && useTool('highSchool', x + 30, y + 1).ok && useTool('university', x + 20, y + 1).ok;
+    const S = kind => [...game.buildings.values()].find(b => b.kind === kind);
+    const s = S('school'), hs = S('highSchool'), u = S('university');
+    s.workers = 0; hs.workers = 0; u.workers = 0;
+    updateHappiness();
+    r.noTeachers = !near.happyWhy.school && s.pupils === 0;
+    s.workers = JOBS.school; hs.workers = JOBS.highSchool; u.workers = JOBS.university;
+    updateHappiness();
+    r.near = near.happyWhy.school === SCHOOLS.school.happy && near.edu.school === s.id;
+    r.far = !far.happyWhy.school;                               // oltre 10 tile: niente scuola elementare
+    r.seats = s.pupils === 48;                                  // entro 10 tile: 12 case da 4 abitanti
+    s.workers = 1; updateHappiness();                           // 1 maestro su 3: un terzo dei posti
+    r.full = s.pupils <= schoolSeats(s) && s.homes === Math.floor(schoolSeats(s) / 4) && near.happyWhy.school === SCHOOLS.school.happy;
+    r.uni = near.happyWhy.university === SCHOOLS.university.happy && far.happyWhy.highSchool === SCHOOLS.highSchool.happy;
+    r.panel = (() => { openBuildingPanel(s); const t = document.getElementById('panel').textContent; closePanel(); return /Posti: 24 \/ 26/.test(t); })();
+    // mappa nuova vera: elementare da subito, superiore e università da sbloccare
+    __newGame(9, 128);
+    r.locks = !toolLocked('school') && toolLocked('highSchool') && toolLocked('university');
+    newGame(9, 128);
+    return r;
+  });
+  check(sc.before && sc.placed && sc.noTeachers && sc.near && sc.far && sc.uni, 'scuole: le case vicine ci vanno e sono più felici, senza maestri no: ' + JSON.stringify(sc));
+  check(sc.seats && sc.full && sc.panel, 'scuole: i posti finiscono e il pannello li mostra: ' + JSON.stringify(sc));
+  check(sc.locks, 'scuole: elementare da subito, superiore e università da sbloccare: ' + JSON.stringify(sc));
 
   check(errors.length === 0, 'nessun errore in console' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();
